@@ -161,11 +161,13 @@ For traders there are six more:
 
 All but the digest and filled orders come together in one e-mail, at most one a real day, and each item says what to try next. Nothing from before you turned a notice on is told. Every e-mail has a link that turns them all off at once.
 
+**Logging in.** Give your account's name or its e-mail address, and your password.
+
 **Forgot your password?** Press **Forgot your password?** on the Log in page and give your account's name or e-mail address. If the address is verified, we e-mail it a link to choose a new password. The link works once, for an hour. Setting the new password logs the account out everywhere else and cancels its API token (make a new one on the account page if a program uses it). An account whose address was never verified can't get a link. In a class, ask your teacher for a new password.
 
 **In a class?** Your teacher has made your account and has your name and password. You have no e-mail address to verify, and your starting credits are there at once (see [Class groups](#class-groups)).
 
-**From a program.** Everything on the account page works through the [API](api.md) too, with a **token** sent as `Authorization: Bearer` and the token. `POST /api/v1/accounts` with `name`, `email` and `password` makes an account and returns a token; `POST /api/v1/login` with `name` and `password` returns a new one; the account page's **Make a new API token** does the same. A new token replaces the old one.
+**From a program.** Everything on the account page works through the [API](api.md) too, with a **token** sent as `Authorization: Bearer` and the token. `POST /api/v1/accounts` with `name`, `email` and `password` makes an account and returns a token; `POST /api/v1/login` with `name` (or the e-mail address) and `password` returns a new one; the account page's **Make a new API token** does the same. A new token replaces the old one.
 
 **No account?** Make one first: it is free, and every startup belongs to a player. (Guests could found startups until November 2026; one of those still running can be claimed with its **claim code** on your account page, or `POST /api/v1/startups/claim`.)
 

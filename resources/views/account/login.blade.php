@@ -10,8 +10,8 @@
             <form method="POST" action="{{ url('login') }}" class="mt-3" style="max-width: 28rem">
                 {{ csrf_field() }}
                 <div class="form-group">
-                    <label for="name">Name</label>
-                    <input class="form-control" id="name" name="name" type="text" maxlength="64" value="{{ old('name') }}"
+                    <label for="name">Name or e-mail address</label>
+                    <input class="form-control" id="name" name="name" type="text" maxlength="255" value="{{ old('name') }}"
                            autocomplete="username" required>
                 </div>
                 <div class="form-group">

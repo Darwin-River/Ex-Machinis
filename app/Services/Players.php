@@ -112,10 +112,16 @@ class Players
         return User::where('user_id', $id)->firstOrFail();
     }
 
-    /** The account with this name and password, or null */
+    /**
+     * The account with this name, or this e-mail address (#913: a name has no
+     * "@"), and this password, or null
+     */
     public static function authenticate(string $name, string $password): ?User
     {
-        $user = User::where('login', trim($name))->first();
+        $given = trim($name);
+        $user = str_contains($given, '@')
+            ? User::where('email', self::normalEmail($given))->whereNotNull('login')->first()
+            : User::where('login', $given)->first();
         return $user && Hash::check($password, (string) $user->password) ? $user : null;
     }
 
