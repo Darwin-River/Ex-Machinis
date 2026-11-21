@@ -50,6 +50,12 @@ x-engine-env: &engine-env
   # EVENTS_IN_ENGINE=1 (else it logs a NOTICE and stays off). 0 (the
   # default): as before. To roll back: 0, then up -d
   EVENT_HEAP: ${EVENT_HEAP:-0}
+  # Drone wakes from memory (#694 stage 4 step 4): 1 makes each game engine
+  # keep its drones' commands in memory and take the next to run from there,
+  # instead of asking MySQL for every due command each second (the "next
+  # command" queries). Needs nothing else on. 0 (the default): as before.
+  # To roll back: 0, then up -d
+  WAKE_HEAP: ${WAKE_HEAP:-0}
   # No email (#367 step 5): drones' replies go to drone_messages, which the
   # website shows
   EMAIL_ENABLED: "0"

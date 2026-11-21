@@ -13,6 +13,7 @@
 #include "game_time.h"
 #include "trace.h"
 #include "vm_meter.h"
+#include "wake_heap.h"
 
 /* Runs one statement built from fmt */
 static ErrorCode_t db_launch_query(DbConnection_t* connection, const char* fmt, ...)
@@ -179,10 +180,16 @@ ErrorCode_t db_record_crash(DbConnection_t* connection, int agent_id, int code, 
 
 ErrorCode_t db_queue_launched(DbConnection_t* connection, int agent_id, long long deliver_at)
 {
-    return db_launch_query(connection,
+    ErrorCode_t result = db_launch_query(connection,
         "INSERT INTO commands (code, agent_id, created_at, updated_at, subject, email_content, deliver_at) "
         "VALUES ('%s', %d, NOW(), NOW(), 'Restart', '', %lld)",
         META_COMMAND_LAUNCHED, agent_id, deliver_at);
+    // WAKE_HEAP (#694 stage 4 step 4): in memory once this commits (its
+    // drone's tier is found when it is first checked)
+    if(result == ENGINE_OK)
+        wake_heap_stage_put(connection, (int)mysql_insert_id(connection->hndl), agent_id, deliver_at,
+                            WAKE_UNKNOWN_DRONE);
+    return result;
 }
 
 ErrorCode_t db_clear_crashes_in_row(DbConnection_t* connection, int agent_id)

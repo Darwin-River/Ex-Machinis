@@ -548,6 +548,19 @@ if [ "${EVENTS_IN_ENGINE:-0}" = 1 ]; then
     fi
 fi
 
+# Drone wakes from memory (WAKE_HEAP=1, #694 stage 4 step 4): the commands
+# loaded, and every turn above was taken from them
+if [ "${WAKE_HEAP:-0}" = 1 ]; then
+    # (the log read first, then searched: see above)
+    GE_LOG=$(docker compose logs game-engine)
+    grep -q "WAKE_HEAP=1: drone wakes come from memory" <<<"$GE_LOG" ||
+        fail "WAKE_HEAP=1 but the game engine didn't load its drones' commands"
+    if grep -q "ERROR: Query \[SELECT c.id, c.agent_id, c.deliver_at" <<<"$GE_LOG"; then
+        fail "reading the drones' commands from MySQL failed"
+    fi
+    echo "ok: drone wakes come from memory"
+fi
+
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 if ! wait_quietly 90 plundered; then

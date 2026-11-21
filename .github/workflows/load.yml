@@ -9,7 +9,8 @@ name: Load test
 # - nightly, and by hand: the round mix (pass marks), once as before and once
 #   with settlement in the game engine (EVENTS_IN_ENGINE=1, #694 stage 4),
 #   once more with due events from memory as well (EVENT_HEAP=1, step 3),
-#   and 1,000 ships (recorded)
+#   once with drone wakes from memory (WAKE_HEAP=1, step 4), and 1,000
+#   ships (recorded)
 # - on pull requests that change the engines or the game-data queries: the
 #   round mix, briefly. Not a required check: a slow runner can miss a mark.
 
@@ -47,6 +48,7 @@ jobs:
             marks: --min-turns=1000 --max-lag=10 --min-scale=1500
             events_in_engine: '0'
             event_heap: '0'
+            wake_heap: '0'
           # The same with settlement inside the game engine (#694 stage 4
           # step 2, EVENTS_IN_ENGINE=1): the same marks
           - name: round-events-in-engine
@@ -54,6 +56,7 @@ jobs:
             marks: --min-turns=1000 --max-lag=10 --min-scale=1500
             events_in_engine: '1'
             event_heap: '0'
+            wake_heap: '0'
           # And with due events from a heap in memory (#694 stage 4 step 3,
           # EVENT_HEAP=1, which needs EVENTS_IN_ENGINE=1): the same marks
           - name: round-event-heap
@@ -61,12 +64,22 @@ jobs:
             marks: --min-turns=1000 --max-lag=10 --min-scale=1500
             events_in_engine: '1'
             event_heap: '1'
+            wake_heap: '0'
+          # With drone wakes from memory (#694 stage 4 step 4, WAKE_HEAP=1,
+          # which needs nothing else on): the same marks
+          - name: round-wake-heap
+            extra: 0
+            marks: --min-turns=1000 --max-lag=10 --min-scale=1500
+            events_in_engine: '0'
+            event_heap: '0'
+            wake_heap: '1'
           # 1,000 ships: recorded, no marks yet (#428 raises them)
           - name: ships-1000
             extra: 895
             marks: ''
             events_in_engine: '0'
             event_heap: '0'
+            wake_heap: '0'
 
     services:
       mysql:
@@ -95,6 +108,8 @@ jobs:
       EVENTS_IN_ENGINE: ${{ matrix.events_in_engine }}
       # Due events from memory (step 3); load-world.sh passes it on
       EVENT_HEAP: ${{ matrix.event_heap }}
+      # Drone wakes from memory (step 4); load-world.sh passes it on
+      WAKE_HEAP: ${{ matrix.wake_heap }}
 
     steps:
       - uses: actions/checkout@v5

@@ -100,17 +100,24 @@ jobs:
     runs-on: ubuntu-latest
     # With settlement in the events engine (as live), in the game engine
     # (EVENTS_IN_ENGINE=1, #694 stage 4) and there with due events from a
-    # heap in memory (EVENT_HEAP=1, step 3)
+    # heap in memory (EVENT_HEAP=1, step 3); and with drone wakes from
+    # memory (WAKE_HEAP=1, step 4) on top of both
     strategy:
       fail-fast: false
       matrix:
         include:
           - events_in_engine: '0'
             event_heap: '0'
+            wake_heap: '0'
           - events_in_engine: '1'
             event_heap: '0'
+            wake_heap: '0'
           - events_in_engine: '1'
             event_heap: '1'
+            wake_heap: '0'
+          - events_in_engine: '1'
+            event_heap: '1'
+            wake_heap: '1'
     steps:
       - uses: actions/checkout@v5
 
@@ -122,6 +129,7 @@ jobs:
           FORGE_NEW_RULES: "false"
           EVENTS_IN_ENGINE: ${{ matrix.events_in_engine }}
           EVENT_HEAP: ${{ matrix.event_heap }}
+          WAKE_HEAP: ${{ matrix.wake_heap }}
         run: deploy/smoke-test.sh
 
       - name: Logs on failure
