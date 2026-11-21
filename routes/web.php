@@ -109,6 +109,13 @@ Route::middleware('new-rules')->group(function () {
     Route::get('/login', 'AccountController@showLogin')->name('login');
     Route::post('/login', 'AccountController@login')->middleware('throttle:20,1');
     Route::post('/logout', 'AccountController@logout');
+    // A forgotten password (#910): a link to the verified address, good for an hour, once
+    Route::get('/password/forgot', 'AccountController@showForgot');
+    Route::post('/password/forgot', 'AccountController@forgot')->middleware('throttle:20,1');
+    Route::get('/password/reset/{id}/{hash}', 'AccountController@showReset')->whereNumber('id')
+        ->middleware('signed:relative')->name('password.reset');
+    Route::post('/password/reset/{id}/{hash}', 'AccountController@reset')->whereNumber('id')
+        ->middleware(['signed:relative', 'throttle:20,1']);
     Route::get('/account', 'AccountController@show');
     Route::post('/account/token', 'AccountController@token');
     Route::get('/account/verify/{id}/{hash}', 'AccountController@verify')->whereNumber('id')
