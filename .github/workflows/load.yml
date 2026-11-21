@@ -32,6 +32,7 @@ on:
       - 'app/Services/HouseMarket.php'
       - 'app/Console/Commands/ForgeLoadTest.php'
       - 'game-engine/tools/load-world.sh'
+      - 'game-engine/tools/release-order-check.sh'
       - '.github/workflows/load.yml'
 
 jobs:
@@ -141,6 +142,10 @@ jobs:
         if: github.event_name != 'pull_request' || startsWith(matrix.name, 'round')
         run: |
           game-engine/tools/load-world.sh start "$WORLD" "$RUNNER_TEMP/world"
+          # A release loads its script before launched() runs, however its
+          # transaction interleaves with the engine's (WAKE_HEAP=1 once ran
+          # <launched> first)
+          game-engine/tools/release-order-check.sh "$WORLD"
           php artisan forge:load-test 60 --starters=miner,miner,refiner,trader,maker \
             --designs=chemist:12,smith:9,machinist:6,adaptive:6,systems:6,electronics:3,foundry:3 --database="$WORLD"
           EXTRA="${{ matrix.extra }}"

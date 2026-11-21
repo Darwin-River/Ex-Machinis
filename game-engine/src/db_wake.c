@@ -28,9 +28,10 @@
     drone, deleted commands, delayed resumes) are staged and applied when
     their transaction commits (wake_heap_stage_*);
   - before each batch, the ids past the highest seen (the website's
-    releases, pushes and mail, other shards' and other programs' inserts);
-    once a real second, the ids that read skipped (not committed yet), for
-    10 real seconds, and the ids of the last 10-20 real seconds again;
+    releases, pushes and mail, other shards' and other programs' inserts),
+    then the ids that read skipped (not committed yet), for 10 real seconds:
+    a drone's commands come in id order, as the queries saw them; once a
+    real second, the ids of the last 10-20 real seconds again;
   - the commands without a delivery time yet are looked up before each
     batch until the stamping (shard 0) has timed them;
   - every five real minutes, the start's read again: a WARNING says how
@@ -543,18 +544,26 @@ ErrorCode_t db_wake_fill(DbConnection_t* connection, long long now, int* ids, in
         wake_reconciled_at = ms;
     }
     // What others wrote. Each batch, as the queries saw it: the ids past
-    // the highest seen (a primary-key range, usually empty) and the untimed
+    // the highest seen (a primary-key range, usually empty), then the ids
+    // that read skipped (not committed yet: usually none) and the untimed
     // commands (another shard's stamping times them); once a real second,
-    // the ids skipped and the sweep
+    // the sweep. The skipped ids are read every batch, after the range: a
+    // release's pieces and its <launched> commit together, but a turn's
+    // resume can take an id between them, so the range read finds
+    // <launched> at once while the pieces are skipped ids. Read only once a
+    // second, they came up to a second later, and <launched> ran first, on
+    // a script not yet loaded: launched() never ran (CI's docker smoke
+    // test with WAKE_HEAP=1, "the drone to be pushed runs its first code")
     static long long read_at = 0;
     if(result == ENGINE_OK)
         result = wake_read_new(connection);
     if(result == ENGINE_OK)
+        result = wake_read_gaps(connection, ms);
+    if(result == ENGINE_OK)
         result = wake_read_unstamped(connection);
     if(result == ENGINE_OK && ms - read_at >= WAKE_READ_MS) {
         read_at = ms;
-        result = wake_read_gaps(connection, ms);
-        if(result == ENGINE_OK && ms - wake_swept_at >= WAKE_SWEEP_MS)
+        if(ms - wake_swept_at >= WAKE_SWEEP_MS)
             result = wake_sweep(connection, ms);
     }
     if(result != ENGINE_OK)
