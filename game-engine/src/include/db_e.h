@@ -33,4 +33,9 @@ void ee_db_scape_string(
 ErrorCode_t ee_db_abort_action(int action_id);
 char* ee_db_int2str(int value, char* buffer, size_t size);
 
+/* EVENT_HEAP=1 (#694 stage 4 step 3): after a batch's transaction has
+   committed (1) or rolled back (0), the events it took from the heap that
+   are still pending go back in (all of them after a rollback) */
+void db_event_heap_batch_done(int committed);
+
 #endif // __EM_DB_E_MODULE__

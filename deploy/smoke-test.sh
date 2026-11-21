@@ -534,6 +534,18 @@ if [ "${EVENTS_IN_ENGINE:-0}" = 1 ]; then
     grep -q '\[events\] ' <<<"$(docker compose logs game-engine)" ||
         fail "no settlement lines in the game engine's log"
     echo "ok: settlement runs in the game engine, and the events engine rests"
+    # Due events from memory (EVENT_HEAP=1, #694 stage 4 step 3): the heap
+    # loaded, and settled everything above
+    if [ "${EVENT_HEAP:-0}" = 1 ]; then
+        # (the log read first, then searched: see above)
+        GE_LOG=$(docker compose logs game-engine)
+        grep -q "EVENT_HEAP=1: due events come from memory" <<<"$GE_LOG" ||
+            fail "EVENT_HEAP=1 but the game engine didn't load its heap of due events"
+        if grep -q "ERROR: Query \[SELECT \* FROM events as e where id IN" <<<"$GE_LOG"; then
+            fail "reading the heap's due events from MySQL failed"
+        fi
+        echo "ok: settlement takes due events from the heap"
+    fi
 fi
 
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
