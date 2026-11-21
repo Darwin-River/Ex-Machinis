@@ -35,12 +35,12 @@ class AccountApiController extends Controller
         return response()->json(['token' => Players::issueToken($user), 'verification_sent' => $sent] + Players::summary($user), 201);
     }
 
-    /** POST /api/v1/login {name, password}: a new token (the old one stops working) */
+    /** POST /api/v1/login {name, password}: a new token (the old one stops working); name may be the e-mail address (#913) */
     public function login(Request $request): JsonResponse
     {
         $user = Players::authenticate((string) $request->input('name', ''), (string) $request->input('password', ''));
         if (!$user) {
-            return response()->json(['error' => 'That name and password don\'t match an account.'], 401);
+            return response()->json(['error' => 'That name or e-mail address and password don\'t match an account.'], 401);
         }
         return response()->json(['token' => Players::issueToken($user)] + Players::summary($user));
     }

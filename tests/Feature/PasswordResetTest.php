@@ -152,4 +152,20 @@ class PasswordResetTest extends TestCase
         $this->post('/password/forgot', ['account' => $group['accounts'][0]['name']]);
         Mail::assertNothingSent();
     }
+
+    /** #913: the e-mail address logs in too, in any case, on the website and the API */
+    public function testLogInWithTheEmailAddress()
+    {
+        $this->player('ByAddress');
+        $this->post('/login', ['name' => ' ByAddress@Example.com ', 'password' => 'old-password'])->assertRedirect('/account');
+        $this->assertAuthenticated();
+        $this->post('/logout');
+        $this->post('/login', ['name' => 'byaddress@example.com', 'password' => 'wrong-one'])
+            ->assertSessionHasErrors('name');
+        $this->assertGuest();
+        $this->postJson('/api/v1/login', ['name' => 'byaddress@example.com', 'password' => 'old-password'])
+            ->assertOk()->assertJsonStructure(['token']);
+        $this->postJson('/api/v1/login', ['name' => 'nobody@example.com', 'password' => 'old-password'])->assertStatus(401);
+        $this->get('/login')->assertSee('Name or e-mail address');
+    }
 }

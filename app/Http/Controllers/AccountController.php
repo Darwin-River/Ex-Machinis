@@ -47,10 +47,10 @@ class AccountController extends Controller
 
     public function login(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:64', 'password' => 'required|string|max:200']);
+        $request->validate(['name' => 'required|string|max:255', 'password' => 'required|string|max:200']);
         $user = Players::authenticate((string) $request->input('name'), (string) $request->input('password'));
         if (!$user) {
-            return back()->withErrors(['name' => 'That name and password don\'t match an account.'])->withInput($request->only('name'));
+            return back()->withErrors(['name' => 'That name or e-mail address and password don\'t match an account.'])->withInput($request->only('name'));
         }
         Auth::login($user);
         $request->session()->regenerate();
