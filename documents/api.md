@@ -233,7 +233,7 @@ Use this to see what a drone is doing. It gives what the drone's page shows:
 
 ### `GET /drones/{id}/timeline`: all its actions, a page at a time
 
-A drone's actions, newest first, like `timeline` above but as far back as you like (#494): `?limit=` (up to 100, 50 if left out) and `?before=` (an action ID: the actions before it). `next_before` is the `before` for the next page, or null at the start.
+A drone's actions, newest first, like `timeline` above but as far back as they are kept (#494; a finished action is deleted once its last event is 30 game days old, `house_rules.actions_keep_days`, #944): `?limit=` (up to 100, 50 if left out) and `?before=` (an action ID: the actions before it). `next_before` is the `before` for the next page, or null at the start.
 
 ```sh
 curl -s "$B/drones/142/timeline?limit=100"

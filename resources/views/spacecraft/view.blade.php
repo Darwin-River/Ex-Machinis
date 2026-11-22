@@ -93,6 +93,11 @@
                             <tr @if($row['failed'] ?? false) class="failed-action" style="background: rgba(227,179,65,0.18); font-weight: 600" @endif>
                                 <td>{{ $row['when'] }}</td><td>{{ $row['what'] }}</td><td>{{ $row['result'] }}</td><td>{{ $row['fuel'] }}</td></tr>
                         @endforeach
+                        @if(!$postMortem['timeline'])
+                            {{-- Finished actions are deleted after house_rules.actions_keep_days game days (#944) --}}
+                            <tr id="post-mortem-cleared"><td colspan="4">Its actions are no longer kept: finished actions are cleared
+                                {{ \App\Services\ActionsPrune::keepDays() ?: 30 }} game days after they end.</td></tr>
+                        @endif
                     </table>
                 </div>
                 @php($wreckDeals = \App\Services\DronePage::deals((int) $agent->agent_id))

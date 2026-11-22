@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Schema;
  * Instead, a table holding far more free space than rows is rebuilt to hand
  * it back (`rebuildIfDue`, on the keeper once a real day while it is small
  * enough to rebuild in a moment; `php artisan forge:history-rebuild`
- * otherwise).
+ * otherwise; `actions` too, once ActionsPrune, #944, has cleared its backlog).
  * Pruning only events_archive leaves the game as it was: the engines and
  * drones' queries (803, 804) read events alone.
  */
@@ -41,8 +41,11 @@ class HistoryBudget
     /** Above this disk use the prune works harder (and the clock API warns) */
     public const URGENT_PERCENT = 80;
 
-    /** The history tables */
-    public const TABLES = ['events', 'events_archive', 'observations'];
+    /**
+     * The history tables, and `actions`, which ActionsPrune (#944) works
+     * down from 44 million rows: once it has, a rebuild hands its space back
+     */
+    public const TABLES = ['events', 'events_archive', 'observations', 'actions'];
 
     /** Those whose free space counts as room: they grow, and only their own rows can use it (#827) */
     public const GROWING = ['events_archive', 'observations'];

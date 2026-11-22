@@ -764,17 +764,6 @@ ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int s
 *******************************************************************************/
 ErrorCode_t db_delete_action(int action_id);
 
-/** ****************************************************************************
-
-    @brief          Purges old actions present at DB (older than configurable days value)
-                    Those actions that have no event associated
-
-    @param[in]      void
-
-    @return         Execution result
-
-*******************************************************************************/
-ErrorCode_t db_purge_old_actions();
 /* Frees tools left locked by aborted actions (#748); the number freed, or -1 */
 int db_free_stuck_tools(void);
 // Tools in use (#814): locks in force on a holding, and the lock and unlock events
