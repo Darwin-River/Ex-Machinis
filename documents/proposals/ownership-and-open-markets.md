@@ -196,6 +196,8 @@ Each part is timed in a playtest round on #380 against round 73's measures: time
 
 A panel of prospective players reviewed this proposal before any of it was built. Their feedback, and the fixes it suggests for the project lead to decide on, is in a comment on #921.
 
+In a second round the same panel read [Answers to the panel](#answers-to-the-panel-proposed). Every overall rating rose to 8 (from 7 to 7.5), and clarity rose most. They found new problems the answers caused, chiefly line 3's "anyone adding credits", which reads as if a stranger could force an IPO: only shareholders may add credits. The round's results and the fixes it suggests are in a second comment on #921.
+
 ## Answers to the panel (proposed)
 
 The aim is to answer each finding without adding a rule a player has to learn. Each answer does one of these:
