@@ -63,6 +63,7 @@
 
 static int wake_loaded = 0;
 static int wake_max_id = 0;
+#define WAKE_START_LOOKBACK 4096
 static int wake_wm_prev = 0, wake_wm_lag = 0;
 static long long wake_wm_at = 0, wake_swept_at = 0, wake_reconciled_at = 0, wake_reported_at = 0;
 static unsigned int wake_fill_no = 0;
@@ -206,7 +207,9 @@ static ErrorCode_t wake_load_all(DbConnection_t* connection, const char* why)
     if(!wake_loaded) {
         wake_loaded = 1;
         if(top > wake_max_id) wake_max_id = top;
-        wake_wm_prev = wake_wm_lag = wake_max_id;
+        // The sweep looks a little below the top id, for rows whose
+        // transactions were still open while this read ran (#917)
+        wake_wm_prev = wake_wm_lag = wake_max_id > WAKE_START_LOOKBACK ? wake_max_id - WAKE_START_LOOKBACK : 0;
         wake_wm_at = wake_swept_at = wake_reconciled_at = wake_reported_at = wake_ms();
         engine_trace(TRACE_LEVEL_ALWAYS,
             "NOTICE: WAKE_HEAP=1: drone wakes come from memory: [%d] commands loaded in [%lld] ms (top id [%d])",
