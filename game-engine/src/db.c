@@ -18,6 +18,7 @@
 #include "event_heap.h"
 #include "wake_heap.h"
 #include "db_state.h"
+#include "event_ids.h"
 #include "db_e.h"
 #include "ee_embed.h"
 #include "static_cache.h"
@@ -2790,6 +2791,13 @@ ErrorCode_t db_insert_event(Event_t* event)
             return ENGINE_INTERNAL_ERROR;
     }
 
+    // ENGINE_OWNS_EVENTS (#694 stage 4 step 6): an id protocol_flush_events
+    // reserved (event_id > 0) goes in explicitly; 0 leaves it to
+    // AUTO_INCREMENT and the statement is as before
+    int owned_id = event->event_id > 0 ? event->event_id : 0;
+    char id_column[8], id_value[24];
+    event_ids_explicit(owned_id, id_column, sizeof(id_column), id_value, sizeof(id_value));
+
     // When it happens, in game time: the heap needs the same value (EVENT_HEAP)
     long long game_t = game_time_now_seconds() + event->delay;
 
@@ -2798,13 +2806,15 @@ ErrorCode_t db_insert_event(Event_t* event)
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
         "INSERT INTO events "
-        "(timestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "(%stimestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(%sCAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        id_column, // ENGINE_OWNS_EVENTS: "id, " for a reserved id, else nothing (as before)
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
+        id_value,
         game_time_to_real(event->delay), // delay is game seconds; real time for the website
         game_t, // when it happens, in game time
         event->event_type,
@@ -2839,13 +2849,15 @@ ErrorCode_t db_insert_event(Event_t* event)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
         result = ENGINE_DB_QUERY_ERROR;
+        db_event_ids_inserted(connection, owned_id, event->drone_id, owned_id > 0, mysql_errno(connection->hndl));
     }
     else
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
 
-        // Get auto-increment ID
-        event->event_id = mysql_insert_id(connection->hndl);
+        // Get auto-increment ID (or the one reserved)
+        event->event_id = owned_id > 0 ? owned_id : (int)mysql_insert_id(connection->hndl);
+        db_event_ids_inserted(connection, event->event_id, event->drone_id, owned_id > 0, 0);
 
         // EVENT_HEAP (#694 stage 4 step 3): a pending event goes into the
         // heap when this connection commits

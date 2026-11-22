@@ -10,7 +10,8 @@ name: Load test
 #   with settlement in the game engine (EVENTS_IN_ENGINE=1, #694 stage 4),
 #   once more with due events from memory as well (EVENT_HEAP=1, step 3),
 #   once with drone wakes from memory (WAKE_HEAP=1, step 4), once with
-#   holdings and units() from memory (MEMORY_STATE=1, step 5), and 1,000
+#   holdings and units() from memory (MEMORY_STATE=1, step 5), once with
+#   the engine's own event ids (ENGINE_OWNS_EVENTS=1, step 6), and 1,000
 #   ships (recorded), with MEMORY_STATE off and on
 # - on pull requests that change the engines or the game-data queries: the
 #   round mix, briefly. Not a required check: a slow runner can miss a mark.
@@ -52,6 +53,7 @@ jobs:
             event_heap: '0'
             wake_heap: '0'
             memory_state: '0'
+            owns_events: '0'
           # The same with settlement inside the game engine (#694 stage 4
           # step 2, EVENTS_IN_ENGINE=1): the same marks
           - name: round-events-in-engine
@@ -61,6 +63,7 @@ jobs:
             event_heap: '0'
             wake_heap: '0'
             memory_state: '0'
+            owns_events: '0'
           # And with due events from a heap in memory (#694 stage 4 step 3,
           # EVENT_HEAP=1, which needs EVENTS_IN_ENGINE=1): the same marks
           - name: round-event-heap
@@ -70,6 +73,7 @@ jobs:
             event_heap: '1'
             wake_heap: '0'
             memory_state: '0'
+            owns_events: '0'
           # With drone wakes from memory (#694 stage 4 step 4, WAKE_HEAP=1,
           # which needs nothing else on): the same marks
           - name: round-wake-heap
@@ -79,6 +83,7 @@ jobs:
             event_heap: '0'
             wake_heap: '1'
             memory_state: '0'
+            owns_events: '0'
           # With holdings and units() from memory (#694 stage 4 step 5,
           # MEMORY_STATE=1, which needs nothing else on): the same marks
           - name: round-memory-state
@@ -88,6 +93,17 @@ jobs:
             event_heap: '0'
             wake_heap: '0'
             memory_state: '1'
+            owns_events: '0'
+          # With the engine's own event ids (#694 stage 4 step 6,
+          # ENGINE_OWNS_EVENTS=1, which needs nothing else on): the same marks
+          - name: round-owns-events
+            extra: 0
+            marks: --min-turns=1000 --max-lag=10 --min-scale=1500
+            events_in_engine: '0'
+            event_heap: '0'
+            wake_heap: '0'
+            memory_state: '0'
+            owns_events: '1'
           # 1,000 ships: recorded, no marks yet (#428 raises them)
           - name: ships-1000
             extra: 895
@@ -96,6 +112,7 @@ jobs:
             event_heap: '0'
             wake_heap: '0'
             memory_state: '0'
+            owns_events: '0'
           # The same with MEMORY_STATE=1 (#694 stage 4 step 5), to measure
           # its gain
           - name: ships-1000-memory-state
@@ -105,6 +122,7 @@ jobs:
             event_heap: '0'
             wake_heap: '0'
             memory_state: '1'
+            owns_events: '0'
 
     services:
       mysql:
@@ -137,6 +155,8 @@ jobs:
       WAKE_HEAP: ${{ matrix.wake_heap }}
       # Holdings and units() from memory (step 5); load-world.sh passes it on
       MEMORY_STATE: ${{ matrix.memory_state }}
+      # The engine's own event ids (step 6); load-world.sh passes it on
+      ENGINE_OWNS_EVENTS: ${{ matrix.owns_events }}
 
     steps:
       - uses: actions/checkout@v5

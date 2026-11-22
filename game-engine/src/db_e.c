@@ -22,6 +22,7 @@
 #include "trace.h"
 #include "engine_e.h"
 #include "event_heap.h"
+#include "event_ids.h"
 #include "wake_heap.h"
 
 /******************************* DEFINES *************************************/
@@ -2752,6 +2753,16 @@ ErrorCode_t db_insert_event_e(Event_t* event)
             return ENGINE_INTERNAL_ERROR;
     }
 
+    // ENGINE_OWNS_EVENTS (#694 stage 4 step 6): its id reserved from the
+    // table's counter, then inserted with it. Callers may pass a copy of
+    // another event, so its event_id is never taken as given. Off (or if
+    // the reservation fails): AUTO_INCREMENT, and the statement is as before
+    int owned_id = 0;
+    if(result == ENGINE_OK && event_ids_flag_on())
+        db_reserve_event_ids(connection, 1, &owned_id);
+    char id_column[8], id_value[24];
+    event_ids_explicit(owned_id, id_column, sizeof(id_column), id_value, sizeof(id_value));
+
     // When it happens, in game time: the heap needs the same value (EVENT_HEAP)
     long long game_t = game_time_now_seconds() + event->delay;
 
@@ -2760,13 +2771,15 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     query_end += snprintf(query_end,
         QUERY_SPACE_LEFT,
         "INSERT INTO events "
-        "(timestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
-        "VALUES(CAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        "(%stimestamp, game_t, event_type, action, logged, outcome, drone, resource, installed, locked %s%s%s%s%s) " // Only set fields when value != 0
+        "VALUES(%sCAST(DATE_ADD(NOW(), INTERVAL %d SECOND) AS DATETIME), %lld, %d, %d, %d, %d, %d, %d, %d, %d, %s%s%s%s%s%s%s%s%s%s)", // Only set values != 0
+        id_column, // ENGINE_OWNS_EVENTS: "id, " for a reserved id, else nothing (as before)
         event->new_quantity!=NULL_VALUE?", new_quantity":"",
         event->new_credits!=NULL_VALUE?", new_credits":"",
         event->new_location!=NULL_VALUE?", new_location":"",
         event->new_transmission!=NULL_VALUE?", new_transmission":"",
         event->new_cargo!=NULL_VALUE?", new_cargo":"",
+        id_value,
         game_time_to_real(event->delay), // delay is game seconds; real time for the website
         game_t, // when it happens, in game time
         event->event_type,
@@ -2801,13 +2814,15 @@ ErrorCode_t db_insert_event_e(Event_t* event)
     {
         ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
         result = ENGINE_DB_QUERY_ERROR;
+        db_event_ids_inserted(connection, owned_id, event->drone_id, owned_id > 0, mysql_errno(connection->hndl));
     }
     else
     {
         ee_engine_trace(TRACE_LEVEL_ALWAYS, "Query [%s] executed", query_text);
 
-        // Get auto-increment ID
-        event->event_id = mysql_insert_id(connection->hndl);
+        // Get auto-increment ID (or the one reserved)
+        event->event_id = owned_id > 0 ? owned_id : (int)mysql_insert_id(connection->hndl);
+        db_event_ids_inserted(connection, event->event_id, event->drone_id, owned_id > 0, 0);
 
         // EVENT_HEAP (#694 stage 4 step 3): a pending event goes into the
         // heap when this connection commits
@@ -3252,15 +3267,24 @@ ErrorCode_t db_refund_fuel(int action_id)
         }
         mysql_free_result(res);
     }
+    // ENGINE_OWNS_EVENTS (#694 stage 4 step 6): with an id of ours
+    int owned_id = 0;
+    if(event_ids_flag_on())
+        db_reserve_event_ids(connection, 1, &owned_id);
+    char id_column[8], id_value[24];
+    event_ids_explicit(owned_id, id_column, sizeof(id_column), id_value, sizeof(id_value));
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "INSERT INTO events (event_type, action, logged, outcome, drone, resource, installed, locked, "
+        "INSERT INTO events (%sevent_type, action, logged, outcome, drone, resource, installed, locked, "
         "new_quantity, new_credits, new_cargo, game_t, place) "
-        "VALUES (1, 0, 1, %d, %d, %d, 0, 0, %lld, 0, %lld, %lld, %d)",
-        OUTCOME_OK, drone, FUEL_RESOURCE_ID, fuel + cost, cargo + cost, game_t, place);
+        "VALUES (%s1, 0, 1, %d, %d, %d, 0, 0, %lld, 0, %lld, %lld, %d)",
+        id_column, id_value, OUTCOME_OK, drone, FUEL_RESOURCE_ID, fuel + cost, cargo + cost, game_t, place);
     if(mysql_query(connection->hndl, query_text)) {
         ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        db_event_ids_inserted(connection, owned_id, drone, owned_id > 0, mysql_errno(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
     }
+    db_event_ids_inserted(connection, owned_id > 0 ? owned_id : (int)mysql_insert_id(connection->hndl), drone,
+                          owned_id > 0, 0);
     ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: [%d] fuel given back by failed transfer action [%d]",
         drone, cost, action_id);
     return ENGINE_OK;
