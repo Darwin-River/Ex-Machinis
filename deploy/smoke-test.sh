@@ -561,6 +561,26 @@ if [ "${WAKE_HEAP:-0}" = 1 ]; then
     echo "ok: drone wakes come from memory"
 fi
 
+# Holdings in memory (MEMORY_STATE=1, #694 stage 4 step 5): they loaded,
+# drones' units() came from them, and the five-minute check never differed.
+# Off: the feed's triggers wrote nothing
+if [ "${MEMORY_STATE:-0}" = 1 ]; then
+    # (the log read first, then searched: see above)
+    GE_LOG=$(docker compose logs game-engine)
+    grep -q "MEMORY_STATE=1: units() comes from memory" <<<"$GE_LOG" ||
+        fail "MEMORY_STATE=1 but the game engine didn't load the holdings"
+    if grep -q "WARNING: MEMORY_STATE" <<<"$GE_LOG"; then
+        grep "WARNING: MEMORY_STATE" <<<"$GE_LOG" | head -5
+        fail "the holdings in memory differed from the table"
+    fi
+    [ "$(sql "select enabled from engine_feeds where name='holdings'")" = 1 ] ||
+        fail "MEMORY_STATE=1 but the holdings feed is off"
+    echo "ok: holdings and units() come from memory"
+else
+    [ "$(sql "select count(*) from holding_changes")" = 0 ] ||
+        fail "MEMORY_STATE=0 but the holdings feed wrote changes"
+fi
+
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 if ! wait_quietly 90 plundered; then

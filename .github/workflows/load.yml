@@ -9,8 +9,9 @@ name: Load test
 # - nightly, and by hand: the round mix (pass marks), once as before and once
 #   with settlement in the game engine (EVENTS_IN_ENGINE=1, #694 stage 4),
 #   once more with due events from memory as well (EVENT_HEAP=1, step 3),
-#   once with drone wakes from memory (WAKE_HEAP=1, step 4), and 1,000
-#   ships (recorded)
+#   once with drone wakes from memory (WAKE_HEAP=1, step 4), once with
+#   holdings and units() from memory (MEMORY_STATE=1, step 5), and 1,000
+#   ships (recorded), with MEMORY_STATE off and on
 # - on pull requests that change the engines or the game-data queries: the
 #   round mix, briefly. Not a required check: a slow runner can miss a mark.
 
@@ -50,6 +51,7 @@ jobs:
             events_in_engine: '0'
             event_heap: '0'
             wake_heap: '0'
+            memory_state: '0'
           # The same with settlement inside the game engine (#694 stage 4
           # step 2, EVENTS_IN_ENGINE=1): the same marks
           - name: round-events-in-engine
@@ -58,6 +60,7 @@ jobs:
             events_in_engine: '1'
             event_heap: '0'
             wake_heap: '0'
+            memory_state: '0'
           # And with due events from a heap in memory (#694 stage 4 step 3,
           # EVENT_HEAP=1, which needs EVENTS_IN_ENGINE=1): the same marks
           - name: round-event-heap
@@ -66,6 +69,7 @@ jobs:
             events_in_engine: '1'
             event_heap: '1'
             wake_heap: '0'
+            memory_state: '0'
           # With drone wakes from memory (#694 stage 4 step 4, WAKE_HEAP=1,
           # which needs nothing else on): the same marks
           - name: round-wake-heap
@@ -74,6 +78,16 @@ jobs:
             events_in_engine: '0'
             event_heap: '0'
             wake_heap: '1'
+            memory_state: '0'
+          # With holdings and units() from memory (#694 stage 4 step 5,
+          # MEMORY_STATE=1, which needs nothing else on): the same marks
+          - name: round-memory-state
+            extra: 0
+            marks: --min-turns=1000 --max-lag=10 --min-scale=1500
+            events_in_engine: '0'
+            event_heap: '0'
+            wake_heap: '0'
+            memory_state: '1'
           # 1,000 ships: recorded, no marks yet (#428 raises them)
           - name: ships-1000
             extra: 895
@@ -81,6 +95,16 @@ jobs:
             events_in_engine: '0'
             event_heap: '0'
             wake_heap: '0'
+            memory_state: '0'
+          # The same with MEMORY_STATE=1 (#694 stage 4 step 5), to measure
+          # its gain
+          - name: ships-1000-memory-state
+            extra: 895
+            marks: ''
+            events_in_engine: '0'
+            event_heap: '0'
+            wake_heap: '0'
+            memory_state: '1'
 
     services:
       mysql:
@@ -111,6 +135,8 @@ jobs:
       EVENT_HEAP: ${{ matrix.event_heap }}
       # Drone wakes from memory (step 4); load-world.sh passes it on
       WAKE_HEAP: ${{ matrix.wake_heap }}
+      # Holdings and units() from memory (step 5); load-world.sh passes it on
+      MEMORY_STATE: ${{ matrix.memory_state }}
 
     steps:
       - uses: actions/checkout@v5
@@ -149,7 +175,7 @@ jobs:
           php artisan forge:load-test 60 --starters=miner,miner,refiner,trader,maker \
             --designs=chemist:12,smith:9,machinist:6,adaptive:6,systems:6,electronics:3,foundry:3 --database="$WORLD"
           EXTRA="${{ matrix.extra }}"
-          if [ "${{ github.event_name }}" = workflow_dispatch ] && [ "${{ matrix.name }}" = ships-1000 ]; then EXTRA="${{ inputs.ships }}"; fi
+          if [ "${{ github.event_name }}" = workflow_dispatch ] && [ "${{ startsWith(matrix.name, 'ships-1000') }}" = true ]; then EXTRA="${{ inputs.ships }}"; fi
           if [ "$EXTRA" -gt 0 ]; then
             php artisan forge:load-test "$EXTRA" --starters=miner,miner,refiner,trader,maker --database="$WORLD"
           fi
