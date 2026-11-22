@@ -33,6 +33,7 @@
 
 #include <time.h>
 #include "query_cache.h"
+#include "db_state.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -478,6 +479,34 @@ static long long lua_now_ms(void)
     return t.tv_sec * 1000LL + t.tv_nsec / 1000000;
 }
 
+/* units()'s column name, as MySQL named it (MEMORY_STATE) */
+static char lua_units_field[512];
+
+/* The check build (MEMORY_STATE_CHECK=1): units() asked of MySQL too, as
+   the query would be. sql has its values in, not the drone or the time */
+static long long lua_units_sql(const char* sql, long long drone)
+{
+    char* q = strdup(sql);
+    char value[32];
+    long long units = -1;
+    if(!q)
+        return units;
+    snprintf(value, sizeof(value), "%lld", drone);
+    lua_replace_tag(&q, QUERY_TAG_DRONE_ID, value);
+    DbConnection_t* c = engine_get_db_connection();
+    if(!mysql_query(c->hndl, q))
+    {
+        MYSQL_RES* r = mysql_store_result(c->hndl);
+        MYSQL_ROW row = r ? mysql_fetch_row(r) : NULL;
+        if(row && row[0]) units = atoll(row[0]);
+        if(r) mysql_free_result(r);
+    }
+    else
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: MEMORY_STATE check: query [%s] failed", q);
+    free(q);
+    return units;
+}
+
 /* query(id, ...): the arguments in the order FORTH pushes them (the last on
    top: [value_1]). A [dvalue_k] is one Lua number. A [string_k] is a Lua
    string (letters, digits, spaces, - _ .). Returns the rows: each a table
@@ -566,6 +595,33 @@ static int l_query(lua_State* L)
             lua_replace_tag(&sql, tag, s);
         }
     }
+    /* units() from memory (MEMORY_STATE=1, #694 stage 4 step 5): the
+       holdings the game engine keeps, read up to what this statement would
+       see. Its column's name is the one MySQL gave the first time (until
+       then MySQL answers) */
+    int units_query = q.id == MEMORY_STATE_UNITS_QUERY && memory_state_on() && arg_of_cell[1] &&
+                      db_state_is_units_script(q.script);
+    if(units_query && lua_units_field[0])
+    {
+        long long resource = (long long)luaL_checkinteger(L, 1 + nargs - arg_of_cell[1] + 1);
+        long long units = 0;
+        long long drone = engine_get_current_drone_id();
+        if(db_state_units(engine_get_db_connection(), drone, resource, &units))
+        {
+            if(memory_state_check_on())
+                db_state_check_result(drone, resource, units, lua_units_sql(sql, drone));
+            free(sql);
+            lua_newtable(L);
+            lua_createtable(L, 1, 1);
+            lua_pushinteger(L, units);
+            lua_pushvalue(L, -1);
+            lua_rawseti(L, -3, 1);
+            lua_setfield(L, -2, lua_units_field);
+            lua_rawseti(L, -2, 1);
+            return 1;
+        }
+    }
+
     /* An answer about the world may be shared (#694): the key is the SQL
        before the drone and the time are put in, with its place or drone */
     int qc_ttl = 0;
@@ -623,6 +679,8 @@ static int l_query(lua_State* L)
     }
     free(sql);
     r = mysql_store_result(c->hndl);
+    if(units_query && r && !lua_units_field[0] && mysql_num_fields(r) == 1)
+        snprintf(lua_units_field, sizeof(lua_units_field), "%s", mysql_fetch_fields(r)[0].name);
     if(qc_key && r)
     {
         query_cache_put(&g_query_cache, qc_key, r, qc_ttl, lua_now_ms());

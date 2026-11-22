@@ -17,6 +17,7 @@
 #include "db.h"
 #include "event_heap.h"
 #include "wake_heap.h"
+#include "db_state.h"
 #include "db_e.h"
 #include "ee_embed.h"
 #include "static_cache.h"
@@ -1585,6 +1586,8 @@ ErrorCode_t db_start_transaction(DbConnection_t* connection)
     {
         engine_trace(TRACE_LEVEL_ALWAYS, "DB transaction started");
     }
+    // MEMORY_STATE (#694 stage 4 step 5): its first units() reads the feed
+    db_state_transaction_begins(connection);
 
     return result;
 }
@@ -1620,6 +1623,7 @@ ErrorCode_t db_commit_transaction(DbConnection_t* connection)
         // WAKE_HEAP (step 4): and what it did to commands into memory
         wake_heap_stage_commit(connection);
     }
+    db_state_transaction_ends(connection);   // MEMORY_STATE: the next answer reads the feed
 
     return result;
 }
@@ -1651,6 +1655,7 @@ ErrorCode_t db_rollback_transaction(DbConnection_t* connection)
 
     event_heap_stage_discard(connection);   // EVENT_HEAP: these never were
     wake_heap_stage_discard(connection);    // WAKE_HEAP: the same
+    db_state_transaction_ends(connection);   // MEMORY_STATE: the next answer reads the feed
 
     return result;
 }
