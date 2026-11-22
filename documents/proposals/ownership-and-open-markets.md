@@ -219,6 +219,11 @@ Nothing is switched on by a timer or a teacher. Each layer opens because the pla
 
 Each chapter states its goal, explains one idea with a working script, ends with an exercise and a "you've mastered this when" check, and points to the next chapter. The glossary, the Lua reference and the failure codes are appendices.
 
+### Held for later
+
+- **A pause button for companies owned outright:** the owner puts the company to sleep, so it burns no fuel and runs up no costs until woken, for players and classes who are away for days. Held because it adds to the interface; to be reconsidered once the rest is built and played.
+- **A class clock** (a class's companies running only during lesson hours), for the same reason.
+
 ## Lua words
 
 Reads and actions, not rules:
@@ -269,7 +274,7 @@ For account trading scripts: `loan_requests()`, `back_loan(id, n)` and `my_loans
 - **Live startups carry on** under the trimmed startup rules: no push fee, no credit cap, no daily buying cap.
 - **Matured companies whose shares one player still holds all of** are owned outright, and their code becomes changeable again. Every other matured company is public; its code is already locked and stays readable by everyone, as all code is today.
 - **The bank's companies** (Bank Miner, Refiner, Maker) are public.
-- **Players' starting credits** already granted stay as they are, with today's restriction, until spent. New players get none; their first credits come from maturing.
+- **Players' starting credits** already granted stay as they are, with today's restriction, until spent. New players get none, and neither do new class accounts (whose pupils get 5,000 at once today); their first credits come from maturing.
 - **Owner-led offerings of new shares (#780) retire,** because only a public company's own code may bring money in.
 
 ## Numbers to tune
@@ -342,3 +347,4 @@ Panels of prospective-player personas reviewed the proposal five times; their fi
   - **no buying back for 7 real days after selling,** so the lock can't be rotated;
   - **the far map shifts each season,** announced a week ahead;
   - **no limit on public companies.**
+- **no starting credits for class accounts** either; a pause button and a class clock are held for later.
