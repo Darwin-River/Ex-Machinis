@@ -194,4 +194,4 @@ Each part is timed in a playtest round on #380 against round 73's measures: time
 
 ## The player panel
 
-A panel of prospective players reviewed this proposal before any of it was built. Their feedback, and what changed because of it, is in a comment on #921.
+A panel of prospective players reviewed this proposal before any of it was built. Their feedback, and the fixes it suggests for the project lead to decide on, is in a comment on #921.
