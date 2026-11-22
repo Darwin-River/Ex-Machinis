@@ -195,3 +195,139 @@ Each part is timed in a playtest round on #380 against round 73's measures: time
 ## The player panel
 
 A panel of prospective players reviewed this proposal before any of it was built. Their feedback, and the fixes it suggests for the project lead to decide on, is in a comment on #921.
+
+## Answers to the panel (proposed)
+
+The aim is to answer each finding without adding a rule a player has to learn. Each answer does one of these:
+
+- **unifies** two rules into one;
+- **lets prices do the work** in place of a limit;
+- **shows information** in place of a ban;
+- **changes only how a number is worked out** (a formula players never need to know).
+
+None of this is decided; the project lead chooses on #921.
+
+### 1. Free money can be farmed (finding 1)
+
+- **Adding credits buys new shares at cash-out.** This unifies "add credits" with the new shares a company already sells (#780). Money in means shares out at a fair price, so adding credits can't be a gift to a friend, and minority holders are never diluted. Adding credits to a private company that someone else owns sells them shares, so it is that company's IPO: nobody needs a separate rule.
+- **The IPO trades within the usual band:** 0.8 to 1.25 times the bank's price (cash-out plus 10 game days of dividends). This removes the IPO's exemption. A company with a strong record earns a higher bank price, and so a premium. An overpriced IPO can't be used to hand money to a friend, and investors get the cap Ruth asked for.
+- **Everyone starts, and starts over, with the same package:** a private company (one drone at Earth, with 3,000 credits inside it) and 2,000 starting credits to invest, which buy shares at no more than the bank's price, as today. The only free money a player holds directly can't be overpaid to anyone. The cash inside the company can leave only through trades, where the price is set by the market. Starting over gives a drone and some working cash, not a pile of spendable credits, so it isn't worth farming.
+- **Teachers' and newcomers' gain:** every pupil has a company to program from the first minute.
+
+### 2. The import ration multiplies (finding 2)
+
+**Drop the ration.** The planets' import price rises with how much everyone has bought at that exchange that day, and falls back overnight. Splitting purchases across companies gains nothing, because the price depends on the total, not on the buyer. This removes a rule and a failure code (-17), and player sellers undercut a rising import price, which is the point of the ration. It mirrors what lesson 6 already says about selling ("a station pays less the more a batch holds").
+
+### 3. Grades can be farmed (finding 3)
+
+**Grade only what can't be faked:**
+- cover, with goods valued at the 7-day average bid, as cash-out values them;
+- age;
+- any default in the last 30 game days, which means E.
+
+Promises kept no longer raise a grade, because wash promises between one's own companies could fake them. Only a default, which can't be faked in your favour, lowers it. Players learn nothing new; only the formula changes.
+
+### 4. Lenders can't read the code (finding 4)
+
+**Anyone with a stake reads the code:** one share or one bond, in place of 5 shares. The number is simpler, lenders can read what they lend to, and pupils can read a classmate's public company by owning one share.
+
+**While an IPO offer stands, the code is public.** This is the prospectus: the price of raising money is disclosure. It answers Ruth's "I pay to look" and her worry about a company closing itself the day after its IPO. The exit routine is there to read before anyone buys.
+
+### 5. A missed bond payment is undefined (finding 5)
+
+**One line:** a company that misses a bond payment pays every credit it receives to its lenders until they're paid. That includes dividends, which stop meanwhile. It then plays on, its grade is E, and if it goes broke it ends as now. **Every ending pays lenders first, then shareholders,** whether the company closes, goes broke or loses its last drone. This is the one ending order, already in part 4.
+
+### 6. Anonymity fails in thin markets, and the planned wreck (finding 6)
+
+**Show it, don't ban it.**
+- **Related trades on the investor sheet:** the share of a company's purchases and sales that went to companies of its founder, or of its 5 biggest shareholders, as today's dealings flag the same player behind a trade.
+- **Who salvaged each wreck** is on the wreck's page and the company's, with the same flag.
+- **The defence is the locked code.** "Buy rare module X at any price" or "fly to a dead end on day 90" is written in code every shareholder can read before buying (point 4). Read before you buy is already rule 7's lesson.
+- **Book depth** (units and volume at each price at a place) is readable by drones and shown on pages, so thin markets look thin.
+
+### 7. The Lua interface (finding 7)
+
+These are reads and words, not rules:
+
+| Word | Returns or does |
+|---|---|
+| `obligations()` | the company's bonds and contracts: `{kind, id, units_left, due_in, bond}` |
+| `contracts(resource)` | open contracts here: `{id, units, price, due_in, bond, grade}` |
+| `deliver(id, n)` | fill a contract taken by this company |
+| `buy_bonds(n, max_price)` and `sell_bonds(n, min_price)` | at the stock exchange, sent at the speed of light |
+| `import_price(resource, n)` | what n units would cost from the planets here now (point 2) |
+| `depth(resource)` | the book here: `{price, units}` rows, both sides |
+| `set_dividend_share(x)` | the only dividend word (no declared constant), kept by the company, 0.5 until set |
+| `due_in` | game days from now, everywhere |
+
+**Migration without breaking locked code:**
+- `best_offer` and `best_bid` keep returning three values, but the second becomes an **order handle** in place of a drone ID.
+- `pull(n, r, handle)` and `push(n, r, handle)` accept it at that place.
+- So matured companies' `buy_cheap` and `pull(..., seller)` keep working, and anonymity holds.
+
+### 8. Jargon (finding 8)
+
+- **Plain names:**
+  - **cash-out** → **book value** (what a share would get if the company closed today);
+  - **change of control** → "a takeover repays its bonds";
+  - **bankruptcy** → **Start over**, which also answers Mr. Okafor's point that it isn't bankruptcy as economists mean it;
+  - **grant credits** → **starting credits**, as today.
+- **Cover** is never shown to players, only the grade.
+- **A glossary** at the top of the players' manual.
+- **One worked example in plain numbers:** a Miner from founding to IPO, a bond, a takeover and a sell-out.
+- **The seven lines are the rules;** the parts that follow are how each works. Say so, so the eleven parts don't read as a trick.
+
+### 9. Investors need one page (finding 9)
+
+**An investor sheet** on each company page, built from data the game already keeps:
+- price against book value, and idle credits;
+- dividends declared against paid over 30 game days;
+- bonds and contracts outstanding, with due dates;
+- related trades (point 6);
+- the founder's earlier companies and how each ended, with their defaults;
+- whether its code calls `close_company()`, checked by the server, so the code itself isn't shown;
+- the grade.
+
+Also:
+- **IPOs on the stock exchange's front page,** with the opt-in e-mail notices (#761);
+- **each grade's actual default rate** on the dashboard.
+
+The premium cap (point 1) and the public code during an IPO (point 4) answer the rest.
+
+### 10. Classrooms (finding 10)
+
+- **Live companies can't be attacked.** Plunder and salvage reach only wrecks, never a working drone, and a private company can't be taken over unless its owner sells. The players' manual should say so, since the panel's teacher read it otherwise.
+- **Class settings, not game rules:** class groups already trade shares only within the group. The teacher's page adds switches for Start over (on or off) and for takeovers within the class, and a read-only log of transfers between pupils.
+- **Pupils read each other's public code** by owning one share (point 4).
+
+### 11. Testing before the lock (finding 11)
+
+- **A test drive:** run code read-only against the last few game hours of a place's market and the company's own state, and see the actions it would have taken. It's an extension of `POST /check`, a tool and not a rule.
+- **A founder's note:** a short text a company's founder can edit after the lock ("known issue: it idles if fuel is over 900"). It is not code, so it changes nothing the drones do.
+
+### Contract squatting, greenmail and pushing the planets out (findings 6 and 12)
+
+- **Squatting** (taking every contract, then forfeiting when spot rises) is a free option priced by the bond. The buyer sets the bond, so the market answers it.
+- **Greenmail by holdouts** stays allowed. The squeeze-out remains the fallback if it blocks too many takeovers.
+- **The planets' spread** widens on players' trade between different founders only, so wash trades can't push the planets out. Like the grade, only the formula changes.
+
+### The rules after these answers
+
+1. You start, and start over, with one company (a drone and 3,000 credits) and 2,000 starting credits to invest.
+2. A company you own outright is private: only you can change its code, and you may own at most 2.
+3. Selling any share (or anyone adding credits) is its IPO: its code is shown while the offer stands, then locked for good.
+4. Money in buys shares at book value, and share prices stay within a band of the bank's price.
+5. A company ends only through its own code (once it owes nothing), by going broke, or with no drones left. Lenders are paid first, then shareholders, and everything else becomes salvage.
+6. Trading at a place is anonymous: the best price wins, and the planets' prices rise the more everyone buys.
+7. Promises (contracts and bonds) have due dates and grades. Only public companies borrow, and anyone with a stake reads the code.
+8. Worth under 500? Start over, once a real day.
+
+These replace or simplify:
+- grant credits, as a separate kind of money;
+- the IPO's exemption from the band;
+- the import ration and -17;
+- the 5-share threshold;
+- the declared dividend constant;
+- the "promises kept" input to grades.
+
+They add one line (the band and money-in rule, line 4), and turn "bankruptcy" into "start over".
