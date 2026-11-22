@@ -45,8 +45,8 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 - **Its record is public from day one:** trades, earnings, events and drones. When it goes public, investors judge it by that record.
 - **At most 2 private companies a player.** A trade that would give a player a third fails.
 - **No adding credits** (decided after the panel's second round). A company's money is what its founder put in at founding, what its drones earn, and what its own code borrows with bonds (part 7). Nobody adds credits later, not even its owner, so nobody outside the company can create shares or force an IPO. A private company that runs short can close itself (its credits go back to its owner) and be founded again with more.
-- **The IPO:** the founder offers shares on the stock exchange at a price they choose, but not below cash-out. While an offer stands, the code can't be pushed, so buyers get the code they watched run. **The first share sold, to a player or to the bank, locks the code for good.** The money goes to the founder. After the IPO, trading uses the usual band (0.8 to 1.25 times the bank's price).
-- **Grant credits** (the 5,000 at the start and after a bankruptcy) found companies and buy shares at no more than the bank's price, as starting credits do today. With the IPO floor at cash-out, this means grant credits can't be passed to a friend through a mispriced IPO.
+- **The IPO:** the founder offers shares on the stock exchange at a price they choose, but not below close-out value. While an offer stands, the code can't be pushed, so buyers get the code they watched run. **The first share sold, to a player or to the bank, locks the code for good.** The money goes to the founder. After the IPO, trading uses the usual band (0.8 to 1.25 times the bank's price).
+- **Grant credits** (the 5,000 at the start and after a bankruptcy) found companies and buy shares at no more than the bank's price, as starting credits do today. With the IPO floor at close-out value, this means grant credits can't be passed to a friend through a mispriced IPO.
 
 ## 3. Takeovers: owning 100% unlocks the code (#924)
 
@@ -71,7 +71,7 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 
 - **A player worth under 500 may declare bankruptcy, at most once a real day.** They lose everything (credits, shares, private companies) and start again with 5,000 grant credits. Their history and personal records stay.
 - **Their shares go to the bank,** which sells them as it does any it holds. Their private companies become public, bank-held, and open to takeover.
-- **It can't print money:** grant credits can't pay an inflated IPO price, and an IPO can't sell below cash-out.
+- **It can't print money:** grant credits can't pay an inflated IPO price, and an IPO can't sell below close-out value.
 
 ## 6. Anonymous trading and the planets (#927)
 
@@ -93,7 +93,7 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 Both are a **promise with a due date**.
 
 - **A contract** is a buy order with a due date and a bond: `post_contract(resource, units, price, due, bond)`. The buyer's credits are held in escrow. Any seller may take it with `take_contract(id)`, putting up the bond, and then only that seller may fill it, by pushing goods into it at the buyer's place. On the due date, whatever was delivered is paid; for the rest, the buyer gets back their credits and that share of the seller's bond.
-- **A bond:** `issue_bonds(n, due)`. Each bond pays 100 credits on its due date. Bonds trade on the stock exchange beside shares, and their price sets the interest. **Only public companies issue them**, so their code is locked and lenders may read it. A company may not owe more in bonds than its cash-out value. Players buy bonds with their credits or their trading scripts (#768), and companies buy them with a Lua word.
+- **A bond:** `issue_bonds(n, due)`. Each bond pays 100 credits on its due date. Bonds trade on the stock exchange beside shares, and their price sets the interest. **Only public companies issue them**, so their code is locked and lenders may read it. A company may not owe more in bonds than its close-out value. Players buy bonds with their credits or their trading scripts (#768), and companies buy them with a Lua word.
 - **Grades, not names.** Each contract and bond in a listing carries its promiser's grade, A to E, never its name. The engine works it out by a published formula:
   - promises kept over 60 game days;
   - cover (credits and goods at bids, over debts);
@@ -154,12 +154,12 @@ Players build these into their own scripts; the engine doesn't:
 | Bankruptcy threshold | wealth under 500 |
 | Bankruptcy, how often | once a real day |
 | Grant credits | 5,000 |
-| IPO price floor | cash-out |
+| IPO price floor | close-out value |
 | Shares to see a public company's code | 5 |
 | A company with no working drones ends after | 3 game days |
 | Import ration | a tenth of a day's imports, at least 5 |
 | Wreck decay | 2% a game day |
-| Most a company may owe in bonds | its cash-out |
+| Most a company may owe in bonds | its close-out value |
 | Grade E after a default | 30 game days |
 
 ## Order of work
@@ -214,18 +214,19 @@ None of this is decided; the project lead chooses on #921.
 ### 1. Free money can be farmed (finding 1)
 
 - **No money in after founding** (decided after round 2, replacing "adding credits buys new shares"). Only the company's own code raises money, by borrowing through the market (bonds). This closes three problems at once: adding credits as a gift to a friend, forced IPOs, and buying new shares at a stale value. The owner-led offerings of new shares (#780) retire with it, because they too let someone other than the company's code create shares.
-- **The IPO trades within the usual band:** 0.8 to 1.25 times the bank's price (cash-out plus 10 game days of dividends). This removes the IPO's exemption. A company with a strong record earns a higher bank price, and so a premium. An overpriced IPO can't be used to hand money to a friend, and investors get the cap Ruth asked for.
-- **Everyone starts, and starts over, with the same package:** a private company (one drone at Earth, with 3,000 credits inside it) and 2,000 starting credits to invest, which buy shares at no more than the bank's price, as today. The only free money a player holds directly can't be overpaid to anyone. The cash inside the company can leave only through trades, where the price is set by the market. Starting over gives a drone and some working cash, not a pile of spendable credits, so it isn't worth farming.
+- **The IPO trades within the usual band:** 0.8 to 1.25 times the bank's price. This removes the IPO's exemption. **The bank's price counts the lower of the last 10 and the last 30 game days' dividends** (decided after round 2), so paying out everything for a few days before listing can't inflate it. A company with a strong record earns a higher bank price, and so a premium. An overpriced IPO can't be used to hand money to a friend, and investors get the cap Ruth asked for.
+- **A new player starts with** a private company (one drone at Earth, with 3,000 credits inside it) and 2,000 starting credits to invest, which buy shares at no more than the bank's price, as today. The only free money a player holds directly can't be overpaid to anyone.
+- **Starting over gives only a drone, fitted with a mining kit, and a tank of fuel, with no cash** (option (c), decided after round 2). The player can mine and sell from the first minute, but there's no cash to drain to a friend through thin-market trades. The most a restart could leak is the kit's resale value, once a real day.
 - **Teachers' and newcomers' gain:** every pupil has a company to program from the first minute.
 
 ### 2. The import ration multiplies (finding 2)
 
-**Drop the ration.** The planets' import price rises with how much everyone has bought at that exchange that day, and falls back overnight. Splitting purchases across companies gains nothing, because the price depends on the total, not on the buyer. This removes a rule and a failure code (-17), and player sellers undercut a rising import price, which is the point of the ration. It mirrors what lesson 6 already says about selling ("a station pays less the more a batch holds").
+**Drop the ration.** The planets' import price rises with how much everyone has bought at that exchange recently, and decays back steadily (decided after round 2: no overnight reset, so there's no moment to race for). **Fuel stays at a flat list price,** so the newcomers' safety net can't be spiked. Splitting purchases across companies gains nothing, because the price depends on the total, not on the buyer. This removes a rule and a failure code (-17), and player sellers undercut a rising import price, which is the point of the ration. It mirrors what lesson 6 already says about selling ("a station pays less the more a batch holds").
 
 ### 3. Grades can be farmed (finding 3)
 
 **Grade only what can't be faked:**
-- cover, with goods valued at the 7-day average bid, as cash-out values them;
+- cover, with goods valued at the 7-day average bid, as close-out values them;
 - age;
 - any default in the last 30 game days, which means E.
 
@@ -272,7 +273,7 @@ These are reads and words, not rules:
 ### 8. Jargon (finding 8)
 
 - **Plain names:**
-  - **cash-out** → **book value** (what a share would get if the company closed today);
+  - **cash-out** → **close-out value**: what a share would get if the company closed now, with its goods at the planets' bids averaged over 7 game days (decided after round 2; Ruth noted that "book value" means historical cost to an accountant);
   - **change of control** → "a takeover repays its bonds";
   - **bankruptcy** → **Start over**, which also answers Mr. Okafor's point that it isn't bankruptcy as economists mean it;
   - **grant credits** → **starting credits**, as today.
@@ -284,12 +285,12 @@ These are reads and words, not rules:
 ### 9. Investors need one page (finding 9)
 
 **An investor sheet** on each company page, built from data the game already keeps:
-- price against book value, and idle credits;
+- price against close-out value, and idle credits;
 - dividends declared against paid over 30 game days;
 - bonds and contracts outstanding, with due dates;
 - related trades (point 6);
 - the founder's earlier companies and how each ended, with their defaults;
-- whether its code calls `close_company()`, checked by the server, so the code itself isn't shown;
+- its history: sales, drones lost and dividends paid over time (a server check for whether its code calls `close_company()` was dropped after round 2, because dead code passes it);
 - the grade.
 
 Also:
@@ -317,14 +318,14 @@ The premium cap (point 1) and the public code during an IPO (point 4) answer the
 
 ### The rules after these answers
 
-1. You start, and start over, with one company (a drone and 3,000 credits) and 2,000 starting credits to invest.
+1. You start with one company (a drone and 3,000 credits) and 2,000 starting credits to invest.
 2. A company you own outright is private: only you can change its code, and you may own at most 2.
 3. Selling any share is its IPO: its code is shown while the offer stands, then locked for good.
 4. A company's money is what it starts with, earns, and borrows through its own code; nobody adds credits. Share prices stay within a band of the bank's price.
 5. A company ends only through its own code (once it owes nothing), by going broke, or with no drones left. Lenders are paid first, then shareholders, and everything else becomes salvage.
 6. Trading at a place is anonymous: the best price wins, and the planets' prices rise the more everyone buys.
 7. Promises (contracts and bonds) have due dates and grades. Only public companies borrow, and anyone with a stake reads the code.
-8. Worth under 500? Start over, once a real day.
+8. Worth under 500? Start over, once a real day, with a mining drone and a tank of fuel.
 
 These replace or simplify:
 - grant credits, as a separate kind of money;
