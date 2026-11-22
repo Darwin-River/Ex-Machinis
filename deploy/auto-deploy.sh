@@ -119,7 +119,14 @@ for service in db app game-engine events-engine scheduler caddy; do
 done
 
 docker image prune -f >/dev/null || true
-# And the build cache older than three days (#813: 5 GB of it had built up)
+# And the build cache older than three days (#813: 5 GB of it had built up),
+# then all but the most recently used DEPLOY_BUILD_CACHE of it (#942: with
+# several deploys a day, three days' cache was 5.7 GB, and the history budget
+# deleted game history to make up for it). --max-used-space is buildx's name
+# since Docker 28; older versions call it --keep-storage
 docker builder prune -a -f --filter until=72h >/dev/null || true
+cap="${DEPLOY_BUILD_CACHE:-1gb}"
+docker builder prune -a -f --max-used-space "$cap" >/dev/null 2>&1 ||
+    docker builder prune -a -f --keep-storage "$cap" >/dev/null 2>&1 || true
 trap - ERR
 say "deployed ${new:0:7}"

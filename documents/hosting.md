@@ -596,7 +596,7 @@ To keep the downtime short when moving on purpose:
 - **The keeper prunes old history.** Once a real minute, whenever the disk is fuller than `FORGE_HISTORY_BUDGET_PERCENT` (60 since #821; set it in the server's `.env` and run `docker compose up -d app` to change it), the scheduler's keeper deletes the oldest archived events and their observations, after summing each drone's into one row a game day (`drone_days`).
 - **It counts MySQL's own free space.** MySQL keeps a deleted row's space for new rows rather than handing it back, so `df` doesn't fall after a prune. The keeper counts that space as room, and the history stops growing.
 - **Gameplay is unaffected.** Drones' scripts only read the live `events` table.
-- **The deploy guards the disk.** It clears Docker's build cache when the disk is over 85%, refuses to start over 90% (`DEPLOY_MAX_DISK_PERCENT`), and clears build cache older than three days after each deploy.
+- **The deploy guards the disk.** It clears Docker's build cache when the disk is over 85%, refuses to start over 90% (`DEPLOY_MAX_DISK_PERCENT`), and after each deploy clears build cache older than three days, then keeps only the most recently used `DEPLOY_BUILD_CACHE` of it (default `1gb`, #942: with several deploys a day, three days' cache had grown to 5.7 GB, and the history budget below counts the whole disk, so it deleted game history to make up for it).
 - **The clock reports disk use.** `GET /api/v1/clock` gives `disk.used_percent` and `disk.warning` (over 80%).
 
 **If the disk fills up**, check these in order:
