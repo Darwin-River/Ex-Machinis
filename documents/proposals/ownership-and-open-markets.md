@@ -1,6 +1,6 @@
 # Ownership and open markets (proposal)
 
-**Status:** proposed, not built. The live game still plays by the [Rules of Play](../design-manual.md#The-Rules-of-Play). Tracked by the umbrella issue and its parts listed under [The issues](#the-issues).
+**Status:** proposed, not built. The live game still plays by the [Rules of Play](../design-manual.md#The-Rules-of-Play). Tracked by #921, with a sub-issue for each part (#922 to #932).
 
 **Aim:** a market as busy and varied as possible, built from rules a newcomer can hold in their head. Each rule below replaces special cases rather than adding them. The complexity should come from what drones, companies and players do with the rules.
 
@@ -26,7 +26,7 @@ Reviewed as an economy and as an ecosystem, the live game has detailed mechanics
 
 The parts follow, each with its own issue.
 
-## 1. Resources by place
+## 1. Resources by place (#922)
 
 - **Each mineral has a home.** Abundance varies by body: rich on a few, absent from others, in place of one `DEFAULT_ABUNDANCE` for every body of a type.
 - **Valuable inputs lie far away.** The minerals behind the upper tiers (systems, modules, kit parts) are found only at asteroids, comets or rings. The common ores and metals the starters use stay near Earth, the Moon and Mars, so a new company still pays its way in about 40 game days (#777).
@@ -35,7 +35,7 @@ The parts follow, each with its own issue.
 - **Depletion stays off.** Distance does the job, with fewer rules.
 - **Lever:** the far goods' bids must pay for the trip (playbook, lesson 8: the Moon to Mars is about 10 game days each way).
 
-## 2. Private companies and the IPO
+## 2. Private companies and the IPO (#923)
 
 This replaces the startup rules: the bank loan and debt, the founding and push fees, maturing and its margin, the credit cap and its sweep, House-only trading (-16), protected wrecks and the five-startup limit.
 
@@ -48,7 +48,7 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 - **The IPO:** the founder offers shares on the stock exchange at a price they choose, but not below cash-out. While an offer stands, the code can't be pushed, so buyers get the code they watched run. **The first share sold, to a player or to the bank, locks the code for good.** The money goes to the founder. After the IPO, trading uses the usual band (0.8 to 1.25 times the bank's price).
 - **Grant credits** (the 5,000 at the start and after a bankruptcy) found companies and buy shares at no more than the bank's price, as starting credits do today. With the IPO floor at cash-out, this means grant credits can't be passed to a friend through a mispriced IPO.
 
-## 3. Takeovers: owning 100% unlocks the code
+## 3. Takeovers: owning 100% unlocks the code (#924)
 
 - **A company is private whenever one player owns all its shares,** however they came to own them, and its code can be changed. It counts against that player's 2.
 - **Investors can't be harmed:** everyone else sold of their own free will.
@@ -56,7 +56,7 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 - **It sets a floor under share prices.** A company that trades for less than its fleet, goods and credits are worth gets bought out and reprogrammed or liquidated. This is salvage of a whole company, often a fleet already working far away.
 - **Holdouts** (one player keeping a single share) are allowed at first. If they block too many takeovers, add a squeeze-out: a holder of 95% may buy the rest at a set premium.
 
-## 4. The kill switch
+## 4. The kill switch (#925)
 
 - **A company ends only through its own code,** with one new Lua word, `close_company()`, or by going broke (50 game days without credits) or by winding up (60 game days without a sale) as now. Its founder has no Close button: a private company's founder who wants out pushes code that calls it.
 - **It works only when the company owes nothing:** no bonds outstanding and no open contracts. Otherwise it fails with a new code ("obligations outstanding"). The ways out:
@@ -67,13 +67,13 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 - **A company with no working drones** can't run code, so it ends by itself after 3 game days, in the same way.
 - **The 12-hour minimum order life** still holds, and `close_company()` is its one exception, so a company can always die.
 
-## 5. Bankruptcy
+## 5. Bankruptcy (#926)
 
 - **A player worth under 500 may declare bankruptcy, at most once a real day.** They lose everything (credits, shares, private companies) and start again with 5,000 grant credits. Their history and personal records stay.
 - **Their shares go to the bank,** which sells them as it does any it holds. Their private companies become public, bank-held, and open to takeover.
 - **It can't print money:** grant credits can't pay an inflated IPO price, and an IPO can't sell below cash-out.
 
-## 6. Anonymous trading and the planets
+## 6. Anonymous trading and the planets (#927)
 
 - **Drones don't know whom they trade with.** `buy_here` and `sell_here` already fill against the best price at a place; now that is the only way to trade with another company:
   - `best_offer` and `best_bid` return the price and units, not the drone;
@@ -88,7 +88,7 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
   - the planets compete with players as equals;
   - a public company's locked code can't steer money to its founder's other companies.
 
-## 7. Contracts and bonds, with grades
+## 7. Contracts and bonds, with grades (#928)
 
 Both are a **promise with a due date**.
 
@@ -105,7 +105,7 @@ Both are a **promise with a due date**.
 - **Helpers and examples:** `bond_yield(price, days)`, a lender of about 15 lines (grade B or better, a minimum yield, at most 20% of spare cash in any one issuer), and a borrower (borrow for a copy only if it pays back within the bond's term).
 - **Startups no longer exist,** so anyone can sign. The guards are escrow, bonds, grades and the record.
 
-## 8. Salvage
+## 8. Salvage (#929)
 
 - **Wrecks keep their hull and equipment** as well as their hold.
 - **Plunder is unchanged** (half the hold, once, no tool). **Salvage** is new: a Salvage module, made in the tech tree, recovers a wreck's equipment as used modules and its hull as scrap metal, a little a run.
@@ -114,13 +114,13 @@ Both are a **promise with a due date**.
 - **Wrecks lie where drones died.** With far-away resources, they gather along the long routes.
 - **A wreck field view** on the map: wrecks near each place, what they hold, and how fast they decay. A mass ending is a world event.
 
-## 9. Dividends written into the code
+## 9. Dividends written into the code (#930)
 
 - A script declares `dividend_share = 0.3` (default 0.5, between 0 and 1), and may change it as it runs with `set_dividend_share(x)`. Once the code is locked, so is the policy.
 - **The policy is public** even when the code isn't: the company page and the stock exchange show the declared share and the share actually paid over 30 game days.
 - **Growth companies and income companies** become a choice investors can see. A company that pays out everything has to borrow to grow.
 
-## 10. Who sees a company's code
+## 10. Who sees a company's code (#931)
 
 - **A private company's code:** its owner only.
 - **A public company's code:** its owner and any player with **5 shares or more**. A teacher sees their class's code.
@@ -129,7 +129,7 @@ Both are a **promise with a due date**.
 - **Shares become a key to know-how,** and a founder whose design is worth copying gains from the demand for shares.
 - This changes rule 7 of the current rules ("All code is public") and needs a note in [`open-source-pathway.md`](../open-source-pathway.md). The game's own code stays MIT-licensed. Only players' in-game scripts are private, and only while their companies live.
 
-## 11. Example scripts and lessons
+## 11. Example scripts and lessons (#932)
 
 Players build these into their own scripts; the engine doesn't:
 
@@ -177,4 +177,21 @@ Each part is timed in a playtest round on #380 against round 73's measures: time
 
 ## The issues
 
-Listed in the umbrella issue.
+| Part | Issue |
+|---|---|
+| The whole proposal | #921 |
+| 1. Resources by place | #922 |
+| 2. Private companies and the IPO | #923 |
+| 3. Takeovers | #924 |
+| 4. The kill switch | #925 |
+| 5. Bankruptcy | #926 |
+| 6. Anonymous trading and the planets | #927 |
+| 7. Contracts and bonds, with grades | #928 |
+| 8. Salvage | #929 |
+| 9. Dividends written into the code | #930 |
+| 10. Who sees a company's code | #931 |
+| 11. Example scripts and lessons | #932 |
+
+## The player panel
+
+A panel of prospective players reviewed this proposal before any of it was built. Their feedback, and what changed because of it, is in a comment on #921.
