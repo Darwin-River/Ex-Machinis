@@ -868,45 +868,13 @@ ErrorCode_t db_get_outcome_events(void (*outcomeEventCb)(Event_t *e), int *found
     return result;
 }
 
-/** ****************************************************************************
-
-    @brief          Purges old actions present at DB (older than configurable days value)
-                    Those actions that have no event associated
-
-    @param[in]      void
-
-    @return         Execution result
-
-*******************************************************************************/
-static long long db_archive_ms(void);
-
-ErrorCode_t db_purge_old_actions()
-{
-    // One bounded delete a pass (#818): the actions older than the
-    // expiration with no event left in events or events_archive. It listed
-    // them all and deleted them one by one, inside the events engine's loop:
-    // once the history budget (#813) pruned the archive, millions qualified
-    DbConnection_t* connection = ee_engine_get_db_connection();
-    ErrorCode_t result = db_reconnect(connection);
-    if(result != ENGINE_OK)
-        return result;
-    char query_text[DB_MAX_SQL_QUERY_LEN+1];
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "DELETE FROM actions WHERE timestamp < (NOW() - INTERVAL %d DAY) "
-        "AND NOT EXISTS (SELECT 1 FROM events e WHERE e.action = actions.id) "
-        "AND NOT EXISTS (SELECT 1 FROM events_archive a WHERE a.action = actions.id) "
-        "ORDER BY id LIMIT 5000",
-        engine_get_actions_expiration_days());
-    long long start = db_archive_ms();
-    if(mysql_query(connection->hndl, query_text)) {
-        ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
-        return ENGINE_DB_QUERY_ERROR;
-    }
-    long long n = (long long)mysql_affected_rows(connection->hndl);
-    if(n > 0)
-        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Purged [%lld] expired actions in [%lld] ms", n, db_archive_ms() - start);
-    return ENGINE_OK;
-}
+/* Old actions are no longer purged here (#944): the scheduler's keeper
+   (App\Services\ActionsPrune) deletes finished actions after
+   house_rules.actions_keep_days game days. This purge deleted actions with no
+   event left in either table, by real age (ACTION_EXPIRATION_DAYS), as one
+   locking DELETE that read every action older than that (by timestamp, then
+   sorted) each minute; with 44 million actions nearly all still had archived
+   events, so it read most of the table each time and found little. */
 
 /** ****************************************************************************
 
@@ -3404,8 +3372,7 @@ ErrorCode_t db_get_orbit_info_x(ObjectOrbitInfo_t* object)
     get slower as the history grows. The events engine moves settled events
     older than house_rules.events_archive_days game days (30; 0: never) to
     events_archive (archive_events, migration 0072, which says what it
-    never moves). A pass starts at most once a real minute (and purges
-    month-old actions, #431) and goes through the table a window of ids at a
+    never moves). A pass starts at most once a real minute and goes through the table a window of ids at a
     time, from the oldest to the cutoff. Each window is its own short
     transaction, between batches on the events engine's own connection, so
     it never overlaps a settlement, under READ COMMITTED, so its reads of
@@ -3485,7 +3452,6 @@ ErrorCode_t db_archive_due(void)
         if(time(NULL) < next_pass)
             return ENGINE_OK;
         next_pass = time(NULL) + ARCHIVE_EVERY_SECONDS;
-        db_purge_old_actions();
         DbConnection_t* connection = ee_engine_get_db_connection();
         if(db_reconnect(connection) != ENGINE_OK)
             return ENGINE_DB_QUERY_ERROR;

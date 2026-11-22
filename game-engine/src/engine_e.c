@@ -414,7 +414,8 @@ ErrorCode_t ee_pass(int* found)
     }
 
     // Once a real minute: old settled events move to events_archive, so
-    // the engines' table stays small (#694), and month-old actions go
+    // the engines' table stays small (#694). Old actions go on the
+    // scheduler's keeper (#944)
     db_archive_due();
 
     return result;

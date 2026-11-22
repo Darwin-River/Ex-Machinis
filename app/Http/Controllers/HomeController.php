@@ -122,6 +122,8 @@ class HomeController extends Controller
         $done['history'] = \App\Services\HistoryBudget::pruneIfDue();
         // A table holding far more free space than rows hands it back (#827)
         $done['history_rebuilt'] = \App\Services\HistoryBudget::rebuildIfDue();
+        // Finished actions go after house_rules.actions_keep_days game days (#944)
+        $done['actions_pruned'] = \App\Services\ActionsPrune::runIfDue();
         return response()->json($done);
     }
 

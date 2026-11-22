@@ -12,10 +12,13 @@ use Illuminate\Console\Command;
  * other table can use. This rebuilds the tables holding at least a gigabyte
  * free and more free than their rows take (OPTIMIZE TABLE, online: the game
  * keeps running; it needs free disk about the size of the rows it copies).
+ * Since #944 `actions` is one of them: the keeper deletes its finished
+ * actions after 30 game days, and the space they took stays in its file.
  *
  *   php artisan forge:history-rebuild            rebuild the tables worth it
  *   php artisan forge:history-rebuild --dry-run  only say which and how big
  *   php artisan forge:history-rebuild --table=events   that table, whatever its free space
+ *   php artisan forge:history-rebuild --table=actions  `actions`, once its backlog is pruned (#944)
  */
 class ForgeHistoryRebuild extends Command
 {
