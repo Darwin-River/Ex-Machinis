@@ -23,6 +23,10 @@ void settle_between_turns(void);
    when on (off: sleep(seconds), as before) */
 void settle_rest(unsigned int seconds);
 
+/* Whether this engine settles now: EVENTS_IN_ENGINE=1, shard 0, and the
+   events engine's lock held (MEMORY_STATE asks: #694 stage 4 step 5) */
+int settle_here(void);
+
 /* At stop: closes the settlement connection */
 void settle_stop(void);
 

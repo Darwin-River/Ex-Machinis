@@ -50,6 +50,7 @@
 #include "settle.h"
 #include "settle_clock.h"
 #include "event_heap.h"
+#include "db_state.h"
 
 /* How often to try for the events engine's lock while another holds it */
 #define SETTLE_CLAIM_EVERY_SECONDS 5
@@ -151,6 +152,14 @@ static void settle_pass(void)
     ee_pass(&found);
     engine_set_settlement_connection(NULL);
     settle_clock_done(&g_clock, started, settle_now_ms(), found);
+    // MEMORY_STATE (#694 stage 4 step 5): the pass may have changed
+    // holdings; the next units() reads the feed first
+    db_state_settled();
+}
+
+int settle_here(void)
+{
+    return g_on && ee_embed_claimed();
 }
 
 void settle_between_turns(void)

@@ -28,6 +28,7 @@
 #include "lua_drone.h"
 #include "crash.h"
 #include "wake_heap.h"
+#include "db_state.h"
 #include "db_launch.h"
 #include "protocol.h"
 #include "config.h"
@@ -1040,6 +1041,14 @@ ErrorCode_t engine_init(int argc, char** argv)
             "to run from there, not from the batch queries");
     }
 
+    // Current state in memory, with MEMORY_STATE=1 (#694 stage 4 step 5,
+    // #431): holdings, loaded between the first turns (db_state.c). Off:
+    // shard 0 turns the holdings feed off
+    if(engine.error == ENGINE_OK)
+    {
+        db_state_start(&engine.db_connection);
+    }
+
     // stop-all when error
     if(engine.error != ENGINE_OK)
     {
@@ -1426,6 +1435,10 @@ ErrorCode_t engine_run()
         // 4): the turn above has committed or rolled back and given up its
         // locks, and a pass uses its own connection (settle.c). Off: nothing
         settle_between_turns();
+
+        // MEMORY_STATE (#694 stage 4 step 5): the holdings feed read once a
+        // real second, its counts, its five-minute check. Off: nothing
+        db_state_tick(&engine.db_connection);
 
 		// Rest only when there was nothing to run (#324 step 20): sleeping
 		// after every command held the engine to one slice per DB_READ_TIME
