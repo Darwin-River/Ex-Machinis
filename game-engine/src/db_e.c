@@ -395,6 +395,9 @@ static void db_row_to_event(MYSQL_ROW row, Event_t* event)
 #define HEAP_LAG_STEP_MS     10000
 #define HEAP_RECONCILE_MS    (5 * 60 * 1000)
 #define HEAP_REPORT_MS       60000
+/* At start the sweep looks this far below the top id, for rows whose
+   transactions were still open while the start's read ran (#917) */
+#define HEAP_START_LOOKBACK  4096
 
 static int heap_loaded = 0;
 static int heap_max_id = 0;           /* the highest events id seen */
@@ -525,7 +528,7 @@ static ErrorCode_t db_heap_load_all(DbConnection_t* connection, const char* why)
     if(!heap_loaded) {
         heap_loaded = 1;
         if(top > heap_max_id) heap_max_id = top;
-        heap_wm_prev = heap_wm_lag = top;
+        heap_wm_prev = heap_wm_lag = top > HEAP_START_LOOKBACK ? top - HEAP_START_LOOKBACK : 0;
         heap_wm_at = heap_swept_at = heap_reconciled_at = heap_reported_at = db_heap_ms();
         ee_engine_trace(TRACE_LEVEL_ALWAYS,
             "NOTICE: EVENT_HEAP=1: due events come from memory: [%d] pending events loaded in [%lld] ms (top id [%d])",
