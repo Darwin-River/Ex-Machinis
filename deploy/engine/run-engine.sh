@@ -10,7 +10,10 @@ set -e
 ENGINE="$1"
 LOG="$PLAT_HOME/log/$ENGINE.log"
 touch "$LOG"
-tail -n 0 -F "$LOG" 2>/dev/null &
+# From the size it has now, not from wherever its end is once tail opens it:
+# the engine may have written its first lines by then (#919)
+SIZE=$(wc -c < "$LOG")
+tail -c +$((SIZE + 1)) -F "$LOG" 2>/dev/null &
 SHARDS=${ENGINE_SHARDS:-1}
 if [ "$ENGINE" != game-engine ] || [ "$SHARDS" -le 1 ]; then
     exec "$PLAT_HOME/bin/$ENGINE"
