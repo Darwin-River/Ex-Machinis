@@ -44,7 +44,7 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
 - **Its code can be changed at any time, for free** (processor tax still applies). A push restarts its drones as now.
 - **Its record is public from day one:** trades, earnings, events and drones. When it goes public, investors judge it by that record.
 - **At most 2 private companies a player.** A trade that would give a player a third fails.
-- **Adding credits:** any shareholder may add credits to the company. It can't be taken back out except as a shareholder (dividends, selling shares, the company closing).
+- **No adding credits** (decided after the panel's second round). A company's money is what its founder put in at founding, what its drones earn, and what its own code borrows with bonds (part 7). Nobody adds credits later, not even its owner, so nobody outside the company can create shares or force an IPO. A private company that runs short can close itself (its credits go back to its owner) and be founded again with more.
 - **The IPO:** the founder offers shares on the stock exchange at a price they choose, but not below cash-out. While an offer stands, the code can't be pushed, so buyers get the code they watched run. **The first share sold, to a player or to the bank, locks the code for good.** The money goes to the founder. After the IPO, trading uses the usual band (0.8 to 1.25 times the bank's price).
 - **Grant credits** (the 5,000 at the start and after a bankruptcy) found companies and buy shares at no more than the bank's price, as starting credits do today. With the IPO floor at cash-out, this means grant credits can't be passed to a friend through a mispriced IPO.
 
@@ -198,6 +198,8 @@ A panel of prospective players reviewed this proposal before any of it was built
 
 In a second round the same panel read [Answers to the panel](#answers-to-the-panel-proposed). Every overall rating rose to 8 (from 7 to 7.5), and clarity rose most. They found new problems the answers caused, chiefly line 3's "anyone adding credits", which reads as if a stranger could force an IPO: only shareholders may add credits. The round's results and the fixes it suggests are in a second comment on #921.
 
+**Decided after round 2:** nobody adds credits to a company, its owner included. A company raises money only through its own code, by borrowing on the market. This replaces "only shareholders may add credits", since even that let money in create shares.
+
 ## Answers to the panel (proposed)
 
 The aim is to answer each finding without adding a rule a player has to learn. Each answer does one of these:
@@ -211,7 +213,7 @@ None of this is decided; the project lead chooses on #921.
 
 ### 1. Free money can be farmed (finding 1)
 
-- **Adding credits buys new shares at cash-out.** This unifies "add credits" with the new shares a company already sells (#780). Money in means shares out at a fair price, so adding credits can't be a gift to a friend, and minority holders are never diluted. Adding credits to a private company that someone else owns sells them shares, so it is that company's IPO: nobody needs a separate rule.
+- **No money in after founding** (decided after round 2, replacing "adding credits buys new shares"). Only the company's own code raises money, by borrowing through the market (bonds). This closes three problems at once: adding credits as a gift to a friend, forced IPOs, and buying new shares at a stale value. The owner-led offerings of new shares (#780) retire with it, because they too let someone other than the company's code create shares.
 - **The IPO trades within the usual band:** 0.8 to 1.25 times the bank's price (cash-out plus 10 game days of dividends). This removes the IPO's exemption. A company with a strong record earns a higher bank price, and so a premium. An overpriced IPO can't be used to hand money to a friend, and investors get the cap Ruth asked for.
 - **Everyone starts, and starts over, with the same package:** a private company (one drone at Earth, with 3,000 credits inside it) and 2,000 starting credits to invest, which buy shares at no more than the bank's price, as today. The only free money a player holds directly can't be overpaid to anyone. The cash inside the company can leave only through trades, where the price is set by the market. Starting over gives a drone and some working cash, not a pile of spendable credits, so it isn't worth farming.
 - **Teachers' and newcomers' gain:** every pupil has a company to program from the first minute.
@@ -317,8 +319,8 @@ The premium cap (point 1) and the public code during an IPO (point 4) answer the
 
 1. You start, and start over, with one company (a drone and 3,000 credits) and 2,000 starting credits to invest.
 2. A company you own outright is private: only you can change its code, and you may own at most 2.
-3. Selling any share (or anyone adding credits) is its IPO: its code is shown while the offer stands, then locked for good.
-4. Money in buys shares at book value, and share prices stay within a band of the bank's price.
+3. Selling any share is its IPO: its code is shown while the offer stands, then locked for good.
+4. A company's money is what it starts with, earns, and borrows through its own code; nobody adds credits. Share prices stay within a band of the bank's price.
 5. A company ends only through its own code (once it owes nothing), by going broke, or with no drones left. Lenders are paid first, then shareholders, and everything else becomes salvage.
 6. Trading at a place is anonymous: the best price wins, and the planets' prices rise the more everyone buys.
 7. Promises (contracts and bonds) have due dates and grades. Only public companies borrow, and anyone with a stake reads the code.
@@ -330,6 +332,7 @@ These replace or simplify:
 - the import ration and -17;
 - the 5-share threshold;
 - the declared dividend constant;
-- the "promises kept" input to grades.
+- the "promises kept" input to grades;
+- adding credits to a company, and owner-led offerings of new shares (#780).
 
-They add one line (the band and money-in rule, line 4), and turn "bankruptcy" into "start over".
+Line 4 states where a company's money comes from and the share price band, and "bankruptcy" becomes "start over".
