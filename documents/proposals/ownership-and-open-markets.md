@@ -166,6 +166,22 @@ This replaces the startup rules: the bank loan and debt, the founding and push f
   - a salvager, and a hauler for far-away goods.
 - **A glossary and the worked example below** in the players' manual.
 
+### Every option for everyone; drone code alone is enough to succeed
+
+There are no stages or locked features: every player can use every mechanism from the start. Instead, the design makes sure a new player can have fun and do well **just by coding drones**. A private company that mines, hauls and trades earns dividends for its owner, and wealth and the seasonal leaderboards reward that without an IPO, a loan or a contract. Going public, lending, contracts and takeovers are there for players who want more.
+
+**The players' manual becomes a textbook** that introduces the simplest mechanisms first and encourages players to master each before moving on:
+
+| Part | Chapters | You've mastered it when |
+|---|---|---|
+| I. Your first drone | Getting started with the Miner; Lua through the starter; mining and refining; selling to the planets; fuel and travel; reading your drone's reports, the test drive and Start over | your company earns steadily for a game month without help |
+| II. Markets | The order book at a place; best price and depth; import prices; hauling far-away goods; salvage | your drone buys low and sells high, or hauls a far good at a profit |
+| III. Growing | Launching copies; copies that vary with `lineage()`; a second company; dividends and `pay_out` | you run a fleet whose copies differ and outlast a price slump |
+| IV. Going public | Close-out value; the IPO and its locked code; writing an exit routine; takeovers | you've sold shares in a company that later paid its holders more than they paid |
+| V. Finance | Contracts with deposits; loan requests; reading other companies' code to invest and lend; account trading scripts | your loans and shares earn more than they lose over a season |
+
+Each chapter states its goal, explains one idea with a working script, ends with an exercise and a "you've mastered this when" check, and points to the next chapter. The glossary, the Lua reference and the failure codes are appendices. The game itself stays the same for everyone; only the order in which the manual teaches it is staged.
+
 ## Lua words
 
 Reads and actions, not rules:
@@ -272,3 +288,7 @@ Panels of prospective-player personas reviewed the proposal three times; their f
   - new players start with a mining drone and 1,000 credits;
   - share prices have no floor;
   - Start over is open to anyone at most once every 12 real hours, the same wait each time.
+- after the fourth panel (a fresh panel and a game developer):
+  - no stages or locked features, no covenant on payouts while owing, and no cut in scope: every option is open to every player;
+  - a new player must be able to have fun and succeed just by coding drones;
+  - the players' manual becomes a textbook that teaches the simplest mechanisms first.
