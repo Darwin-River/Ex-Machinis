@@ -1,6 +1,6 @@
 # Ownership and open markets (proposal)
 
-**Status:** proposed, not built. The live game still plays by the [Rules of Play](../design-manual.md#The-Rules-of-Play). Tracked by #921, with a sub-issue for each part (#922 to #932). This version brings together every decision the project lead has made so far, after four rounds of persona-panel review; [How the design got here](#how-the-design-got-here) lists them.
+**Status:** proposed, not built. The live game still plays by the [Rules of Play](../design-manual.md#The-Rules-of-Play). Tracked by #921, with a sub-issue for each part (#922 to #932). This version brings together every decision the project lead has made so far, after five rounds of persona-panel review; [How the design got here](#how-the-design-got-here) lists them.
 
 **Aim:** a market as busy and varied as possible, built from rules a newcomer can hold in their head. Each rule replaces special cases rather than adding them. The complexity should come from what drones, companies and players do with the rules.
 
@@ -28,7 +28,7 @@ The startups that bring new players in work, and this proposal keeps them, with 
 1. **Found startups on free grants.** A startup trades only with the planets, nobody can plunder its wrecks, and closing it cancels its debt.
 2. **A startup that earns back its grant plus a margin matures:** it repays the grant, trades with everyone, and you get its 100 shares.
 3. **You can change the code of any company you own outright,** and you may own at most **5** outright, startups included.
-4. **The first share you sell locks the company's code for good,** unless someone later buys all of it back.
+4. **The first share you sell locks the company's code for good,** unless someone later buys all of it back; you can't buy a company's shares for 7 real days after selling any.
 5. **Only companies with locked code can borrow:** their code posts loan requests, and players with at least **5,000 credits** choose which to back.
 6. **A company ends only through its own code** (once it owes nothing), by going broke, or with no drones left. Lenders are paid first, then shareholders, and everything else becomes salvage.
 7. **Trading at a place is anonymous,** and the planets always buy and sell common goods.
@@ -43,6 +43,7 @@ The parts below say how each rule works, and [a worked example](#a-worked-exampl
 - **The planets don't sell the far goods.** They keep selling fuel, kits and the common goods, and keep buying the far goods near Earth. Supply is far away and demand is at home, and that gap is the market.
 - **Fuel only at the exchanges.** Work far away needs a supply line, so fuel depots and far-away fuel brewers become a business.
 - **Depletion stays off.** Distance does the job, with fewer rules.
+- **The far map shifts each season.** Every 4 real weeks, the homes of the valuable far-away minerals move: some bodies grow rich, others run poor. The next season's map is published a real week ahead, so players can plan. The common ores near Earth, the Moon and Mars don't move, so starters still mature. Routes, depots and locked designs have to adapt or give way, which keeps the physical economy from being solved once and for all, and feeds salvage and turnarounds.
 - **Lever:** the far goods' bids must pay for the trip (playbook, lesson 8: the Moon to Mars is about 10 game days each way).
 
 ## 2. Startups, maturing and the IPO (#923)
@@ -54,7 +55,7 @@ This keeps the live game's startups and trims them.
 - **Its owner changes its code at any time, for free.** The push fee goes. Processor tax still applies.
 - **It trades only with the planets.** It buys from and sells to the planets' orders at a place, and never trades with players' companies (-16), so the grant can't leak to a friend before it has been earned back. It signs no contracts and asks for no loans.
 - **It plunders nothing, and nobody can plunder or salvage its wrecks.** A beginner's failures cost them nothing and feed nobody.
-- **Closing it cancels its debt:** its credits go back to the bank, and its drones become wrecks with empty holds. Like every company, it closes through its own code (`close_company()`), which its owner can push at any time.
+- **Closing it cancels its debt:** its credits go back to the bank, and its drones become wrecks with empty holds. Like every company, it closes through its own code (`close_company()`); the Close button on its page pushes that for the owner.
 - **Its record and its code** are seen by its owner only (and their teacher, in a class).
 
 ### Maturing
@@ -65,11 +66,14 @@ This keeps the live game's startups and trims them.
 ### Owning outright
 - **A company is owned outright** when one player holds all its shares, or it's a startup. Its owner can change its code.
 - **At most 5 companies owned outright,** startups included. This merges today's five-startup limit with the redesign's private-company limit into one rule. A slot frees when the player sells a share or closes the company; a closed startup's slot reopens a game day later, as today. A trade that would give a player a sixth fails.
+- **Public companies have no limit.** A player may found, mature and sell shares in as many companies as they can build; each company's fleet cap (8 working drones) and processor tax still apply.
 
 ### The IPO: the first share sold
 - **The owner sells shares** on the stock exchange at a price they choose, or to the bank at close-out value.
 - **From the moment shares are offered, the code is public,** and it can't be pushed while the offer stands, so buyers get the code they watched run.
 - **The first share sold locks the code for good** and makes the company public. The money goes to the owner. An offer that doesn't sell locks nothing: the owner can withdraw it, change the code and try again, but the code has been seen.
+- **Why it locks:** buyers get exactly the code they watched run, and nobody can change it after taking their money. The website says so wherever selling shares is offered.
+- **No buying back straight away:** a player can't buy shares of a company for 7 real days after selling any of its shares. Without this, an owner could sell one share to the bank, buy it straight back and be owning outright again, so the lock and the limit of 5 would mean nothing. The wait is in real days because at 1,800 times real time even a game month is under half a real hour.
 - **Nobody adds credits to a company.** A startup's money is its grant and earnings. A matured company's money is what it earns and, once public, what its code borrows.
 - **This replaces:** the credit cap and its sweep, and the daily buying cap (-17); the rising import price (part 6) does its job for everyone. It also replaces the earlier proposal's private companies, starting drone and credits, adding credits before an IPO, and the limit of 2 private companies.
 
@@ -78,13 +82,14 @@ This keeps the live game's startups and trims them.
 - **A public company whose shares one player buys up completely is owned outright again.** Its code can be changed, and it counts against that player's 5.
 - **Turnarounds are a business.** Buy a failing company cheaply, rewrite its code, and sell shares again at a profit. The first share sold locks the new code. A fleet already in place, often far away, is worth more than wrecks.
 - **Investors can't be harmed:** everyone else sold of their own free will.
+- **The founder can't take their own company back within 7 real days of selling shares in it** (part 2), so going public is a real decision.
 - **A takeover makes the company's loans due at once,** so a raider can't unlock the code and rewrite it to walk away from its lenders.
 - **Holdouts** (one player keeping a single share) are allowed. If they block too many turnarounds, add a squeeze-out: a holder of 95% may buy the rest at a set premium.
 - **In a class,** the teacher can switch off takeovers within the class.
 
 ## 4. The kill switch (#925)
 
-- **A company ends only through its own code,** with `close_company()`, or by going broke (50 game days without credits), by winding up (60 game days without a sale) as now, or with no working drones (below). Nobody has a Close button: an owner who wants out pushes code that calls it.
+- **A company ends only through its own code,** with `close_company()`, or by going broke (50 game days without credits), by winding up (60 game days without a sale) as now, or with no working drones (below). **A Close button** on the page of every company owned outright (a startup, or a company with one owner) pushes code that calls `close_company()` for the owner, with one line saying what will happen. The rule is the same; failing stays free in two clicks. A public company has no button: only its own locked code can close it.
 - **A startup** always can: its grant is cancelled, and its credits go back to the bank.
 - **A matured company can close only when it owes nothing:** no loans outstanding and no open contracts. Otherwise `close_company()` fails with a new code ("obligations outstanding"). The ways out:
   - `repay(id)` pays a loan back early, with the interest due so far;
@@ -189,6 +194,15 @@ Failing costs a new player nothing: startups are free, and closing one cancels i
   - a salvager, and a hauler for far-away goods.
 - **A glossary and the worked example below** in the players' manual.
 
+### Getting new players to a first success
+
+These are screens and starter scripts, not rules:
+- **Starters that mature untouched.** Each starter matures on its own if a new player changes nothing, and has plain-English comments on the three numbers worth changing ("sell when the price is above this").
+- **A guided first mission:** "found a startup, change one number, mature it", with a target time to beat and the exact line to edit.
+- **Times in real minutes:** a startup's page says when it should mature at the current pace, in real minutes, not only game days.
+- **"While you were away":** a short summary on return of what each company did, earned and lost, building on "Since you last looked" (#771).
+- **The rules revealed in layers:** a new player sees the basics (rules 1, 2 and 7, plus fuel and travel, which are what wreck first drones). The rest appear in the strip under the menu as each layer is earned ("Next: sell a share to go public"), and the way to 5,000 credits shows as a progress bar, not a locked door. Nothing is switched off; the help shows what matters next.
+
 ### Every option for everyone who earns it; drone code alone is enough to succeed
 
 Nothing is switched on by a timer or a teacher. Each layer opens because the player has earned it: maturing opens the player market, shares bring credits, and 5,000 credits open lending. A new player can have fun and do well **just by coding drones**. Startups that mature pay their founder dividends, and wealth and the seasonal leaderboards reward that without a share sale, a loan or a contract.
@@ -204,6 +218,11 @@ Nothing is switched on by a timer or a teacher. Each layer opens because the pla
 | V. Finance | Reading other companies' code; buying shares; backing loan requests; account trading scripts | your loans and shares earn more than they lose over a season |
 
 Each chapter states its goal, explains one idea with a working script, ends with an exercise and a "you've mastered this when" check, and points to the next chapter. The glossary, the Lua reference and the failure codes are appendices.
+
+### Held for later
+
+- **A pause button for companies owned outright:** the owner puts the company to sleep, so it burns no fuel and runs up no costs until woken, for players and classes who are away for days. Held because it adds to the interface; to be reconsidered once the rest is built and played.
+- **A class clock** (a class's companies running only during lesson hours), for the same reason.
 
 ## Lua words
 
@@ -255,7 +274,7 @@ For account trading scripts: `loan_requests()`, `back_loan(id, n)` and `my_loans
 - **Live startups carry on** under the trimmed startup rules: no push fee, no credit cap, no daily buying cap.
 - **Matured companies whose shares one player still holds all of** are owned outright, and their code becomes changeable again. Every other matured company is public; its code is already locked and stays readable by everyone, as all code is today.
 - **The bank's companies** (Bank Miner, Refiner, Maker) are public.
-- **Players' starting credits** already granted stay as they are, with today's restriction, until spent. New players get none; their first credits come from maturing.
+- **Players' starting credits** already granted stay as they are, with today's restriction, until spent. New players get none, and neither do new class accounts (whose pupils get 5,000 at once today); their first credits come from maturing.
 - **Owner-led offerings of new shares (#780) retire,** because only a public company's own code may bring money in.
 
 ## Numbers to tune
@@ -267,6 +286,8 @@ For account trading scripts: `loan_requests()`, `back_loan(id, n)` and `my_loans
 | Companies owned outright | 5, startups included |
 | A closed startup's slot reopens after | 1 game day, as today |
 | Credits needed to back new loans | 5,000 |
+| No buying a company's shares after selling any | 7 real days |
+| The far map shifts | every 4 real weeks, published a real week ahead |
 | The bank pays for shares after | 30 game days |
 | A company with no working drones ends after | 3 game days |
 | Import price | rises with recent buying, decays back steadily; fuel at a flat price |
@@ -305,7 +326,7 @@ Each part is timed in a playtest round on #380 against round 73's measures: time
 
 ## How the design got here
 
-Panels of prospective-player personas reviewed the proposal four times; their findings and ratings are in the comments on #921. The project lead decided, in order:
+Panels of prospective-player personas reviewed the proposal five times; their findings and ratings are in the comments on #921. The project lead decided, in order:
 
 - at most a few companies owned outright; the money from selling shares goes to the founder;
 - a company closes only through its own code, and only once it owes nothing;
@@ -321,3 +342,9 @@ Panels of prospective-player personas reviewed the proposal four times; their fi
   - **one limit of 5 companies owned outright;**
   - **no bankruptcy;**
   - **5,000 credits to back loans,** so the game goes from simple to hard and falls back to simple for a player who gets in over their head.
+- after round 5:
+  - **interface fixes for a first success:** a Close button that pushes `close_company()`, starters that mature untouched, a guided first mission, times in real minutes, "while you were away", and the rules revealed in layers;
+  - **no buying back for 7 real days after selling,** so the lock can't be rotated;
+  - **the far map shifts each season,** announced a week ahead;
+  - **no limit on public companies.**
+- **no starting credits for class accounts** either; a pause button and a class clock are held for later.
