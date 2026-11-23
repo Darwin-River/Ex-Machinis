@@ -499,7 +499,7 @@ class Leaderboard
             return ['day' => (int) $d->day, 'credits' => (int) $d->credits,
                 'net_wealth' => (int) $d->net_wealth, 'drones' => (int) $d->drones,
                 'cash_out' => $cash, 'cash_out_share' => $share,
-                'bank_sells_at' => $share === null ? null : $share + intdiv($div, $count), 'shares' => $count];
+                'bank_sells_at' => $share, 'shares' => $count];   // the bank sells at close-out value: no dividend premium since #928
         })->all();
     }
 }

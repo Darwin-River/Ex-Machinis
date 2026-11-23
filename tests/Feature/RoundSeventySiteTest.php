@@ -227,9 +227,9 @@ class RoundSeventySiteTest extends TestCase
             'units' => 2, 'price' => 1, 'created_at' => now()]);
         $mine = PlayerShares::of($buyer);
         $this->assertSame('bought', $mine['fills'][0]['side']);
-        $this->assertTrue($mine['orders'][0]['out_of_range']);
+        $this->assertFalse($mine['orders'][0]['out_of_range'], 'no band since #928: any price stands');
         $this->actingAs($buyer)->get('/account')->assertOk()->assertSee('id="share-fills"', false)
-            ->assertSee('Bought 3 of')->assertSee("Can't fill now:", false);
+            ->assertSee('Bought 3 of');
         // The digest says so too, and looks back at most DIGEST_MAX_DAYS
         DB::table('users')->where('user_id', $buyer->user_id)->update(['last_seen_t' => World::gameNow() - 40 * 86400]);
         $digest = PlayerBoards::digest($buyer, false);

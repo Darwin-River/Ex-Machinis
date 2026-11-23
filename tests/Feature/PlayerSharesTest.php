@@ -82,7 +82,7 @@ class PlayerSharesTest extends TestCase
         $p = PlayerShares::prices($id);
         $this->assertSame($v['per_share'], $p['buys_at']);
         $this->assertSame($p['buys_at'], $p['sells_at'], 'no profit yet, so no dividends');
-        $this->assertSame((int) floor($p['sells_at'] * 0.8), $p['low']);
+        $this->assertSame([1, PlayerShares::MAX_PRICE], [$p['low'], $p['high']], 'no floor or band (#928)');
 
         // Goods count at each good's best listed House bid anywhere,
         // averaged over the last 7 game days recorded (#685): not the bid
@@ -113,8 +113,8 @@ class PlayerSharesTest extends TestCase
         DB::table('holdings')->where('drone', $drone)->where('resource', \App\Services\Release::FUEL)->update(['units' => 0]);
         $this->assertSame(0, PlayerShares::cashOut($id)['hulls']);
 
-        // Profit alone doesn't raise the bank's selling price: only dividends
-        // actually paid since maturing do (#673)
+        // Dividends paid count in the 30-day yield (#673); the bank's price
+        // is close-out value either way (#928)
         $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
         $today = intdiv(World::gameNow() - $epoch, 86400);
         DB::table('company_profits')->insert(['company' => $id, 'day' => $today - 1, 'sales' => 40000, 'purchases' => 0,
@@ -124,13 +124,13 @@ class PlayerSharesTest extends TestCase
         DB::table('player_dividends')->insert(['company_id' => $id, 'user_id' => $owner->user_id, 'day' => $today - 1,
             'units' => 100, 'amount' => 20000]);
         $this->assertSame(200, PlayerShares::dividends30($id), '20,000 paid over 100 shares');
-        $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at']);
-        // #781: the bank adds the last 10 game days of dividends, not 30, so
-        // dividends paid 20 game days ago count in the yield but not the price
+        // #928: the bank sells at close-out value too: no dividend premium
+        $this->assertSame(PlayerShares::prices($id)['buys_at'], PlayerShares::prices($id)['sells_at']);
+        // dividends paid 20 game days ago count in the yield
         DB::table('player_dividends')->insert(['company_id' => $id, 'user_id' => $owner->user_id, 'day' => $today - 20,
             'units' => 100, 'amount' => 30000]);
         $this->assertSame(500, PlayerShares::dividends30($id), 'both payments within 30 game days');
-        $this->assertSame(PlayerShares::prices($id)['buys_at'] + 200, PlayerShares::prices($id)['sells_at'], 'only the last 10 game days');
+
         $this->assertSame(500, collect(PlayerShares::market())->firstWhere('company', $id)['dividends30']);
     }
 

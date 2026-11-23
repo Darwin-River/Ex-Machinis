@@ -58,12 +58,12 @@ class PerformanceChartsTest extends TestCase
         $stored = (int) DB::table('company_days')->where('company_id', $id)->where('day', $today)->value('cash_out');
         $this->assertSame(PlayerShares::cashOut($id)['total'], $stored);
 
-        // The history: cash-out, a share's, and the bank's selling price (cash-out + 30 days of dividends a share)
+        // The history: cash-out, a share's, and the bank's selling price (cash-out value since #928: no dividend premium)
         DB::table('player_dividends')->insert(['company_id' => $id, 'user_id' => null, 'day' => $today - 1, 'units' => 100, 'amount' => 700]);
         $row = collect($this->getJson("/api/v1/companies/$id/history")->assertOk()->json())->firstWhere('day', $today);
         $this->assertSame($stored, $row['cash_out']);
         $this->assertSame(intdiv($stored, 100), $row['cash_out_share']);
-        $this->assertSame(intdiv($stored, 100) + 7, $row['bank_sells_at']);
+        $this->assertSame(intdiv($stored, 100), $row['bank_sells_at']);
         // A day before it was recorded: null
         DB::table('company_days')->insert(['company_id' => $id, 'day' => $today - 3, 'credits' => 1, 'net_wealth' => 1, 'drones' => 1]);
         $old = collect($this->getJson("/api/v1/companies/$id/history")->json())->firstWhere('day', $today - 3);

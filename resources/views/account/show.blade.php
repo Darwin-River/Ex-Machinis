@@ -36,8 +36,9 @@
             <h2 class="h4">{{ $account['name'] }}</h2>
             @if(!$account['verified'])
                 <div class="alert alert-warning" style="white-space: normal">
-                    Verify your e-mail address ({{ $account['email'] }}): open the link we sent to it. Verifying brings
-                    your account its {{ number_format(config('forge.player_share_credits')) }} credits for buying shares.
+                    Verify your e-mail address ({{ $account['email'] }}): open the link we sent to it. Verifying lets you
+                    mature startups and trade shares.@if(config('forge.player_share_credits') > 0) It brings your account its
+                    {{ number_format(config('forge.player_share_credits')) }} credits for buying shares.@endif
                     <form method="POST" action="{{ url('account/verify') }}" class="mt-2">
                         {{ csrf_field() }}
                         <button class="button button-secondary button-sm" type="submit">Send the link again</button>
@@ -54,8 +55,9 @@
                     <tr><th scope="row">Class group</th><td class="text-right">{{ $account['class_group']['name'] }}</td></tr>
                 @endif
             </table>
-            <p>Your credits are what your shares and companies have earned you. The credits for buying shares came with
-                your account: they can only buy shares.</p>
+            <p>Your credits are what your shares and companies have earned you: dividends, payouts, selling shares and
+                companies closing. Your first come from maturing a startup.@if((int) ($account['share_credits'] ?? 0) > 0) Your
+                credits for buying shares came with your account: they can only buy shares.@endif</p>
 
             {{-- Personal records (#775): a record to beat --}}
             @php($records = \App\Services\PlayerBoards::records(auth()->user()))
