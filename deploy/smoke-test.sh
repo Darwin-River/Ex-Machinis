@@ -437,7 +437,8 @@ wait_for 60 "the drone set its dividend share and asked for a payout" replied $D
 echo "ok: a company's code sets its dividend share and pays out (#930)"
 wait_for 30 "request_loan refuses a company that isn't public (-23: #928)" replied $DRONE_ID "loan -23"
 
-sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
+# (at least 1: the contract delivery below can add one within a second)
+sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) >= 1 from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 30 "the sale to the other company worked" replied $DRONE_ID "sister 0"
 wait_for 30 "a push to another company's drone by its ID is refused (-22: #927)" replied $DRONE_ID "not-own -22"
