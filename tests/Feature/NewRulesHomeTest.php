@@ -44,14 +44,14 @@ class NewRulesHomeTest extends TestCase
     {
         $this->get('/')->assertOk()
             ->assertSee('Write the code.')->assertSee('Your drones run the company.')
-            ->assertSee('Found a startup (free)')->assertSee('href="' . url('release') . '"', false)
+            ->assertSee('Make an account (free)')->assertSee('found a startup now')->assertSee('href="' . url('release') . '"', false)
             ->assertSee('A sketch of the Miner starter')
-            // The steps' numbers come from the config: 1,000 + 3,000 + 200 owed, 4,700 to mature
-            ->assertSee('it owes 4,200')->assertSee('At 4,700 credits')->assertSee('100 shares are yours')
+            // The path's numbers come from the config (#987): 4,200 owed and 500 to work with, 4,700 to mature
+            ->assertSee('id="pipeline"', false)->assertSee('At 4,700 credits it repays the bank')->assertSee('100 shares are yours')
             ->assertSee('id="economy-banner"', false)->assertSee('See the whole economy')
             ->assertSee('Make an account')->assertDontSee('No account needed');
         config(['forge.startup_fee' => 300, 'forge.startup_mature_margin' => 800]);
-        $this->get('/')->assertOk()->assertSee('it owes 4,300')->assertSee('At 5,100 credits');
+        $this->get('/')->assertOk()->assertSee('At 5,100 credits');
     }
 
     public function testTheClockLineIsHonestWhenSlowed()

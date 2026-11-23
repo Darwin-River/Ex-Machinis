@@ -6,6 +6,7 @@
     <section class="section section-xs section-first text-md-left">
         <div class="container">
             @include('_flash_message')
+            @if(config('forge.new_rules'))@include('partials.pipeline', ['here' => 'account'])@endif
             <p>An account is a name, a password and an e-mail address: one account per address. We send a link to the
                 address; opening it verifies your account@if(config('forge.player_share_credits') > 0) and brings it
                 {{ number_format(config('forge.player_share_credits')) }} credits for buying shares in companies@endif. Your

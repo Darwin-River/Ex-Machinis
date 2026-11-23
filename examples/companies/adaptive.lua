@@ -1,7 +1,7 @@
 -- Adaptive: a market-aware company design for Public Forge, in Lua (#380),
 -- written as a state machine. It equips itself with the Factory Kit. The players'
 -- manual walks through it
--- (Chapter 9, "Market-aware drones").
+-- (Chapter 8, "Market-aware drones").
 -- It turns Metals (A1) into rods at the Moon, like the Smith, but it reads
 -- the market every round and decides what to do:
 -- - it buys metals only while two of them cost well under what a rod
