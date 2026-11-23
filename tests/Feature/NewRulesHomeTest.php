@@ -44,7 +44,7 @@ class NewRulesHomeTest extends TestCase
     {
         $this->get('/')->assertOk()
             ->assertSee('Write the code.')->assertSee('Your drones run the company.')
-            ->assertSee('Make an account (free)')->assertSee('found a startup now')->assertSee('href="' . url('release') . '"', false)
+            ->assertSee('Make an account (free)')->assertSee('Every startup belongs to a player')->assertDontSee('found a startup now')
             ->assertSee('A sketch of the Miner starter')
             // The path's numbers come from the config (#987): 4,200 owed and 500 to work with, 4,700 to mature
             ->assertSee('id="pipeline"', false)->assertSee('At 4,700 credits it repays the bank')->assertSee('100 shares are yours')

@@ -191,11 +191,15 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 2. **Found a startup.** On the **Found a startup** page (the button at the top of every page), pick a starter (the Miner is picked for you) or write your own script, name your company, and press **Found startup**. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **startup**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a startup](#releasing-a-startup)).
 3. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
 4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Found a startup page say the pace right now.
-5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)).
+5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)). Each starter matures as it is; the three settings marked **TRY FIRST** in its comments are the ones to change first.
 6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Mature** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when a matured company of yours is counting down to dissolving. Maturing repays the debt, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
 7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Part IV](#part-iv-going-public)). While you hold all 100 you still own it outright, and can change its code; the first share you sell makes it public and locks its code (see [Owned outright, or public](#owned-outright)).
 
 If it fails on the way, close it and start another. That costs you nothing.
+
+**Your first mission.** Until you own a matured company, your startup's page shows a short mission over its Road to maturity: found a startup (done), **change one number** (it names the first TRY FIRST setting in your code and its line, so you know exactly what to edit) and **mature it**, with a target time in real minutes from the starter's usual range at today's pace.
+
+**The strip under the menu.** When you're logged in, a line under the menu says your **next step** on the path (mature a startup; then buy a share in another player's company, or sell one of yours; then back a loan, with a bar of your credits toward the 5,000 that lending needs). **The rules so far** opens to the rules you need now: the basics at first (your code, startups, maturing, fuel and travel), then owning companies once one of yours has matured, then investing and lending once you invest or reach 5,000 credits. Nothing is switched off: every rule applies from the start, and the strip only shows what matters next. The whole rulebook is in this manual.
 
 ### Making an account
 
@@ -354,8 +358,9 @@ Lua is case-sensitive (`Moon` is not `moon`) and doesn't care about line breaks 
 The Miner starter ([`examples/starters/miner.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/starters/miner.lua)) is written the same way, only longer: settings first, then the functions, then `launched`. Its settings are the numbers to change first:
 
 ```lua
--- Settings: change these numbers to make it your own
-low_fuel = 40      -- fuel units below which it buys more
+-- Settings: change these numbers to make it your own. It matures as it is;
+-- the three marked TRY FIRST are the ones to change first
+low_fuel = 40      -- TRY FIRST: fuel units below which it buys more (higher: safer, but more credits sit in its tank)
 dry_tries = 12     -- dry tries at the Moon before it tries Phobos (large: stay)
 grow_at = 7000     -- credits at which a matured drone launches a copy (6500 at least)
 work_cash = 1500   -- credits the company keeps per drone, so copies don't starve it

@@ -81,4 +81,40 @@ class Pipeline
         unset($s);
         return ['steps' => $steps, 'next' => $next, 'player' => $player !== null];
     }
+
+    /**
+     * The rules in layers (#932): a newcomer sees the basics (their code,
+     * startups, maturing, fuel and travel); owning a matured company adds
+     * owning, going public and where an account's credits come from;
+     * reaching the lending mark, or investing, adds loans. Nothing is
+     * switched off: this is only what the strip under the menu shows.
+     * [{layer, title, rules: [text], open}], each open or not yet
+     */
+    public static function rules(array $path): array
+    {
+        $done = array_column($path['steps'], 'done', 'key');
+        $lend = collect($path['steps'])->firstWhere('key', 'lend');
+        $credits = $lend['progress']['now'] ?? null;
+        $mature = number_format(Startups::grant() + Startups::matureMargin());
+        $min = number_format(Loans::minCredits());
+        return [
+            ['layer' => 1, 'title' => 'The basics', 'open' => true, 'rules' => [
+                'Your Lua code runs your drones on their own, in a shared, live world.',
+                'Found a startup for free: the bank lends it a drone and credits. Close it at any time and its debt is cancelled.',
+                'A startup trades only with the House, the game\'s traders at each exchange, and you can change its code for free.',
+                'At ' . $mature . ' credits it can mature: it repays the bank, trades with everyone, and its ' . Startups::SHARES . ' shares are yours.',
+                'Fuel and travel: every flight and every job burns fuel, and a drone that runs dry is stuck where it is. Keep a reserve (fuel_floor) and buy more before you run low.',
+            ]],
+            ['layer' => 2, 'title' => 'Owning companies', 'open' => (bool) ($done['code'] ?? false), 'unlock' => 'when you own a matured company', 'rules' => [
+                'You may own up to ' . (int) config('forge.startup_max') . ' companies outright, startups included, and change their code whenever you like.',
+                'The first share you sell makes a company public and locks its code, which anyone can then read before they invest.',
+                'Your account\'s credits come from your shares: what your companies pay out, and the shares you sell.',
+            ]],
+            ['layer' => 3, 'title' => 'Investing and lending', 'open' => (bool) (($done['invest'] ?? false) || ($done['lend'] ?? false)
+                || ($credits !== null && $credits >= Loans::minCredits())), 'unlock' => 'when you invest, or have ' . $min . ' credits', 'rules' => [
+                'Buy shares in other players\' companies at any price a seller will take, and earn what they pay out.',
+                'Only public companies borrow: their code asks for loans, and players with ' . $min . ' credits choose which to back. Lenders are paid before shareholders.',
+            ]],
+        ];
+    }
 }

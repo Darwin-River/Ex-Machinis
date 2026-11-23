@@ -8,8 +8,9 @@
 -- markets, and moves to Phobos or Deimos when a run there would yield more
 -- (move_below); set spread_copies to 1 to send two in three copies there.
 
--- Settings: change these numbers to make it your own
-low_fuel = 40      -- fuel (units) below which it buys more
+-- Settings: change these numbers to make it your own. It matures as it is;
+-- the three marked TRY FIRST are the ones to change first
+low_fuel = 40      -- TRY FIRST: fuel units below which it buys more (higher: safer, but more credits sit in its tank)
 spread_copies = 0  -- 1: copies spread over the Moon, Phobos and Deimos; 0: all at the Moon
 move_below = 3     -- units a run yields here below which it moves to a quieter site (0: stay)
 dry_tries = 12     -- dry tries in a row at the Moon before it tries Phobos
@@ -19,9 +20,9 @@ work_cash = 1500   -- credits kept for each drone the company will have after a 
 grow_until = 0     -- game day after which it launches no copies (0: no limit);
                    -- a copy takes about 20 game days to pay back
 rest = 240         -- game minutes to rest when both Mars moons are dry
-hold_cap = 48      -- refined goods (units) it keeps on offer before a selling trip
+hold_cap = 48      -- TRY FIRST: refined goods it keeps on offer before a selling trip (fewer: sells sooner)
 min_ask = 12       -- least asking price (credits) where nobody bids
-hour_value = 4     -- credits a game hour of its time is worth (lower: sells further away)
+hour_value = 4     -- TRY FIRST: credits a game hour of its time is worth (lower: sells further away)
 
 -- Fixed numbers the plan uses
 local HOUR = 60                    -- game minutes

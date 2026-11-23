@@ -4,15 +4,16 @@
 -- enough credits, once matured, it launches a copy of itself. A startup
 -- deals only with the House and launches no copies.
 
--- Settings: change these numbers to make it your own
-rod_load = 12      -- rods it carries off to sell (4 cargo each)
+-- Settings: change these numbers to make it your own. It matures as it is;
+-- the three marked TRY FIRST are the ones to change first
+rod_load = 12      -- TRY FIRST: rods it carries off to sell, 4 cargo each (fewer: sells sooner, more trips)
 low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
-trip_margin = 20   -- flies to Earth only if rods sold there for this much more
+trip_margin = 20   -- TRY FIRST: flies to Earth only if rods sell there for this much more
 grow_at = 7000     -- credits at which it launches a copy (once matured)
 work_cash = 1500   -- credits kept for each drone before a copy launches
 grow_until = 0     -- game day after which no more copies (0: no limit)
-batch = 20         -- metals it buys at a time
+batch = 20         -- TRY FIRST: metals it buys at a time (more: fewer trips, more credits tied up)
 cash_floor = 300   -- credits it keeps for fuel when its tank is low
 low_floor = 60     -- credits it keeps when its tank is full enough
 metals_per_rod = 2 -- Metals (A1) in a rod (two make an alloy, an alloy a rod)

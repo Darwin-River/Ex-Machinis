@@ -142,6 +142,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </header>
     @include('partials.game-clock')
     @include('partials.company-now')
+    {{-- The next step and the rules so far (#932) --}}
+    @include('partials.next-strip')
 
     <main id="main">
         @yield('content')

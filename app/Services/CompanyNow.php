@@ -42,6 +42,7 @@ class CompanyNow
     public static function forget(User $user): void
     {
         Cache::forget('company-now:' . $user->user_id);
+        Cache::forget('next-strip:' . $user->user_id);   // the next step on the path (#932) moves on too
     }
 
     /**
