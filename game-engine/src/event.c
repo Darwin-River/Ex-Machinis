@@ -1500,7 +1500,9 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
     if(event_get_action(event->action_id, &action) != ENGINE_OK || action.aborted)
         return ENGINE_FALSE;
 
-    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID)
+    // (a delivery on a contract is a transfer too, #928)
+    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID &&
+       action.protocol_id != DELIVER_PROTOCOL_ID)
         return ENGINE_FALSE;
 
     if(db_get_pending_action_event(event->action_id, INCREMENT_INVENTORY_EVENT_TYPE,

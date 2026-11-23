@@ -3265,8 +3265,8 @@ ErrorCode_t db_refund_fuel(int action_id)
         "JOIN actions a ON a.id = e.action "
         "JOIN resource_effects r ON r.protocol = a.protocol AND r.resource = %d AND r.event_type = 2 AND r.deplete = 1 "
         "WHERE e.action = %d AND e.resource = %d AND e.event_type = 2 AND e.outcome = %d "
-        "AND e.installed = 0 AND e.locked = 0 AND a.protocol IN (%d, %d) ORDER BY e.id LIMIT 1",
-        FUEL_RESOURCE_ID, action_id, FUEL_RESOURCE_ID, OUTCOME_OK, PUSH_PROTOCOL_ID, PULL_PROTOCOL_ID);
+        "AND e.installed = 0 AND e.locked = 0 AND a.protocol IN (%d, %d, %d) ORDER BY e.id LIMIT 1",
+        FUEL_RESOURCE_ID, action_id, FUEL_RESOURCE_ID, OUTCOME_OK, PUSH_PROTOCOL_ID, PULL_PROTOCOL_ID, DELIVER_PROTOCOL_ID);
     if(mysql_query(connection->hndl, query_text)) {
         ee_engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
         return ENGINE_DB_QUERY_ERROR;
