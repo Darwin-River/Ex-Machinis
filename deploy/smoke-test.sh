@@ -332,6 +332,17 @@ function launched()
   -- (another company's drone by its ID is refused: -22; its order by its handle goes through, #927)
   say("not-own " .. push(1, wolfite, $SISTER))
   say("sister " .. push(1, wolfite, $SISTER_BUY))
+  -- Contracts (#928): the test signs one for it (it delivers 1 wolfite to
+  -- the sister drone); it finds it among its obligations, delivers with
+  -- deliver(id, n), and can't perform protocol 37 itself
+  local cid
+  hold_until(function()
+    for _, o in ipairs(obligations()) do
+      if o.kind == "taken" then cid = o.id return true end
+    end
+    return false
+  end)
+  say("deliver " .. deliver(cid, 1) .. " " .. perform(37, 1, wolfite, $SISTER))
   -- Refining needs 18 wolfite (each mining run gives 5 here)
   for _ = 1, 4 do mine(wolfite) end
   say("refine " .. refine(wolfite))
@@ -384,6 +395,14 @@ LUA
 )
 release "Smoke Miner" "$MINER_SCRIPT"
 DRONE_ID=$(company_drone "Smoke Miner")
+# A contract (#928) the sister company posted at the Moon for 2 wolfite at 1
+# a unit, which the drone's company took (as post_contract and
+# take_contract leave it): the drone delivers on it later
+sqlw "update companies set credits = credits - 2 where company_id = $SISTER_CO"
+sqlw "insert into contracts (buyer_company, buyer_drone, place, resource, units, price, deposit, escrow, posted_t, due_t,
+        seller_company, taken_t, deposit_held)
+      select $SISTER_CO, $SISTER, 10, 1130, 2, 1, 0, 2, g.t, g.t + 100 * 86400, a.company_id, g.t, 0
+      from agents a, (select IFNULL(MAX(game_t), 0) as t from events) g where a.agent_id = $DRONE_ID"
 [ -n "$DRONE_ID" ] || fail "release did not create a company and drone"
 DRONE=$(sql "select name from agents where agent_id=$DRONE_ID")
 # The engine gathers the script's pieces into lua_script as it loads them
@@ -422,6 +441,10 @@ sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where 
 wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 30 "the sale to the other company worked" replied $DRONE_ID "sister 0"
 wait_for 30 "a push to another company's drone by its ID is refused (-22: #927)" replied $DRONE_ID "not-own -22"
+wait_for 60 "a drone delivers on a contract with deliver(id, n), not by protocol 37 itself (#928)" replied $DRONE_ID "deliver 0 -12"
+[ "$(sql "select concat(delivered, ' ', (select count(*) from trades where buyer=$SISTER and resource=1130 and game_t >= c.taken_t)) from contracts c where c.buyer_drone=$SISTER")" = "1 0" ] ||
+    fail "the delivery didn't count on the contract, or was traded"
+echo "ok: a delivery on a contract counts against it, and is no trade"
 
 # Refining needs 18 wolfite and the Mining Kit's Refinery (A1); each perform
 # waits for its action

@@ -803,10 +803,17 @@ end
 local function obligations()                                                      -- 712
   local list = records(ask(712), {"kind", "id", "credits", "rate", "due_in"})
   for _, o in ipairs(list) do
-    o.kind = o.kind == 1 and "loan" or "request"
+    o.kind = ({"loan", "request", "posted", "taken"})[o.kind]
     o.rate = o.rate / 100
   end
   return list
+end
+
+-- Open contracts for a resource where the drone is (#928), anonymous:
+-- {id, units, price, due_in, deposit, kept, broken} (the poster's record as
+-- a seller)
+local function contracts(resource)                                                -- 713
+  return records(ask(713, resource), {"id", "units", "price", "due_in", "deposit", "kept", "broken"})
 end
 
 local function wrecks()                                                           -- 660
@@ -1074,6 +1081,7 @@ _G.startup_status = startup_status
 _G.plunder = plunder
 _G.salvage = salvage
 _G.obligations = obligations
+_G.contracts = contracts
 _G.jettison = jettison
 _G.broadcast = broadcast
 _G.sell_shares = sell_shares

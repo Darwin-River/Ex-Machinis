@@ -1209,6 +1209,177 @@ long long db_request_loan(DbConnection_t* connection, int agent_id, long long am
     return (long long)mysql_insert_id(connection->hndl);
 }
 
+/* Runs one statement; affected rows, or -1 on error */
+static long long db_contract_exec(DbConnection_t* connection, const char* query_text)
+{
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return -1;
+    }
+    return (long long)mysql_affected_rows(connection->hndl);
+}
+
+/* The drone's company if it is not a startup (a matured company, or one from
+   before the new rules), still trading, not the House's: its id, else 0 */
+static long long db_contract_company(DbConnection_t* connection, int agent_id)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IF(c.startup = 0 AND c.eliminated_at IS NULL AND IFNULL(c.house, 0) = 0, "
+        "c.company_id, 0) FROM companies c JOIN agents a ON a.company_id = c.company_id WHERE a.agent_id = %d", agent_id);
+    return db_loan_value(connection, 0, query_text);
+}
+
+/** ****************************************************************************
+
+    @brief          post_contract(resource, units, price, due_in, deposit)
+                    (#928): a matured company asks for units of resource at
+                    price a unit, delivered where this drone is within due_in
+                    game days; the seller who takes it puts up deposit. The
+                    price of all of it is held in escrow from its credits.
+
+    @return         the contract's id, or a negative outcome code
+
+*******************************************************************************/
+long long db_post_contract(DbConnection_t* connection, int agent_id, int resource, long long units, long long price,
+                           long long due_in, long long deposit, long long game_t)
+{
+    if(units < 1 || price < 1 || due_in < 1 || deposit < 0 || resource < 1)
+        return OUTCOME_RESOURCES_LOWER_LIMIT;
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    long long company = db_contract_company(connection, agent_id);
+    if(company <= 0)
+        return OUTCOME_STARTUP_HOUSE_ONLY;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    long long escrow = units * price;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE companies SET credits = credits - %lld WHERE company_id = %lld AND credits >= %lld", escrow, company, escrow);
+    long long done = db_contract_exec(connection, query_text);
+    if(done < 0)
+        return OUTCOME_ACTION_ABORTED;
+    if(done == 0)
+        return OUTCOME_NO_CREDITS;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO contracts (buyer_company, buyer_drone, place, resource, units, price, deposit, escrow, posted_t, due_t) "
+        "SELECT %lld, a.agent_id, a.object_id, %d, %lld, %lld, %lld, %lld, %lld, %lld FROM agents a WHERE a.agent_id = %d",
+        company, resource, units, price, deposit, escrow, game_t, game_t + due_in * 86400, agent_id);
+    if(db_contract_exec(connection, query_text) != 1) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE companies SET credits = credits + %lld WHERE company_id = %lld",
+                 escrow, company);
+        db_contract_exec(connection, query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    return (long long)mysql_insert_id(connection->hndl);
+}
+
+/** ****************************************************************************
+
+    @brief          take_contract(id) (#928): another matured company takes
+                    an open contract, putting up its deposit; then only it
+                    may fill it.
+
+    @return         0, or a negative outcome code
+
+*******************************************************************************/
+int db_take_contract(DbConnection_t* connection, int agent_id, long long id, long long game_t)
+{
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    long long company = db_contract_company(connection, agent_id);
+    if(company <= 0)
+        return OUTCOME_STARTUP_HOUSE_ONLY;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT deposit FROM contracts WHERE id = %lld AND seller_company IS NULL AND settled_t IS NULL "
+        "AND due_t > %lld AND buyer_company <> %lld", id, game_t, company);
+    long long deposit = db_loan_value(connection, -1, query_text);
+    if(deposit < 0)
+        return OUTCOME_ACTION_ABORTED;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE companies SET credits = credits - %lld WHERE company_id = %lld AND credits >= %lld", deposit, company, deposit);
+    long long done = db_contract_exec(connection, query_text);
+    if(done <= 0)
+        return done < 0 ? OUTCOME_ACTION_ABORTED : OUTCOME_NO_CREDITS;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE contracts SET seller_company = %lld, taken_t = %lld, deposit_held = %lld "
+        "WHERE id = %lld AND seller_company IS NULL AND settled_t IS NULL", company, game_t, deposit, id);
+    if(db_contract_exec(connection, query_text) != 1) {
+        // Another took it first: the deposit comes back
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE companies SET credits = credits + %lld WHERE company_id = %lld",
+                 deposit, company);
+        db_contract_exec(connection, query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    return 0;
+}
+
+/** ****************************************************************************
+
+    @brief          deliver(id, n) (#928): the drone a delivery goes to, named
+                    here so the seller never learns it. The contract must be
+                    its company's, open, not yet due, with n still to deliver,
+                    and the drone where it is delivered.
+
+    @return         the buyer drone, or a negative outcome code
+
+*******************************************************************************/
+int db_deliver_target(DbConnection_t* connection, int agent_id, long long id, long long units, int* resource, long long game_t)
+{
+    if(units < 1)
+        return OUTCOME_RESOURCES_LOWER_LIMIT;
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT c.buyer_drone, c.resource, c.units - c.delivered, a.object_id = c.place FROM contracts c "
+        "JOIN agents a ON a.agent_id = %d WHERE c.id = %lld AND c.seller_company = a.company_id "
+        "AND c.settled_t IS NULL AND c.due_t > %lld", agent_id, id, game_t);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int target = row && row[0] ? atoi(row[0]) : 0;
+    int r = row && row[1] ? atoi(row[1]) : 0;
+    long long left = row && row[2] ? atoll(row[2]) : 0;
+    int here = row && row[3] ? atoi(row[3]) : 0;
+    if(res) mysql_free_result(res);
+    if(target <= 0)
+        return OUTCOME_ACTION_ABORTED;
+    if(!here)
+        return OUTCOME_NO_LOCAL;
+    if(units > left)
+        return OUTCOME_RESOURCES_UPPER_LIMIT;
+    *resource = r;
+    return target;
+}
+
+/** ****************************************************************************
+
+    @brief          cancel_contract(id) (#928): recorded for the website's
+                    tick. The buyer withdraws one nobody has taken (its escrow
+                    comes back); the seller gives up one it took (it forfeits
+                    the deposit's share for what it hasn't delivered).
+
+    @return         0, or OUTCOME_ACTION_ABORTED (no such open contract of its company)
+
+*******************************************************************************/
+int db_cancel_contract(DbConnection_t* connection, int agent_id, long long id, long long game_t)
+{
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO contract_actions (contract_id, company_id, requested_t) "
+        "SELECT c.id, a.company_id, %lld FROM contracts c JOIN agents a ON a.agent_id = %d "
+        "WHERE c.id = %lld AND c.settled_t IS NULL "
+        "AND (c.seller_company = a.company_id OR (c.buyer_company = a.company_id AND c.seller_company IS NULL))",
+        game_t, agent_id, id);
+    return db_contract_exec(connection, query_text) > 0 ? 0 : OUTCOME_ACTION_ABORTED;
+}
+
 /** ****************************************************************************
 
     @brief          cancel_request(id) and repay(id) (#928): recorded for the
@@ -1295,8 +1466,9 @@ int db_request_close(DbConnection_t* connection, int agent_id, long long game_t)
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
     // A company that owes its lenders can't close (#928): it repays first
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "SELECT COUNT(*) FROM loans l JOIN agents a ON a.company_id = l.company_id "
-        "WHERE a.agent_id = %d AND l.closed_t IS NULL", agent_id);
+        "SELECT (SELECT COUNT(*) FROM loans l WHERE l.company_id = a.company_id AND l.closed_t IS NULL) "
+        "+ (SELECT COUNT(*) FROM contracts c WHERE c.settled_t IS NULL AND (c.buyer_company = a.company_id "
+        "OR c.seller_company = a.company_id)) FROM agents a WHERE a.agent_id = %d", agent_id);
     if(db_loan_value(connection, 0, query_text) > 0)
         return OUTCOME_OBLIGATIONS;
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,

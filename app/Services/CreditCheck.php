@@ -69,7 +69,11 @@ class CreditCheck
             $held = (int) DB::selectOne('SELECT
                 (SELECT IFNULL(SUM(credits), 0) FROM companies)
                 + (SELECT IFNULL(SUM(IFNULL(credits, 0) + share_credits), 0) FROM users)
-                + (SELECT IFNULL(SUM(credits), 0) FROM share_commitments) AS held')->held;
+                + (SELECT IFNULL(SUM(credits), 0) FROM share_commitments)'
+                // Contracts' escrows and the deposits put up for them (#928)
+                . (\Illuminate\Support\Facades\Schema::hasTable('contracts')
+                    ? ' + (SELECT IFNULL(SUM(escrow + deposit_held), 0) FROM contracts WHERE settled_t IS NULL)' : '')
+                . ' AS held')->held;
             $flows = DB::table('credit_flows')->whereNull('check_id')->get(['id', 'kind', 'amount']);
             DB::commit();
         } catch (\Throwable $e) {
