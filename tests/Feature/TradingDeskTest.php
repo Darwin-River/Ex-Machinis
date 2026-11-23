@@ -64,7 +64,7 @@ class TradingDeskTest extends TestCase
 
         // Anyone sees the watch list and the ladder; the ticket asks them to log in
         $this->get('/market/trade')->assertOk()->assertSee('id="watch-list"', false)->assertSee('Desk Co')
-            ->assertSee('id="ladder"', false)->assertSee('The bank buys')->assertSee('Top of the band')
+            ->assertSee('id="ladder"', false)->assertSee('The bank buys')->assertSee('Highest price an order may name')
             ->assertSee('Log in</a> to trade', false)->assertSee('Trading desk');
 
         // A player sees their ticket, shares with gain including dividends, their orders, and their script

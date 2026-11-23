@@ -35,7 +35,9 @@ return [
     // pages and API calls they add answer 404 while it is off
     'new_rules' => (bool) env('FORGE_NEW_RULES', false),
     // A new player account's credits that can only buy shares (#636)
-    'player_share_credits' => (int) env('FORGE_PLAYER_SHARE_CREDITS', 5000),
+    // Starting credits for shares (#638); none since #928: a player's credits
+    // come from their shares, the first from maturing a startup
+    'player_share_credits' => (int) env('FORGE_PLAYER_SHARE_CREDITS', 0),
     // Credits a player needs to back new loans (#928)
     'lend_min_credits' => (int) env('FORGE_LEND_MIN_CREDITS', 5000),
     // For a trial without a mail service (#642): new accounts count as

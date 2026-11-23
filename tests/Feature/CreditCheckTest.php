@@ -23,7 +23,8 @@ class CreditCheckTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['forge.new_rules' => true, 'forge.startup_max' => 5, 'forge.startup_mature_margin' => 0]);
+        config(['forge.new_rules' => true, 'forge.startup_max' => 5, 'forge.startup_mature_margin' => 0,
+            'forge.player_share_credits' => 5000]);   // (none by default since #928; the grant's flow is still checked)
         Mail::fake();
     }
 

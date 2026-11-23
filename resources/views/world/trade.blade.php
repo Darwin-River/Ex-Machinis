@@ -63,7 +63,7 @@
                 @php($L = $desk['ladder'])
                 @php($me = $desk['me'])
                 <p class="mh-intro">Pick a company on the left; its book is in the middle, from the dearest offer at the top to the
-                    best bid at the bottom, between the bank's two prices. Players trade between the band's two ends. Click a row to fill the
+                    best bid at the bottom, at the bank's price (cash-out value). Players trade at any price they agree. Click a row to fill the
                     ticket. The ticket says, before you trade, what it will do: <b>Buy or sell now</b> takes the best route across players'
                     orders, new shares on offer and the bank.</p>
                 <div class="td-grid">
@@ -94,7 +94,7 @@
                             @php($p = $L['prices'])
                             @php($rows = collect($L['asks'])->map(fn ($o) => $o + ['kind' => 'ask'])->concat(collect($L['bids'])->map(fn ($o) => $o + ['kind' => 'bid'])))
                             <table class="td-ladder">
-                                <tr class="td-band"><td>Top of the band</td><td></td><td class="num">{{ number_format($p['high']) }}</td></tr>
+                                <tr class="td-band"><td>Highest price an order may name</td><td></td><td class="num">{{ number_format($p['high']) }}</td></tr>
                                 @foreach($rows->where('kind', 'ask')->where('price', '>', $p['sells_at']) as $o)
                                     <tr class="td-ask" data-side="buy" data-price="{{ $o['price'] }}" title="Buy from this order"><td>Sell · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
@@ -113,7 +113,7 @@
                                 @foreach($rows->where('kind', 'bid')->where('price', '<', $p['buys_at']) as $o)
                                     <tr class="td-bid" data-side="sell" data-price="{{ $o['price'] }}" title="Sell into this bid"><td>Buy · {{ $o['by'] }}@if($o['script']) <small>(script)</small>@endif</td><td class="num">{{ $o['units'] }}</td><td class="num">{{ number_format($o['price']) }}</td></tr>
                                 @endforeach
-                                <tr class="td-band"><td>Bottom of the band</td><td></td><td class="num">{{ number_format($p['low']) }}</td></tr>
+                                <tr class="td-band"><td>Lowest price an order may name</td><td></td><td class="num">{{ number_format($p['low']) }}</td></tr>
                             </table>
                             @if($L['offering'])
                                 <p class="mt-2 mb-0"><small><b>{{ $L['offering']['left'] }} new shares on offer</b> at cash-out or the market price if higher ({{ number_format($L['offering']['price']) }}):
@@ -179,7 +179,7 @@
                                 {{-- Each with Cancel and a new price (#845); the order keeps its place in time, and its rebate's rest --}}
                                 <ul class="mb-0 td-orders" id="your-orders">
                                     @foreach($me['orders'] as $o)
-                                        <li>{{ ucfirst($o['side']) }} {{ $o['units'] }} of {{ $o['name'] }} at {{ number_format($o['price']) }}@if(!empty($o['peg'])) <small class="text-muted">(follows the bank)</small>@endif @if($o['out_of_range']) <small class="text-muted">(outside today's band: it waits)</small>@endif
+                                        <li>{{ ucfirst($o['side']) }} {{ $o['units'] }} of {{ $o['name'] }} at {{ number_format($o['price']) }}@if(!empty($o['peg'])) <small class="text-muted">(follows the bank)</small>@endif @if($o['out_of_range']) <small class="text-muted">(its company doesn't trade now)</small>@endif
                                             <span class="td-order-acts">
                                                 <form method="POST" action="{{ url('share-orders/' . $o['id'] . '/move') }}">{{ csrf_field() }}
                                                     <input class="mk-input" type="number" name="price" value="{{ $o['price'] }}" @if($o['low'] !== null) min="{{ $o['low'] }}" max="{{ $o['high'] }}" @endif
