@@ -601,6 +601,7 @@ typedef enum
 	OUTCOME_PLAYERS_SHARES = -18, // under the new rules players, not companies, trade shares (#638)
 	OUTCOME_ORDER_LOCKED = -19,  // a new-rules order can't be withdrawn, cut or worsened in its first game hours (#639)
 	OUTCOME_FLEET_CAP = -20,     // the company has as many working drones as it may (house_rules.fleet_cap, #682)
+	OUTCOME_STARTUP_NO_PAYOUT = -21, // a startup pays nothing out to shareholders (pay_out, #930)
 
 } Outcome_t;
 

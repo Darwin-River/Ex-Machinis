@@ -82,3 +82,12 @@ int commit_check(long long units, long long left, long long price, long long cre
         return COMMIT_NO_CREDITS;
     return COMMIT_OK;
 }
+
+int dividend_permille_of(double share)
+{
+    if(!(share > 0))   /* below 0, and not a number */
+        return 0;
+    if(share >= 1)
+        return 1000;
+    return (int)(share * 1000 + 0.5);
+}

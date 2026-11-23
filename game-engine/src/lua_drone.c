@@ -53,6 +53,7 @@
 #include "vm_extension.h"
 #include "protocol.h"
 #include "game_time.h"
+#include "shares.h"
 #include "trace.h"
 
 #define HOOK_EVERY 1000
@@ -353,6 +354,31 @@ static int l_set_status(lua_State* L)
     vm_meter_charge(engine_get_query_instructions());
     db_set_agent_status(engine_get_db_connection(), engine_get_current_drone_id(), text, game_time_now_seconds());
     return 0;
+}
+
+/* set_dividend_share(x): the share (0 to 1) of each game day's profit the
+   drone's company pays its shareholders as dividends, from now on (#930).
+   Out of range is kept in range. Costs as much as a query. Returns 0. */
+static int l_set_dividend_share(lua_State* L)
+{
+    double share = luaL_checknumber(L, 1);
+    vm_meter_charge(engine_get_query_instructions());
+    db_set_dividend_permille(engine_get_db_connection(), engine_get_current_drone_id(), dividend_permille_of(share));
+    lua_pushinteger(L, 0);
+    return 1;
+}
+
+/* pay_out(n): pays n spare credits out to the company's shareholders, by
+   their shares, on the website's next tick (#930). Returns 0 when asked, -21
+   for a startup, -5 for less than 1, -4 when the company hasn't n credits
+   beyond the payouts it has already asked for. Costs as much as a query. */
+static int l_pay_out(lua_State* L)
+{
+    lua_Integer n = luaL_checkinteger(L, 1);
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_request_payout(engine_get_db_connection(), engine_get_current_drone_id(),
+                                         (long long)n, game_time_now_seconds()));
+    return 1;
 }
 
 /* perform(protocol, ...): the arguments in the order FORTH pushes them
@@ -750,6 +776,7 @@ static void lua_drone_sandbox(lua_State* L)
     lua_pop(L, 1);
     const luaL_Reg prims[] = {
         { "print", l_print }, { "report", l_report }, { "perform", l_perform }, { "query", l_query }, { "set_status", l_set_status },
+        { "set_dividend_share", l_set_dividend_share }, { "pay_out", l_pay_out },
         { NULL, NULL } };
     for(int i = 0; prims[i].name; i++)
     {

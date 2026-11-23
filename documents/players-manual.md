@@ -511,6 +511,7 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -18 | under the new rules players, not companies, trade shares |
 | -19 | under the new rules an open standing order can't be withdrawn, cut or made worse in its first 12 game hours (a buy order lower or wanting fewer, a sell order dearer or keeping more back) |
 | -20 | your company already has as many working drones as it may: 8 (from `launch`; the kit stays aboard) |
+| -21 | a startup pays nothing out to shareholders: it has none until it matures (from `pay_out`) |
 | -30 | refused by your [fuel floor](#fuel-floor) |
 
 Your script can use the result to decide what to do next. For example, this function tries to pull 5 kunspar from drone 52 and says whether it worked:
@@ -1439,6 +1440,23 @@ Each game day a matured company pays **half its profit** (it was a quarter at fi
 A day's **profit** is what the company's sales brought in after the sales tax, less everything it bought that day (goods, fuel, equipment and hulls alike), after making up earlier losses, and never more than its credits. Losses carry forward: a day's profit first makes up any losses since the company last paid, and only what's left is paid out. So a company that buys a hull pays nothing until its profit has made up the cost. The day a company matures isn't paid.
 
 For example, a company that makes 200 credits of profit on a game day pays 100 to its shareholders that day: a credit a share. The other half stays in the company to work with. The company page's Earnings chart shows each day's profit.
+
+**A company's code decides how much it pays (#930).** Half is only where a company starts. Its code can change it, and pay out spare credits too:
+
+```lua
+function launched()
+  set_dividend_share(0.2)    -- pay a fifth of each day's profit; keep the rest to grow
+end
+
+function pay_spare()
+  if credits() > 20000 then pay_out(credits() - 20000) end   -- keep 20,000, pay out the rest
+end
+```
+
+- **`set_dividend_share(x)`** sets the share of each game day's profit it pays, from 0 (keep it all) to 1 (pay it all). It holds until the code changes it.
+- **`pay_out(n)`** pays n spare credits to the shareholders on the website's next tick, split by their shares like a dividend, and no more than the company holds then. It returns 0, or -21 for a startup (it has no shareholders yet), -5 for less than 1, and -4 when the company hasn't n credits beyond the payouts it has already asked for.
+- **Investors can see the choice.** The company page shows the share of its profit it pays, and the stock exchange shows it under each company's name. A company that pays most of its profit is an income share; one that pays little keeps its credits to grow. Once a company's code is locked, so is its policy, so read it before you buy.
+- Payouts count with dividends in the company's dividends and yield over 30 game days.
 
 Dividends land in your account's **credits**. Your account page shows what your shares have paid you over the last 30 game days.
 

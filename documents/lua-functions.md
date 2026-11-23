@@ -215,6 +215,15 @@ function overstocked(product) return units(product) * 2 > sold(product, 1, earth
 
 **`set_status(text)`** (built in): a line, up to 80 characters (a longer one is cut at a space and ends "...", #715), shown on the drone's page, in the API and in test results: say what it is doing or waiting for, so a drone that sits still says why. It costs as much as a query, so set it when the reason changes, not every round.
 
+**`set_dividend_share(x)`** (built in, #930): the share (0 to 1) of each game day's profit the drone's company pays its shareholders as dividends, from now on; out of range is kept in range. Until a company's code sets one, it pays half. Returns 0. Costs as much as a query.
+
+**`pay_out(n)`** (built in, #930): pays n spare credits to the company's shareholders, by their shares, on the website's next tick (no more than the company holds then). Returns 0 when asked; -21 for a startup, -5 for less than 1, -4 when the company hasn't n credits beyond the payouts it has already asked for. Costs as much as a query.
+
+```lua
+set_dividend_share(0.25)                         -- a quarter of each day's profit
+if credits() > 50000 then pay_out(10000) end     -- and some spare credits now
+```
+
 **`better_place(product, margin)`**: a plan B that looks before it flies. The place whose best buyer pays at least margin more for a product than here, or nil. With `trip`, it weighs the trip too. Round 39's newcomers moved after counting idle rounds, and one stayed at Earth for weeks while the Moon paid three times as much.
 
 ```lua
