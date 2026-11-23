@@ -797,6 +797,18 @@ end
 local function deposits()                                                         -- 640
   return records(ask(640), {"resource", "units", "capacity", "refill"})
 end
+-- What the company owes or has asked for (#928): {kind ("loan" or
+-- "request"), id (the request), credits (owed, or still to back), rate
+-- (percent, for the whole loan), due_in (game days)}
+local function obligations()                                                      -- 712
+  local list = records(ask(712), {"kind", "id", "credits", "rate", "due_in"})
+  for _, o in ipairs(list) do
+    o.kind = o.kind == 1 and "loan" or "request"
+    o.rate = o.rate / 100
+  end
+  return list
+end
+
 local function wrecks()                                                           -- 660
   local list = records(ask(660), {"drone", "plundered", "condition", "modules", "scrap"})
   for _, w in ipairs(list) do w.plundered = w.plundered == 1 end
@@ -1061,6 +1073,7 @@ _G.fleet_full = fleet_full
 _G.startup_status = startup_status
 _G.plunder = plunder
 _G.salvage = salvage
+_G.obligations = obligations
 _G.jettison = jettison
 _G.broadcast = broadcast
 _G.sell_shares = sell_shares

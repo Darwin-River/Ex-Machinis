@@ -144,6 +144,8 @@ class WindUp
             $now = World::gameNow();
             $count = max(1, PlayerShares::count($company));
             $credits = max(0, (int) $c->credits - (int) ($c->compute_debt ?? 0));
+            // Its lenders are paid first (#928)
+            $credits -= Loans::onEnding($company, $credits);
             $perShare = intdiv($credits, $count);
             // Each player's shares, paid out of the company's credits (#937: a
             // move, not a flow; what is left goes when it ends)

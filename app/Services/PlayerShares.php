@@ -514,6 +514,9 @@ class PlayerShares
                 return self::fail(409, 'You can\'t pay ' . number_format($cost) . ' credits.');
             }
             self::move(null, (int) $user->user_id, $company, $units);
+            if (Ownership::soleHolder($company) === (int) $user->user_id) {
+                Loans::takeover($company);   // a takeover makes its loans due at once (#928)
+            }
             // What the bank is paid leaves the game (#937)
             CreditFlows::record('bank_sold_shares', -$cost, $company, (int) $user->user_id);
             DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => null,
@@ -674,6 +677,9 @@ class PlayerShares
                 DB::table('users')->where('user_id', $seller)->update(['credits' => DB::raw('credits + ' . ($n * $at))]);
                 self::move($seller, $buyer, $company, $n);
                 Ownership::sold($seller, $company);   // public, its code locked, and no buying back for a while (#923)
+                if (Ownership::soleHolder($company) === $buyer) {
+                    Loans::takeover($company);   // a takeover makes its loans due at once (#928)
+                }
                 // The resting order's owner earns a rebate from the bank (#782)
                 $rebate = self::rebate($n * $at, $o->game_t ?? null);
                 if ($rebate > 0) {
@@ -1177,6 +1183,10 @@ class PlayerShares
             $days = DB::table('company_profits')->where('company', $c->company_id)->where('day', '>', $from)
                 ->orderBy('day')->get(['day', 'profit', 'carry_before']);
             $share = $own[(int) $c->company_id] ?? $permille;
+            // In default on a loan (#928): its dividends stop until its lenders are paid
+            if (Loans::inDefault((int) $c->company_id)) {
+                $share = 0;
+            }
             foreach ($days as $d) {
                 DB::transaction(function () use ($c, $d, $share) {
                     $pool = max(0, min(0, (int) $d->carry_before) + (int) $d->profit);
@@ -1254,7 +1264,8 @@ class PlayerShares
                 $c = DB::table('companies')->where('company_id', $p->company_id)->lockForUpdate()
                     ->first(['credits', 'eliminated_at', 'startup']);
                 $now = World::gameNow();
-                $amount = ($c && $c->eliminated_at === null && !$c->startup) ? min((int) $p->amount, max(0, (int) $c->credits)) : 0;
+                $amount = ($c && $c->eliminated_at === null && !$c->startup && !Loans::inDefault((int) $p->company_id))
+                    ? min((int) $p->amount, max(0, (int) $c->credits)) : 0;   // nothing while in default (#928)
                 $holders = DB::table('player_shares')->where('company_id', $p->company_id)->where('units', '>', 0)
                     ->get(['user_id', 'units'])->map(fn ($h) => [(int) $h->user_id, (int) $h->units])->all();
                 $bank = (int) (DB::table('bank_shares')->where('company_id', $p->company_id)->value('units') ?? 0);

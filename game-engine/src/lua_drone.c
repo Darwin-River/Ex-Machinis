@@ -381,6 +381,41 @@ static int l_pay_out(lua_State* L)
     return 1;
 }
 
+/* Loans (#928): request_loan(amount, rate, due_in): rate a percent for the
+   whole loan (6.5 is 6.5%), due_in game days; the request's id, or a code */
+static int l_request_loan(lua_State* L)
+{
+    lua_Integer amount = luaL_checkinteger(L, 1);
+    lua_Number rate = luaL_checknumber(L, 2);
+    lua_Integer due_in = luaL_checkinteger(L, 3);
+    vm_meter_charge(engine_get_query_instructions());
+    int rate_bp = rate < 0 ? -1 : (int)(rate * 100 + 0.5);
+    lua_pushinteger(L, db_request_loan(engine_get_db_connection(), engine_get_current_drone_id(), (long long)amount,
+                                       rate_bp, (long long)due_in, game_time_now_seconds()));
+    return 1;
+}
+
+/* cancel_request(id): withdraws a request's unbacked part. 0, or a code */
+static int l_cancel_request(lua_State* L)
+{
+    lua_Integer id = luaL_checkinteger(L, 1);
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_loan_action(engine_get_db_connection(), engine_get_current_drone_id(), "cancel",
+                                      (long long)id, game_time_now_seconds()));
+    return 1;
+}
+
+/* repay(id): repays a request's loans early, with the interest due so far
+   (the website settles it within a real minute). 0, or a code */
+static int l_repay(lua_State* L)
+{
+    lua_Integer id = luaL_checkinteger(L, 1);
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_loan_action(engine_get_db_connection(), engine_get_current_drone_id(), "repay",
+                                      (long long)id, game_time_now_seconds()));
+    return 1;
+}
+
 /* close_company() (#925): the kill switch. Asks for the company to end;
    the website ends it within a real minute. Returns 0, or a failure code */
 static int l_close_company(lua_State* L)
@@ -802,6 +837,7 @@ static void lua_drone_sandbox(lua_State* L)
         { "print", l_print }, { "report", l_report }, { "perform", l_perform }, { "query", l_query }, { "set_status", l_set_status },
         { "set_dividend_share", l_set_dividend_share }, { "pay_out", l_pay_out },
         { "close_company", l_close_company },
+        { "request_loan", l_request_loan }, { "cancel_request", l_cancel_request }, { "repay", l_repay },
         { NULL, NULL } };
     for(int i = 0; prims[i].name; i++)
     {

@@ -514,6 +514,16 @@ A matured company's 100 shares are its player's, and players trade them. Each ga
 | `POST /player-shares/{id}/offering/buy` `{units}` | bought new shares from an open offering; with none open since #923, 409. Earlier sales are still in the trade lists with `issued` true and the seller "New shares" |
 | `POST /player-shares/{id}/bank/buy` `{units}` | buys shares the bank holds at its selling price: `{units, price, cost}`. 422 for less than 1 share, 409 for more than the bank holds |
 
+### Loans (#928)
+
+A public company's code asks to borrow with `request_loan(amount, rate, due_in)`: `rate` is simple interest in percent for the whole loan, due `due_in` game days after it asked. Players back the requests, and what they back is lent to the company at once, from their credits. On the due date it repays each lender the principal plus the rate (1,000 at 6% comes back as 1,060); one that can't is in default, and every credit it receives goes to its lenders until they are paid, its dividends and payouts stopped meanwhile. A takeover makes its loans due at once, and when it is wound up or closed its lenders are paid before its shareholders. Backing needs `Authorization: Bearer <token>` and at least 5,000 credits in the account (`min_credits`); loans already backed run to their due date whatever the account then holds. See the players' manual, "Loans".
+
+| Request | What it does |
+|---|---|
+| `GET /loans` | the open requests, newest first: `{min_credits, requests: [{id, company, name, amount, backed, left, rate, per_year, term_days, due, due_in}]}`. `rate` is the percent for the whole loan, `per_year` the same as a rate a game year (`rate` × 365 ÷ `term_days`), `left` what is still to back, `due` when it is due and `due_in` the game days until then. No token needed |
+| `POST /loans/{id}/back` `{credits}` | lends that many credits to the company on request `{id}`: `{ok, loan, lent, owed, due}` (`owed`: the principal plus the interest, on `due`). 401 without a token; 403 when the account holds under `min_credits`; 404 when there is no such open request; 409 when it is fully backed, the company is no longer public (or has ended), or you hold fewer credits than you'd lend; 422 for less than 1 credit, or more than it still needs. Each failure is `{error}` |
+| `GET /account/loans` | the account's loans, newest first (50 at most): `{loans: [{id, company, name, principal, rate, owed, repaid, due, closed, defaulted}], lent, interest, defaults, outstanding}`. `owed` is what is still owed on a loan, `repaid` what has come back; `lent` is all you have lent, `interest` what has come back above the principal, `defaults` how many of your loans defaulted, `outstanding` what open loans still owe you. 401 without a token |
+
 ### Who a company deals with (#639)
 
 | Request | What it gives |
