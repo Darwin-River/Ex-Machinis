@@ -16,6 +16,9 @@
     The rest is destroyed. */
 ErrorCode_t db_plunder(Event_t* event);
 
+/* A drone salvages a wreck (#929): one of its modules, or some scrap from its hull */
+ErrorCode_t db_salvage(Event_t* event);
+
 /** The sales tax rate (#380), in thousandths of a sale: house_rules.sales_tax_permille */
 int db_sales_tax_permille(void);
 

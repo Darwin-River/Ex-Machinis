@@ -211,6 +211,7 @@ class WorldController extends Controller
         $chosen = (int) $request->query('resource', 0);
         $heat = in_array($chosen, array_column($options, 'resource'), true)
             ? \App\Services\ResourceMap::build($chosen, $request->query('season') === 'next') : null;
-        return view('world.map', compact('planets', 'places', 'farMap', 'options', 'heat'));
+        $wrecks = \App\Services\WreckField::list();   // #929
+        return view('world.map', compact('planets', 'places', 'farMap', 'options', 'heat', 'wrecks'));
     }
 }

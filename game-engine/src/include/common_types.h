@@ -123,6 +123,9 @@
 #define STATION_DELIVERY_PROTOCOL_ID  33   // actions that deliver or return station goods
 #define PLUNDER_EVENT_TYPE            11   // a drone plunders a wreck (#324 step 12)
 #define WAIT_EVENT_TYPE               12   // the end of a wait (#324 step 14)
+#define SALVAGE_EVENT_TYPE            17   // a drone salvages a wreck (#929)
+#define SALVAGE_PROTOCOL_ID           36   // [W 36 perform]: salvage the wreck W with a Salvager (#929)
+#define SCRAP_RESOURCE_ID             2071 // Scrap (A1): what salvage gets from a wreck's hull (#929)
 #define BROADCAST_EVENT_TYPE          13   // a drone broadcasts a message (#380)
 #define BROADCAST_PROTOCOL_ID         40   // [A 40 perform]: broadcast the counted string at A (#380)
 #define BROADCAST_MAX_LEN             80   // characters in a broadcast

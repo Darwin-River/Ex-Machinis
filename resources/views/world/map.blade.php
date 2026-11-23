@@ -142,6 +142,31 @@
                 </table>
             </div>
 
+            {{-- The wreck field (#929): what is left to salvage, and who took from each wreck --}}
+            <h3 class="mt-4" id="wreck-field">The wreck field</h3>
+            <p>Wrecks keep their modules and hull for salvage: a drone with a Salvager (A1) recovers a module a run, then scrap from the
+                hull, which every exchange buys. A wreck decays by 2% of what is left each game day, so salvage is a race. A startup's
+                wrecks can't be plundered or salvaged.</p>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="wrecks">
+                    <tr><th>Wreck</th><th>Where</th><th>Wrecked</th><th class="num">Condition</th><th class="num">Modules</th>
+                        <th class="num">Scrap</th><th>Taken by</th></tr>
+                    @forelse($wrecks as $w)
+                        <tr>
+                            <td><a href="{{ url('spacecraft/' . $w['drone']) }}">{{ $w['name'] }}</a> <small>({{ $w['company'] }}{{ $w['startup'] ? ', a startup' : '' }})</small></td>
+                            <td>@if($w['place'])<a href="{{ url('locations/' . $w['place']) }}">{{ $w['place_name'] }}</a>@endif</td>
+                            <td>{{ $w['wrecked'] }}</td>
+                            <td class="num">{{ $w['condition'] }}%</td><td class="num">{{ $w['modules'] }}</td><td class="num">{{ $w['scrap'] }}</td>
+                            <td>@if($w['plundered_by'])plundered by <a href="{{ url('spacecraft/' . $w['plundered_by']) }}">{{ $w['plundered_by'] }}</a>@endif
+                                @if($w['salvaged_by']) salvaged by <a href="{{ url('spacecraft/' . $w['salvaged_by']) }}">{{ $w['salvaged_by'] }}</a>@endif
+                                @if($w['same_player']) <span class="badge" title="The same player is behind the wreck and the drone that took from it">same player</span>@endif</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7">No wrecks with anything left to salvage.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
             @if(!empty($farMap))
                 <h3 class="mt-4" id="far-map">Where Metals (A3) come from</h3>
                 <p>Metals (A3), which computers, lasers, batteries, reactors, most modules and every ship need, are refined only from

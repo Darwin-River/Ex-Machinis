@@ -217,6 +217,18 @@ MINING_KIT, FACTORY_KIT = 5901, 5902
 BIG_GEAR_MASS = 120
 KITS = {MINING_KIT: ('25901', 'Unpack Mining Kit I', (ENGINE, WORM, REFINERY)),
         FACTORY_KIT: ('25902', 'Unpack Factory Kit I', (ENGINE, 5201, 5211, 5501))}
+# Salvage (#929): a Salvager (A1) module recovers a wreck's modules and,
+# once they are gone, its hull as Scrap (A1), which the planets buy. The
+# Welder makes a Salvager from what a Smelter takes, as it makes a Refinery
+SALVAGER, SCRAP = 5231, 2071
+resources[str(SALVAGER)] = {'id': SALVAGER, 'name': 'Salvager (A1)', 'mass': 70, 'capacity': 0, 'slot_size': 0,
+                            'description': 'A salvage module: salvage(W) recovers a wreck\'s modules, one a run, then its '
+                                           'hull as Scrap (A1). Wrecks decay, so the sooner the better.'}
+resources[str(SCRAP)] = {'id': SCRAP, 'name': 'Scrap (A1)', 'mass': 1, 'capacity': 0, 'slot_size': 0,
+                         'description': 'Metal salvaged from a wreck\'s hull. Every exchange buys it.'}
+if '15201' in recipes:
+    recipes['15231'] = {'inputs': dict(recipes['15201']['inputs']), 'outputs': {str(SALVAGER): 1},
+                        'sheet': recipes['15201']['sheet'], 'product': str(SALVAGER)}
 # The Welder makes a Refinery from what a Smelter takes
 if '15201' in recipes:
     recipes['15221'] = {'inputs': dict(recipes['15201']['inputs']), 'outputs': {str(REFINERY): 1},
@@ -664,10 +676,27 @@ for pid, verb, nargs, args, what in (
 PLUNDER_EVENT, PLUNDER_TIME = 11, 1 * HOUR
 protocols['34'] = ['34', 'Plunder wreck', '1', '100',
                    '[W 34 perform]: Plunders the wreck W (a drone ID) where the drone is: after 1 hour the drone '
-                   'gets its share of the wreck\'s goods and parts, as far as its hold has room; the rest is destroyed. '
-                   'A wreck is plundered once.', '1', '1', '0']
+                   'gets its share of the wreck\'s goods, as far as its hold has room; the rest is destroyed. Its modules '
+                   'stay aboard for salvage (36, #929). A wreck is plundered once.', '1', '1', '0']
 add_effects('34', [
     {'time': PLUNDER_TIME, 'drone': 0, 'resource': FUEL, 'event_type': PLUNDER_EVENT, 'local': 1, 'installed': 0,
+     'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -1}])
+# Salvage (#929): a drone with a Salvager salvages the wreck W where it is
+# (36). The salvage event (type 17) carries W; the events engine takes one
+# of the wreck's modules, or once they are gone some of its hull as scrap,
+# less what the wreck has decayed (db_salvage in db_wreck.c)
+SALVAGE_EVENT, SALVAGE_TIME = 17, 1 * HOUR
+protocols['36'] = ['36', 'Salvage wreck', '1', '100',
+                   '[W 36 perform]: Salvages the wreck W (a drone ID) where the drone is, with a Salvager (A1): after 1 '
+                   'hour the drone gets one of the wreck\'s modules or, once they are gone, up to 10 Scrap (A1) from its '
+                   'hull, less what the wreck has decayed (2% of what is left a game day). A startup\'s wreck can\'t be '
+                   'salvaged, and a startup salvages nothing.', '1', '1', '0']
+add_effects('36', [
+    {'time': 0, 'drone': 0, 'resource': SALVAGER, 'event_type': 1, 'local': 1, 'installed': 0, 'locked': 0,
+     'deplete': 0, 'abundancies': 0, 'quantity': 1},
+    {'time': 0, 'drone': 0, 'resource': SALVAGER, 'event_type': 2, 'local': 1, 'installed': 0, 'locked': 0,
+     'deplete': 1, 'abundancies': 0, 'quantity': 1},
+    {'time': SALVAGE_TIME, 'drone': 0, 'resource': FUEL, 'event_type': SALVAGE_EVENT, 'local': 1, 'installed': 0,
      'locked': 0, 'deplete': 0, 'abundancies': 0, 'quantity': -1}])
 protocols['35'] = ['35', 'Plunder haul', '0', '100',
                    'Goods and parts a plunderer takes from a wreck, and their loss from the wreck. Not performed by drones.',
@@ -1333,6 +1362,10 @@ for st in (1, 2, 3):
         if sells is None:
             sell = max(-(-value * 3 // 2), listed[(rid, BUYS)] * 3 // 2 + 1)
             STATION_GOODS.append((st, rid, SELLS, sell, small_daily(value), 0))
+# Salvage (#929): every exchange buys scrap from wrecks' hulls, at 12 a unit
+# before the buying share below (it sells none)
+for st in (1, 2, 3):
+    STATION_GOODS.append((st, SCRAP, BUYS, 12, 80, 0))
 # The House doesn't compete with players (#380): every exchange buys at
 # three quarters of a good's value and sells at half as much again (set
 # above), so a player who buys or sells anywhere between beats it both ways
@@ -1485,8 +1518,15 @@ queries.append((651, 'My processor tax',
                 "IF(c.broke_since IS NULL, -1, FLOOR(([game_now] - c.broke_since) / 86400)) AS broke_days "
                 f"FROM companies AS c JOIN house_rules AS h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
 queries.append((660, 'Wrecks here',
-                '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0).', 0,
-                "SELECT agent_id, plundered_at IS NOT NULL FROM agents WHERE wrecked_at IS NOT NULL "
+                '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0), its '
+                'condition in thousandths (it decays by 2% of what is left a game day: salvage gets that share, #929), '
+                'modules still aboard, scrap its hull still holds.', 0,
+                "SELECT agent_id, plundered_at IS NOT NULL, "
+                "FLOOR(1000 * POW(0.98, FLOOR(GREATEST(0, [game_now] - wrecked_at) / 86400))) AS cond, "
+                "(SELECT IFNULL(SUM(h.units), 0) FROM holdings h WHERE h.drone = agents.agent_id "
+                "AND h.resource >= 5000 AND h.resource < 5900) AS modules, "
+                "IFNULL(scrap_left, GREATEST(10, IFNULL((SELECT r.mass FROM resources r WHERE r.id = agents.hull_type), 0))) "
+                "AS scrap FROM agents WHERE wrecked_at IS NOT NULL "
                 f"AND object_id = {HERE_} AND agent_id <> [drone_id] ORDER BY agent_id;"))
 queries.append((661, 'Wreck hold',
                 '[W R L 661 query]: What is aboard the wreck W where the drone is: resource, units.', 1,
@@ -2046,7 +2086,7 @@ for line in open(os.path.join(REPO, 'game-engine', 'src', 'lua_library.lua'), en
             LUA_NAMES.setdefault(int(value), name.strip())
 lua_res = lambda rid: LUA_NAMES.get(rid, str(rid))
 LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', '8': 'buy_order(P, M, R)',
-             '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)',
+             '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)', '36': 'salvage(W)',
              '40': 'broadcast(text)', '41': 'sell_shares(company, keep, price)',
              '42': 'buy_shares(company, want, price)', '43': 'pull_shares(n, company, seller)',
              '44': 'push_shares(n, company, buyer)', '45': 'offer_shares(n, price, days, min)',
@@ -2187,6 +2227,8 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (9, 'Offer to station'
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (14, 'Share') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
+lines.append("INSERT INTO `event_types` (id, name) VALUES (17, 'Salvage') "
+             "ON DUPLICATE KEY UPDATE name = VALUES(name);")   # #929
 lines.append("INSERT INTO `event_types` (id, name) VALUES (13, 'Broadcast') "
              'ON DUPLICATE KEY UPDATE name = VALUES(name);')
 lines.append("INSERT INTO `event_types` (id, name) VALUES (12, 'Wait') "

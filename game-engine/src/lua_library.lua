@@ -54,6 +54,9 @@ end
 local function pull(n, resource, drone) return perform(11, n, resource, drone) end
 local function launch(drone, kit) return perform(12, drone, kit) end
 local function plunder(wreck) return perform(34, wreck) end
+-- Salvage (#929): with a Salvager (A1), one of the wreck's modules, or once
+-- they are gone some scrap from its hull, less what it has decayed
+local function salvage(wreck) return perform(36, wreck) end
 local function jettison(n, resource) return perform(1, n, resource) end
 local function broadcast(text) return perform(40, text) end
 -- The share exchange at Earth (#469): shares trade the way goods do. Post
@@ -795,7 +798,7 @@ local function deposits()                                                       
   return records(ask(640), {"resource", "units", "capacity", "refill"})
 end
 local function wrecks()                                                           -- 660
-  local list = records(ask(660), {"drone", "plundered"})
+  local list = records(ask(660), {"drone", "plundered", "condition", "modules", "scrap"})
   for _, w in ipairs(list) do w.plundered = w.plundered == 1 end
   return list
 end
@@ -1057,6 +1060,7 @@ _G.fleet = fleet
 _G.fleet_full = fleet_full
 _G.startup_status = startup_status
 _G.plunder = plunder
+_G.salvage = salvage
 _G.jettison = jettison
 _G.broadcast = broadcast
 _G.sell_shares = sell_shares
