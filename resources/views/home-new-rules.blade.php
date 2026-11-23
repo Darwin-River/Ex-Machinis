@@ -53,7 +53,7 @@
                         @endif
                     </div>
                     @if(!$path['player'])
-                        <p class="mt-3 mb-0">Or <a href="{{ url('release') }}">found a startup now</a> and make an account later to keep it.</p>
+                        <p class="mt-3 mb-0">Every startup belongs to a player: an account is free and takes a minute. Have one? <a href="{{ url('login') }}">Log in</a>.</p>
                     @endif
                 </div>
                 <div class="col-lg-5">
