@@ -168,13 +168,21 @@ class HouseMarket
             }
         }
         $wanted = [HouseStations::SELL_ORDER_EVENT => [], HouseStations::BUY_ORDER_EVENT => []];
+        // The planets (#927): an import price that rises with recent buying,
+        // and a spread that widens where players trade among themselves
+        $planets = self::planetPrices($db, $agentId, $goods);
         foreach ($goods as $g) {
             $resource = (int) $g->resource;
             $price = (int) $g->price;
             if ((int) $g->side === 2) {
                 $keep = $resource === Release::FUEL ? HouseStations::FUEL_RESERVE : 0;
-                $wanted[HouseStations::SELL_ORDER_EVENT][$resource] = [$keep, $price];
+                $wanted[HouseStations::SELL_ORDER_EVENT][$resource] = [$keep, self::importPrice($price, $planets[$resource] ?? null)];
                 continue;
+            }
+            $spread = (int) ($planets[$resource]['spread'] ?? 0);
+            if ($spread > 0) {
+                // Stepped back: it bids less, by up to half
+                $price = max(1, intdiv($price * (2000 - $spread), 2000));
             }
             $daily = max(1, (int) $g->daily_units);
             $keep = $stock[$resource] ?? 0;
@@ -197,6 +205,101 @@ class HouseMarket
             $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$held + max(1, intdiv($daily, 4)), $floor];
         }
         return $wanted;
+    }
+
+    /** Game seconds over which recent buying from the planets fades (#927): its weight falls by e each game day */
+    public const IMPORT_FADE = 86400;
+
+    /** The most the import price rises over its list price, in times (#927) */
+    public const IMPORT_MAX = 3.0;
+
+    /** Game days of trade the planets look at to see how much players trade among themselves (#927) */
+    public const SPREAD_DAYS = 3;
+
+    /** Game days the planets take to step back as players take over a good's trade, and to come back when they stop (#927) */
+    public const SPREAD_OUT_DAYS = 5;
+    public const SPREAD_IN_DAYS = 1;
+
+    /**
+     * The planets' ask for a good listed at $price (#927): it rises with how
+     * much everyone bought from them here recently (by a list price for each
+     * day's worth, fading over IMPORT_FADE), and widens by up to half as
+     * players take over its trade here. Fuel stays at its list price
+     */
+    public static function importPrice(int $price, ?array $p): int
+    {
+        if ($p === null || !empty($p['fuel'])) {
+            return $price;
+        }
+        $f = min(self::IMPORT_MAX, 1 + $p['recent'] / max(1, $p['daily']));
+        $f *= 1 + ((int) $p['spread']) / 2000;
+        return (int) max(1, min(32767, round($price * $f)));
+    }
+
+    /**
+     * For each good a station sells or buys (#927): recent (units it sold
+     * here, fading), daily (its day's units on sale), spread (thousandths
+     * it has stepped back, kept in planet_spreads), fuel
+     */
+    public static function planetPrices($db, int $agentId, $goods): array
+    {
+        $out = [];
+        if (!\Illuminate\Support\Facades\Schema::connection($db->getName())->hasTable('planet_spreads')) {
+            return $out;
+        }
+        $now = self::gameNow($db);
+        $station = $db->table('agents')->where('agent_id', $agentId)->first(['station_id', 'object_id']);
+        if (!$station) {
+            return $out;
+        }
+        // What it sold here, fading: SUM(units * e^(-age / fade))
+        $recent = [];
+        foreach ($db->select('SELECT resource, SUM(units * EXP(-(? - game_t) / ?)) AS n FROM trades
+                WHERE seller = ? AND game_t > ? AND game_t <= ? GROUP BY resource',
+                [$now, self::IMPORT_FADE, $agentId, $now - 5 * self::IMPORT_FADE, $now]) as $r) {
+            $recent[(int) $r->resource] = (float) $r->n;
+        }
+        // Units traded here over SPREAD_DAYS: between players of different
+        // founders, and with the planets
+        $share = [];
+        foreach ($db->select('SELECT t.resource,
+                SUM(IF(sc.house = 0 AND bc.house = 0 AND IFNULL(sc.owner_id, -sc.company_id) <> IFNULL(bc.owner_id, -bc.company_id), t.units, 0)) AS players,
+                SUM(IF(sc.house = 1 OR bc.house = 1, t.units, 0)) AS planets
+                FROM trades AS t INNER JOIN agents AS s ON s.agent_id = t.seller INNER JOIN companies AS sc ON sc.company_id = s.company_id
+                INNER JOIN agents AS b ON b.agent_id = t.buyer INNER JOIN companies AS bc ON bc.company_id = b.company_id
+                WHERE t.location = ? AND t.game_t > ? AND t.game_t <= ? GROUP BY t.resource',
+                [(int) $station->object_id, $now - self::SPREAD_DAYS * 86400, $now]) as $r) {
+            $all = (int) $r->players + (int) $r->planets;
+            $share[(int) $r->resource] = $all > 0 ? 1000 * (int) $r->players / $all : 0;
+        }
+        $spreads = $db->table('planet_spreads')->where('station_id', $station->station_id)->get()->keyBy('resource');
+        $daily = [];
+        foreach ($goods as $g) {
+            if ((int) $g->side === 2) {
+                $daily[(int) $g->resource] = max(1, (int) $g->daily_units);
+            }
+        }
+        foreach ($goods as $g) {
+            $r = (int) $g->resource;
+            if (isset($out[$r])) {
+                continue;
+            }
+            // Steps back slowly as players take over, and comes back fast
+            $row = $spreads[$r] ?? null;
+            $level = $row ? (int) $row->permille : 0;
+            $target = (int) round($share[$r] ?? 0);
+            $dt = max(0, $now - ($row ? (int) $row->updated_t : $now));
+            $days = $target > $level ? self::SPREAD_OUT_DAYS : self::SPREAD_IN_DAYS;
+            $next = (int) round($level + ($target - $level) * min(1, $dt / ($days * 86400)));
+            if (!$row || $next !== $level || $dt >= 86400) {
+                $db->statement('INSERT INTO planet_spreads (station_id, resource, permille, updated_t) VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE permille = VALUES(permille), updated_t = VALUES(updated_t)',
+                    [(int) $station->station_id, $r, $next, $now]);
+            }
+            $fuel = $r === Release::FUEL;
+            $out[$r] = ['recent' => $recent[$r] ?? 0.0, 'daily' => $daily[$r] ?? 1, 'spread' => $fuel ? 0 : $next, 'fuel' => $fuel];
+        }
+        return $out;
     }
 
     /** The lowest the House bids for a good listed at $price (#739): half, at least 1 */

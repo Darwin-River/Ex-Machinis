@@ -17,13 +17,13 @@ class RoundSeventyFixesTest extends TestCase
         return (string) file_get_contents(base_path($path));
     }
 
-    /** #710: after a -17 buy_here halves its take, and never pulls fuel one at a time */
-    public function testBuyHereHalvesItsTakeAndPullsFuelFiveAtLeast()
+    /** #710: buy_here never pulls fuel one at a time (the -17 cap it halved for is retired: #923) */
+    public function testBuyHerePullsFuelFiveAtLeast()
     {
         $lib = $this->source('game-engine/src/lua_library.lua');
         $this->assertStringNotContainsString('cap = 1; failed = r', $lib, 'no more one unit at a time');
         $this->assertStringContainsString('local least = resource == fuel and 5 or 1', $lib);
-        $this->assertStringContainsString('cap = math.max(least, take // 2)', $lib);
+        $this->assertStringNotContainsString('r == -17', $lib, 'no daily cap to halve for');
         $this->assertStringContainsString(str_replace(['\\', '"'], ['\\\\', '\\"'], 'local least = resource == fuel and 5 or 1'),
             $this->source('game-engine/src/lua_library.c'), 'the engine\'s copy is rebuilt');
     }

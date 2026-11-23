@@ -44,6 +44,9 @@ local function make(resource)
   return perform(resource + 10000)
 end
 local function wait(minutes) return perform(3, minutes) end
+-- push and pull (#927): to another company's order, by its order handle
+-- (best_offer, best_bid, sell_orders...: never a drone ID); to a drone of
+-- this company, by its drone ID (another company's drone ID fails, -22)
 local function push(n, resource, drone)
   if resource == fuel and floored() then return -30 end
   return perform(10, n, resource, drone)
@@ -127,42 +130,49 @@ local function trip(place)
   return -1
 end
 
--- A startup trades only with the House (#637): the House's station drones
--- here, as a set, when this drone's company is a startup; nil when it may
--- trade with anyone (query 708)
+-- A startup trades only with the planets (#637, #927): true when this
+-- drone's company is a startup, nil when it may trade with anyone (query 708)
 local function house_only()
   local rows = ask(708)
   if not rows[1] or rows[1][1] ~= 1 then return nil end
-  local stations = {}
-  for _, r in ipairs(rows) do
-    if r[2] and r[2] > 0 then stations[r[2]] = true end
-  end
-  return stations
+  return true
 end
 
--- May this drone trade with drone d? (only: house_only()'s answer)
-local function may_trade(d, mine, only)
-  return d ~= mine and (only == nil or only[d] == true)
+-- May this drone trade with order o (a row of an order book: [5] is 1 for
+-- the planets' orders, [6] 1 for its own)? (only: house_only()'s answer)
+local function may_trade(o, only)
+  return o[6] ~= 1 and (only == nil or o[5] == 1)
 end
 
--- The cheapest other drone's sell order here (the House's only, for a
--- startup): price, drone, units it will sell
+-- The cheapest sell order here but its own (the planets' only, for a
+-- startup): price, order handle (for pull), units it will sell
 local function best_offer(resource)
-  local mine, only = me(), house_only()
+  local only = house_only()
   for _, o in ipairs(ask(610, resource)) do
-    if may_trade(o[4], mine, only) then return o[1], o[4], math.max(o[3] - o[2], 0) end
+    if may_trade(o, only) then return o[1], o[4], math.max(o[3] - o[2], 0) end
   end
   return 0, 0, 0
 end
 
--- The best other drone's buy order here (the House's only, for a startup):
--- price, drone, units it will buy
+-- The best buy order here but its own (the planets' only, for a startup):
+-- price, order handle (for push), units it will buy
 local function best_bid(resource)
-  local mine, only = me(), house_only()
+  local only = house_only()
   for _, o in ipairs(ask(600, resource)) do
-    if may_trade(o[4], mine, only) then return o[1], o[4], math.max(o[2] - o[3], 0) end
+    if may_trade(o, only) then return o[1], o[4], math.max(o[2] - o[3], 0) end
   end
   return 0, 0, 0
+end
+
+-- What n units would cost from the planets here now (#927): their ask, n
+-- times; 0 when they don't sell it here. Their ask rises as everyone buys
+-- here (about a list price more for each day's worth bought), falling back
+-- over a game day or so; fuel stays at its list price
+local function import_price(resource, n)
+  for _, o in ipairs(ask(610, resource)) do
+    if o[5] == 1 then return o[1] * (n or 1) end
+  end
+  return 0
 end
 
 local function sell_price(resource)
@@ -205,65 +215,28 @@ end
 -- small miner lot again and again stalled factories for days); at most 6
 -- tries, each an action. With max_price it buys only from sellers asking
 -- at most that a unit (#503: once the cheap sellers ran out it paid 49)
--- What this drone bought from the House today, by resource and place, for
--- buy_here's first request under a startup's cap (#743: it asked for a
--- tenth of the stock as if it had bought none, and the first pull after a
--- buy failed with -17, a game hour lost each time)
-local house_bought = {}
-local function bought_today(resource)
-  local k = resource .. '@' .. location()
-  local b = house_bought[k]
-  if b and b.day == today() then return b.n end
-  return 0
-end
-local function note_bought(resource, n)
-  local k = resource .. '@' .. location()
-  local b = house_bought[k]
-  if not b or b.day ~= today() then b = {day = today(), n = 0}; house_bought[k] = b end
-  b.n = b.n + n
-end
-
 local function buy_here(n, resource, max_price)
-  local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
-  -- A startup's -17 cap is a tenth of what the House has on sale here a
-  -- game day, at least 5 (#777): it asks for no more than that at first (#674: halving from
-  -- 1,000 used up its six tries above the cap, and got 3 of about 5), and
-  -- after a -17 half as much each time until refused (#710: one at a time,
-  -- each pull of fuel burned a fuel, so it bought none). Fuel never goes
-  -- below 5 a pull, whatever it asked for: a pull of 1 nets nothing
+  local result, tries, refused, only, failed = -12, 0, {}, house_only(), nil
+  -- Fuel never goes below 5 a pull, whatever it asked for: a pull of 1
+  -- nets nothing (#710: each pull of fuel burns a fuel). (A startup's daily
+  -- buying cap, -17, is retired: #923; the planets' import price rises as
+  -- everyone buys instead, #927)
   local least = resource == fuel and 5 or 1
-  local cap, room
-  if only then
-    for _, h in ipairs(ask(707, resource)) do      -- house_supply: place, price, on_sale...
-      if h[1] == location() then
-        room = math.max(5, h[3] // 10) - bought_today(resource)   -- what its cap (a tenth, at least 5: #777) leaves it today
-        cap = math.max(least, room)
-      end
-    end
-  end
   while n > 0 and tries < 6 do
     local seller, avail
     for _, o in ipairs(ask(610, resource)) do
       if max_price and o[1] > max_price then break end
-      if may_trade(o[4], mine, only) and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
+      if may_trade(o, only) and not refused[o[4]] and o[3] > o[2] then seller, avail = o[4], o[3] - o[2]; break end
     end
     if not seller then break end
-    local take = math.max(math.min(n, avail, cap or avail), math.min(least, avail))
+    local take = math.max(math.min(n, avail), math.min(least, avail))
     tries = tries + 1
     local r = pull(take, resource, seller)
-    if r == 0 then
-      n = n - take; result = 0
-      if only then
-        note_bought(resource, take)
-        -- Its cap used up: no pull past it (#760: each call ended with one
-        -- refused pull, a game hour lost)
-        if room then room = room - take; if room < least then break end end
-      end
-    elseif r == -17 and take > least then cap = math.max(least, take // 2); failed = r   -- over a startup's daily cap: halve it
+    if r == 0 then n = n - take; result = 0
     else refused[seller] = true; failed = r end
   end
-  -- Nothing bought: why the last seller refused (such as -17, a startup's
-  -- cap), or -12 when nobody here sells (#651)
+  -- Nothing bought: why the last seller refused, or -12 when nobody here
+  -- sells (#651)
   if result ~= 0 and failed then return failed end
   return result
 end
@@ -273,11 +246,11 @@ end
 local function sell_here(n, resource)
   -- Reads the buy orders afresh before each push, as buy_here does (#502),
   -- and skips a buyer that refused
-  local result, tries, mine, refused, only, failed = -12, 0, me(), {}, house_only(), nil
+  local result, tries, refused, only, failed = -12, 0, {}, house_only(), nil
   while n > 0 and tries < 6 do
     local buyer, want
     for _, o in ipairs(ask(600, resource)) do
-      if may_trade(o[4], mine, only) and not refused[o[4]] and o[2] > o[3] then buyer, want = o[4], o[2] - o[3]; break end
+      if may_trade(o, only) and not refused[o[4]] and o[2] > o[3] then buyer, want = o[4], o[2] - o[3]; break end
     end
     local take = buyer and math.min(n, want, units(resource)) or 0
     if take <= 0 then break end
@@ -485,7 +458,7 @@ local function users(r) return records(ask(522, r), {"protocol", "units"}) end  
 -- drone holds above what it keeps (units); a buy order buys until its
 -- drone holds what it wants (units: how many more)
 local function sell_orders(r)                                                     -- 610
-  local list = records(ask(610, r), {"price", "keep", "held", "drone"})
+  local list = records(ask(610, r), {"price", "keep", "held", "drone", "planets", "mine"})
   for _, o in ipairs(list) do o.units = math.max(o.held - o.keep, 0) end
   return list
 end
@@ -709,7 +682,7 @@ local function share_price(c)
   return t and t.price or nil
 end
 local function buy_orders(r)                                                      -- 600
-  local list = records(ask(600, r), {"price", "want", "held", "drone"})
+  local list = records(ask(600, r), {"price", "want", "held", "drone", "planets", "mine"})
   for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
   return list
 end
@@ -737,7 +710,7 @@ local function cost_to_buy(n, r)
   local cost, got, mine = 0, 0, me()
   for _, o in ipairs(sell_orders(r)) do
     if got >= n then break end
-    if o.drone ~= mine and o.units > 0 then
+    if o.mine ~= 1 and o.units > 0 then
       local take = math.min(n - got, o.units)
       cost, got = cost + take * o.price, got + take
     end
@@ -750,7 +723,7 @@ local function sale_value(n, r)
   local value, sold_n, mine = 0, 0, me()
   for _, o in ipairs(buy_orders(r)) do
     if sold_n >= n then break end
-    if o.drone ~= mine and o.units > 0 then
+    if o.mine ~= 1 and o.units > 0 then
       local take = math.min(n - sold_n, o.units)
       value, sold_n = value + take * o.price, sold_n + take
     end
@@ -762,7 +735,7 @@ end
 -- hour of game time ago elsewhere (news takes time). Records: place, side
 -- ("buy" or "sell"), price, units, drone, hours_old (0 or 1)
 local function orders_everywhere(r)                                               -- 615
-  local list = records(ask(615, r), {"place", "side", "price", "units", "drone", "hours_old"})
+  local list = records(ask(615, r), {"place", "side", "price", "units", "drone", "hours_old", "planets", "mine"})
   for _, o in ipairs(list) do o.side = o.side == 1 and "buy" or "sell" end
   return list
 end
@@ -774,7 +747,7 @@ end
 local function quotes(r)
   local q, mine = {}, me()
   for _, o in ipairs(orders_everywhere(r)) do
-    if o.drone ~= mine and o.units > 0 then
+    if o.mine ~= 1 and o.units > 0 then
       local p = q[o.place]
       if not p then
         p = {bid = 0, bid_units = 0, ask = 0, ask_units = 0, stock = 0, hours_old = o.hours_old}
@@ -959,7 +932,7 @@ end
 local function by_place(r, side)
   local places, mine = {}, me()
   for _, o in ipairs(orders_everywhere(r)) do
-    if o.side == side and o.drone ~= mine and o.units > 0 then
+    if o.side == side and o.mine ~= 1 and o.units > 0 then
       places[o.place] = places[o.place] or {}
       table.insert(places[o.place], o)
     end
@@ -1134,6 +1107,7 @@ _G.deposit = deposit
 _G.go = go
 _G.trip = trip
 _G.house_only = house_only
+_G.import_price = import_price
 _G.best_offer = best_offer
 _G.best_bid = best_bid
 _G.sell_price = sell_price

@@ -1157,6 +1157,49 @@ int db_request_payout(DbConnection_t* connection, int agent_id, long long amount
 
 /** ****************************************************************************
 
+    @brief          Anonymous trading (#927): the drone a push or pull goes to.
+                    An order handle names an order, never a drone: it is turned
+                    back into the order's drone among the orders where the
+                    acting drone is (the same keyed hash the order books use).
+                    A drone ID must be one of the acting drone's own company.
+
+    @return         the drone ID, or a negative outcome code
+
+*******************************************************************************/
+int db_trade_target(DbConnection_t* connection, int agent_id, int target, int resource, int side)
+{
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    if(target >= ORDER_HANDLE_BASE)
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT o.drone FROM latest_orders AS o INNER JOIN agents AS me ON me.agent_id = %d "
+            "WHERE o.resource = %d AND o.event_type = %d AND o.place = me.object_id "
+            "AND 1000000000 + CONV(SUBSTRING(SHA2(CONCAT((SELECT k.secret FROM order_handle_key AS k WHERE k.id = 1), ':', "
+            "o.drone, ':', o.resource, ':', o.event_type), 256), 1, 7), 16, 10) = %d LIMIT 1",
+            agent_id, resource, side, target);
+    else
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "SELECT IF(t.company_id = me.company_id, t.agent_id, 0) FROM agents AS t "
+            "INNER JOIN agents AS me ON me.agent_id = %d WHERE t.agent_id = %d", agent_id, target);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int found = row && row[0] ? atoi(row[0]) : -1;
+    if(res) mysql_free_result(res);
+    if(target >= ORDER_HANDLE_BASE)
+        return found > 0 ? found : OUTCOME_NO_MARKET_ORDER;
+    // No such drone: left to the action to fail as it always has
+    if(found < 0)
+        return target;
+    return found > 0 ? found : OUTCOME_NOT_OWN_DRONE;
+}
+
+/** ****************************************************************************
+
     @brief          close_company() (#925): records that the drone's company
                     asks to end. The website's tick ends it: a startup's debt
                     is cancelled; a matured company's credits go to its

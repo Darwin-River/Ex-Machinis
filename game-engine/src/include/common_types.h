@@ -140,6 +140,8 @@
 #define PLUNDER_HAUL_PROTOCOL_ID      35   // actions that move plunder out of a wreck and into the plunderer
 
 // Protocols that move goods between drones (decrement here, increment there)
+// An order handle (#927): above this, never a drone ID
+#define ORDER_HANDLE_BASE 1000000000
 #define PUSH_PROTOCOL_ID 10
 #define PULL_PROTOCOL_ID 11
 
@@ -602,6 +604,7 @@ typedef enum
 	OUTCOME_ORDER_LOCKED = -19,  // a new-rules order can't be withdrawn, cut or worsened in its first game hours (#639)
 	OUTCOME_FLEET_CAP = -20,     // the company has as many working drones as it may (house_rules.fleet_cap, #682)
 	OUTCOME_STARTUP_NO_PAYOUT = -21, // a startup pays nothing out to shareholders (pay_out, #930)
+	OUTCOME_NOT_OWN_DRONE = -22, // push/pull by drone ID only to the company's own drones; another's order by its handle (#927)
 
 } Outcome_t;
 
