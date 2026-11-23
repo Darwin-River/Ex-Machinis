@@ -59,11 +59,11 @@ class StartupApiController extends Controller
         return $this->answer(Startups::reprogram($user, $id, $script));
     }
 
-    /** POST /api/v1/startups/{id}/close */
+    /** POST /api/v1/startups/{id}/close: the Close button, which pushes code that calls close_company() (#925) */
     public function close(Request $request, int $id): JsonResponse
     {
         $user = Players::byToken($request->bearerToken());
-        return $user ? $this->answer(Startups::close($user, $id)) : $this->unauthorized();
+        return $user ? $this->answer(\App\Services\Closures::button($user, $id)) : $this->unauthorized();
     }
 
     /** POST /api/v1/startups/{id}/mature */

@@ -66,12 +66,9 @@
                         <ul>
                             <li>Its credits are its to spend (a kit costs 2,000). To mature it must hold its whole debt and
                                 {{ $n(config('forge.startup_mature_margin')) }} more to work with.</li>
-                            <li>It holds at most {{ \App\Services\Startups::capPermille() / 1000 }} times what it was lent at the start (push fees aside): what it earns above that goes to the bank, so mature it once it can.</li>
-                            <li>Until it matures it trades only with the House (anything else fails with -16), buys at most a tenth of what
-                                the House has on sale of a good at one exchange in a game day (-17), and plunders nothing.</li>
-                            <li>It is yours: at most {{ config('forge.startup_max') }} at a time, and a closed one's slot reopens a game day later.</li>
-                            <li>You reprogram it from its page or your <a href="{{ url('/account') }}">account page</a>: the first push is free, each after it adds
-                                {{ $n(config('forge.startup_push_fee')) }} to its debt.</li>
+                            <li>Until it matures it trades only with the House (anything else fails with -16), plunders nothing, and nobody can plunder its wrecks.</li>
+                            <li>It is yours: you own at most {{ config('forge.startup_max') }} companies outright at a time (startups, and matured companies whose shares you hold all of), and a closed startup's slot reopens a game day later.</li>
+                            <li>You change its code from its page, at any time, for free. It closes through its own code: its page's Close button pushes code that calls <code>close_company()</code>, and its debt is cancelled.</li>
                             <li>While the world is full a release is refused: try again in a few minutes.</li>
                             <li>If <code>launched</code> crashes, the drone restarts it, waiting longer after each crash; five crashes in a row make it a wreck.</li>
                         </ul>

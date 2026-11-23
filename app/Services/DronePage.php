@@ -45,7 +45,7 @@ class DronePage
         'tax' => "Its company couldn't pay its tax",
         'dissolved' => 'Its company had no credits for too long',
         'wound_up' => 'Its company sold nothing for 60 game days and was wound up',
-        'closed' => 'Its player closed its startup',
+        'closed' => 'Its company closed',
         'reset' => 'The world was reset',
         // The one-time scrap of drones past 8 when the fleet cap came in (#682, #717)
         'fleet cap' => 'It was scrapped when the fleet cap came in',
@@ -396,8 +396,13 @@ class DronePage
                 break;
             case 'closed':
                 $name = DB::table('companies')->where('company_id', $agent->company_id)->value('name');
-                $cause = "Its player closed its startup, $name, on $when: it left the game with all it held, "
-                    . 'and its debt was cancelled. Its wreck holds nothing anyone can take.';
+                // A startup leaves with all it held; a matured company's code
+                // closed it (#925), and its wrecks keep their holds
+                $startup = DB::table('companies')->where('company_id', $agent->company_id)->value('matured_t') === null;
+                $cause = $startup ? "Its player closed its startup, $name, on $when: it left the game with all it held, "
+                    . 'and its debt was cancelled. Its wreck holds nothing anyone can take.'
+                    : "Its company, $name, closed through its own code on $when: its credits went to its shareholders, "
+                    . 'and its drones became wrecks with what they held.';
                 break;
             case 'reset':
                 $cause = "It was retired on $when, when the world was reset for the new rules.";

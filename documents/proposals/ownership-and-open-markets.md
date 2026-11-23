@@ -1,6 +1,6 @@
 # Ownership and open markets (proposal)
 
-**Status:** proposed, not built. The live game still plays by the [Rules of Play](../design-manual.md#The-Rules-of-Play). Tracked by #921, with a sub-issue for each part (#922 to #932). This version brings together every decision the project lead has made so far, after five rounds of persona-panel review; [How the design got here](#how-the-design-got-here) lists them.
+**Status:** parts 1 (#922), 9 (#930) and now 2, 3, 4 and 10 (#923, #924, #925, #931) are built, and play by the [Rules of Play](../design-manual.md#The-Rules-of-Play); the rest is proposed, not built. Tracked by #921, with a sub-issue for each part (#922 to #932). This version brings together every decision the project lead has made so far, after five rounds of persona-panel review; [How the design got here](#how-the-design-got-here) lists them.
 
 **Aim:** a market as busy and varied as possible, built from rules a newcomer can hold in their head. Each rule replaces special cases rather than adding them. The complexity should come from what drones, companies and players do with the rules.
 

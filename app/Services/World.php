@@ -130,7 +130,7 @@ class World
         }
 
         $why = ['fuel' => 'it ran out of fuel', 'crashes' => 'its program kept crashing', 'tax' => "its company couldn't pay its tax",
-            'closed' => 'its player closed its startup'];
+            'closed' => 'its company closed'];
         foreach (DB::table('agents')->whereNotNull('wrecked_at')->orderBy('wrecked_at', 'desc')->limit($limit)->get() as $w) {
             $cause = $why[$w->wreck_cause] ?? 'it died';
             $add((int) $w->wrecked_at, "{$w->name} became a wreck: $cause.", 'spacecraft/' . $w->agent_id,

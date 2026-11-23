@@ -82,7 +82,7 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
                     <p>The bank lends it a drone ({{ $n($startup['hull']) }}), {{ $n($startup['credits']) }} credits and a
                         {{ $n($startup['fee']) }} fee: it owes {{ $n($startup['grant']) }}.</p></li>
                 <li class="home-step"><div class="n">Step 3</div><h2>Watch and fix</h2>
-                    <p>Its page shows what went wrong. Push a fix (the first is free), or close it and try again.</p></li>
+                    <p>Its page shows what went wrong. Push a fix, for free, or close it and try again.</p></li>
                 <li class="home-step"><div class="n">Step 4</div><h2>Mature it</h2>
                     <p>At {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} to work with)
                         it repays the bank, and its {{ $startup['shares'] }} shares are yours.</p></li>

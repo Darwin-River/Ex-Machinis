@@ -104,7 +104,7 @@ class NewRulesHomeTest extends TestCase
         $this->actingAs($owner)->get("/companies/$id")->assertOk()->assertSee('id="startup-actions"', false)
             ->assertSee('action="' . url('startups/' . $id . '/close') . '"', false)
             ->assertSee('action="' . url('startups/' . $id . '/push') . '"', false)
-            ->assertSee('Push new code (the first is free)')
+            ->assertSee('Push new code (free)')
             ->assertDontSee('action="' . url('startups/' . $id . '/mature') . '"', false);
         DB::table('companies')->where('company_id', $id)->update(['credits' => 5000]);
         $this->actingAs($owner)->get("/companies/$id")->assertOk()->assertSee('It can mature now.')

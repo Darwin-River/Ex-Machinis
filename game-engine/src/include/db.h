@@ -254,6 +254,9 @@ ErrorCode_t db_append_agent_output(DbConnection_t* connection, int agent_id, con
 ErrorCode_t db_set_agent_status(DbConnection_t* connection, int agent_id, const char* text, long long game_t);
 ErrorCode_t db_set_dividend_permille(DbConnection_t* connection, int agent_id, int permille);
 int db_request_payout(DbConnection_t* connection, int agent_id, long long amount, long long game_t);
+/* close_company() (#925): records that the drone's company asks to end;
+   the website's tick ends it. 0, or OUTCOME_ACTION_ABORTED */
+int db_request_close(DbConnection_t* connection, int agent_id, long long game_t);
 
 /** Returns (malloc'd, "" when none) and clears a paused script's collected output. */
 char* db_take_agent_output(DbConnection_t* connection, int agent_id);

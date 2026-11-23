@@ -127,10 +127,8 @@
                             <span class="fs-mk fs-down" style="left: {{ $w(1000) }}%"><em>credits 1,000</em></span>
                             <span class="fs-mk fs-up" style="left: {{ $w($startup['grant']) }}%"><em>debt {{ $n($startup['grant']) }}</em></span>
                             <span class="fs-mk fs-down" style="left: {{ $w($startup['mature_at']) }}%"><em>matures {{ $n($startup['mature_at']) }}</em></span>
-                            <span class="fs-mk fs-up fs-end" style="left: 100%"><em>cap {{ $n($startup['cap']) }}</em></span>
                         </div>
-                        <figcaption class="fs-note">It holds at most {{ $n($startup['cap']) }}: what it earns above that goes to the bank,
-                            so mature it once it can.</figcaption>
+                        <figcaption class="fs-note">Once its credits reach the mark, mature it.</figcaption>
                     </figure>
                     <p>Stuck? Its page says what it is waiting for, and a drone that dies gets a <b>post-mortem</b> that says why.</p>
                 </li>
@@ -138,8 +136,7 @@
                 <li class="fs-step" id="fix">
                     <h2>What if it goes wrong? <span class="fs-time">1 minute</span></h2>
                     <p>Push a fix. On its company page, <b>Push new code</b> takes your edited script to its drones at the speed
-                        of light; it starts over on it, keeping its hold and its place. The first push is free, each after it adds
-                        {{ $n($startup['push_fee']) }} to the debt. Treat a change as an experiment: note its credits before, push, and
+                        of light; it starts over on it, keeping its hold and its place. Pushes are free. Treat a change as an experiment: note its credits before, push, and
                         compare a few game days later. For example, the Miner sells once it has 40 metals aboard; with more aboard it
                         makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
                         still wants them:</p>
@@ -149,15 +146,15 @@
                     <p>It may help or not: in one playtest, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
                         lowest bids and matured later than an unchanged one. A change that doesn't
                         work is fine: push another, or <b>close</b> the startup. Its debt is cancelled, and a game day later its slot is
-                        free (you run up to {{ $startup['max'] }} at a time). Break, learn, repeat.</p>
+                        free (you own up to {{ $startup['max'] }} companies outright at a time, startups included). Break, learn, repeat.</p>
                 </li>
 
                 <li class="fs-step" id="mature">
                     <h2>When is it mine? <span class="fs-time">when it gets there</span></h2>
-                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more; each paid push
-                        adds {{ $n($startup['push_fee']) }}), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
-                        Maturing repays the bank and locks its code for good. From then on it trades with everyone, and its
-                        {{ $startup['shares'] }} shares are yours: each game day it pays half its profit to its shareholders.
+                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
+                        Maturing repays the bank. From then on it trades with everyone, and its
+                        {{ $startup['shares'] }} shares are yours. Its code stays yours to change until you sell a share, which makes it
+                        public and locks its code: each game day it pays half its profit to its shareholders.
                         Keep them, sell them to the bank, or trade them with other players.</p>
                 </li>
             </ol>

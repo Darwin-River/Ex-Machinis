@@ -31,6 +31,10 @@ class ReleaseController extends Controller
         $copiedWord = null;
         if (request()->filled('copy')) {
             $release = Provenance::releaseOf((int) request('copy'));
+            // Only code the visitor may read can be copied (#931)
+            if ($release && !\App\Services\Ownership::canSeeCode((int) $release->company_id, \Illuminate\Support\Facades\Auth::user())) {
+                $release = null;
+            }
             if ($release) {
                 $copiedFrom = (int) request('copy');
                 // The kit the copied drone's company started with

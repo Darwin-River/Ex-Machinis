@@ -35,6 +35,10 @@ class PlayerShares
     // price in whole credits (1,000 made it 2 to 15 credits)
     public const COUNT = 100;
 
+    /** Why new shares are no longer offered (#923) */
+    public const OFFERS_RETIRED = 'Offering new shares is retired: nobody adds credits to a company. A company\'s money is what it earns, '
+        . 'and once it is public, what its code borrows.';
+
     /** New shares a matured company offers at a time, and the most it may have (#780) */
     public const OFFER_UNITS = 10;
     public const MAX_COUNT = 200;
@@ -447,6 +451,9 @@ class PlayerShares
             DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => $user->user_id,
                 'buyer_id' => null, 'units' => $units, 'price' => $price, 'game_t' => $now]);
         });
+        // The first share sold makes it public and locks its code; the seller
+        // can't buy its shares back for a while (#923)
+        Ownership::sold((int) $user->user_id, $company);
         // Its sell orders can't offer shares it no longer holds (#683)
         $trimmed = self::trimSellOrders((int) $user->user_id, $company);
         return ['ok' => true, 'units' => $units, 'price_now' => $price, 'due' => DronePage::when($due), 'due_t' => $due,
@@ -497,6 +504,9 @@ class PlayerShares
         }
         if ($p['bank_holds'] < $units) {
             return self::fail(409, 'The bank holds ' . $p['bank_holds'] . ' of its shares.');
+        }
+        if ($problem = Ownership::buyProblem((int) $user->user_id, $company, $units)) {
+            return self::fail(409, $problem);
         }
         $cost = $units * $p['sells_at'];
         return DB::transaction(function () use ($user, $company, $units, $p, $cost) {
@@ -596,6 +606,9 @@ class PlayerShares
                 . $p['high'] . ' a share now.');
         }
         $me = (int) $user->user_id;
+        if ($side === 'buy' && ($problem = Ownership::buyProblem($me, $company, $units))) {
+            return self::fail(409, $problem);
+        }
         if ($side === 'sell') {
             // Its sell orders together never offer more than it holds (#683)
             $offered = (int) DB::table('player_share_orders')->where('user_id', $me)->where('company_id', $company)
@@ -645,6 +658,12 @@ class PlayerShares
                 if ($at < $p['low'] || $at > $p['high']) {
                     continue;   // a standing order the market has moved away from
                 }
+                // A standing buy order that would now give its owner more
+                // companies owned outright than they may have goes (#923)
+                if ($buyer !== $me && Ownership::buyProblem($buyer, $company, $n) !== null) {
+                    DB::table('player_share_orders')->where('id', $o->id)->delete();
+                    continue;
+                }
                 if (!self::charge($buyer, $n * $at, $at, $p['sells_at'])) {
                     if ($buyer !== $me) {
                         DB::table('player_share_orders')->where('id', $o->id)->delete();
@@ -654,6 +673,7 @@ class PlayerShares
                 }
                 DB::table('users')->where('user_id', $seller)->update(['credits' => DB::raw('credits + ' . ($n * $at))]);
                 self::move($seller, $buyer, $company, $n);
+                Ownership::sold($seller, $company);   // public, its code locked, and no buying back for a while (#923)
                 // The resting order's owner earns a rebate from the bank (#782)
                 $rebate = self::rebate($n * $at, $o->game_t ?? null);
                 if ($rebate > 0) {
@@ -671,6 +691,9 @@ class PlayerShares
             }
             $id = null;
             $standing = $fillOnly ? 0 : $units - $traded;
+            if ($side === 'sell' && $standing > 0) {
+                Ownership::offered($company);   // its code is public from the moment its shares are offered (#931)
+            }
             $note = null;
             // What stands of a buy order can't commit more than the account
             // can pay (#665): its buy orders together, with starting credits
@@ -756,36 +779,14 @@ class PlayerShares
     }
 
     /**
-     * Its owner offers OFFER_UNITS new shares of a matured company (#780),
-     * sold at offerPrice (cash-out, or the market if higher: #874) to any player (its owner too), the
-     * credits going to the company. One offering at a time, and at most
-     * MAX_COUNT shares in all
+     * Offering new shares of a matured company (#780), retired by #923:
+     * always fails with OFFERS_RETIRED. Offerings already sold stay sold
      */
     public static function offer(User $user, int $company): array
     {
-        $c = self::company($company);
-        if (!$c) {
-            return self::fail(404, self::endedNote($company) ?? 'There is no such matured company.');
-        }
-        if ((int) $c->owner_id !== (int) $user->user_id) {
-            return self::fail(403, 'Only its owner can offer new shares of a company.');
-        }
-        if (self::dissolving($company)) {
-            return self::fail(409, 'It is counting down to dissolving: it can\'t offer new shares until it has credits again.');
-        }
-        if (self::offering($company)) {
-            return self::fail(409, 'It already has new shares on offer: they must sell (or you withdraw them) before it offers more.');
-        }
-        $count = self::count($company);
-        if ($count + self::OFFER_UNITS > self::MAX_COUNT) {
-            return self::fail(409, 'It has ' . $count . ' shares: a company has at most ' . self::MAX_COUNT . '.');
-        }
-        if (self::prices($company)['buys_at'] < 1) {
-            return self::fail(409, 'Its shares are worth nothing now (cash-out 0), so new ones would raise nothing.');
-        }
-        $id = DB::table('player_share_offerings')->insertGetId(['company_id' => $company, 'units' => self::OFFER_UNITS,
-            'units_left' => self::OFFER_UNITS, 'raised' => 0, 'created_t' => World::gameNow()]);
-        return ['ok' => true, 'offering' => $id, 'units' => self::OFFER_UNITS, 'price' => self::offerPrice($company), 'count' => $count];
+        // Retired (#923): nobody adds credits to a company, so new shares are
+        // no longer sold; a public company's code borrows instead (#928)
+        return self::fail(410, self::OFFERS_RETIRED);
     }
 
     /** Its owner withdraws a company's open offering; the shares already sold stay sold */

@@ -129,11 +129,13 @@ class WindUp
 
     /**
      * Winds one company up now; returns what each share paid, or null when
-     * it had already ended
+     * it had already ended. $cause: why it ended (closed: its code called
+     * close_company(), #925). $keepHolds: its drones become wrecks with what
+     * they hold, for plunderers (#925), rather than leaving the game with it
      */
-    public static function windUp(int $company): ?int
+    public static function windUp(int $company, string $cause = 'wound_up', bool $keepHolds = false): ?int
     {
-        return DB::transaction(function () use ($company) {
+        return DB::transaction(function () use ($company, $cause, $keepHolds) {
             $c = DB::table('companies')->where('company_id', $company)->whereNull('eliminated_at')->lockForUpdate()
                 ->first(['company_id', 'credits', 'compute_debt']);
             if (!$c) {
@@ -162,11 +164,14 @@ class WindUp
                 CreditFlows::record('bank_paid', $amount, $company, (int) $b->user_id);   // #937
             }
             DB::table('player_share_orders')->where('company_id', $company)->delete();
-            // Its drones leave the game with what they hold
+            // Its drones leave the game with what they hold, or (closed by its
+            // code) become wrecks with it
             DB::table('agents')->where('company_id', $company)->whereNull('wrecked_at')
-                ->update(['wrecked_at' => $now, 'wreck_cause' => 'wound_up', 'launched_running' => 0, 'plundered_at' => $now]);
+                ->update(['wrecked_at' => $now, 'wreck_cause' => $cause, 'launched_running' => 0]
+                    + ($keepHolds ? [] : ['plundered_at' => $now]));
+            DB::table('latest_orders')->whereIn('drone', DB::table('agents')->where('company_id', $company)->select('agent_id'))->delete();
             DB::table('companies')->where('company_id', $company)
-                ->update(['credits' => 0, 'eliminated_at' => $now, 'end_cause' => 'wound_up', 'broke_since' => null]);
+                ->update(['credits' => 0, 'eliminated_at' => $now, 'end_cause' => $cause, 'broke_since' => null]);
             DB::table('company_windups')->insert(['company_id' => $company, 'game_t' => $now, 'per_share' => $perShare,
                 'shares' => $count, 'credits' => $credits]);
             return $perShare;

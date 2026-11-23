@@ -31,12 +31,17 @@ class Startups
             + (int) config('forge.startup_fee');
     }
 
-    /** Startup slots an account is using now: its live startups, and those closed within the slot days */
+    /**
+     * Slots an account is using now (#923): the companies it owns outright,
+     * that is its live startups and the matured companies whose shares it
+     * holds all of, and its startups closed within the slot days
+     */
     public static function slotsInUse(int $owner): int
     {
         $since = World::gameNow() - (int) config('forge.startup_slot_days') * 86400;
         return DB::table('companies')->where('owner_id', $owner)->where('startup', 1)
-            ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('eliminated_at', '>', $since))->count();
+            ->where(fn ($q) => $q->whereNull('eliminated_at')->orWhere('eliminated_at', '>', $since))->count()
+            + count(Ownership::maturedOwned($owner));
     }
 
     /** Why this account can't start or claim a startup now, or null */
@@ -57,12 +62,14 @@ class Startups
         $live = (clone $mine)->whereNull('eliminated_at')->count();
         $held = (clone $mine)->where('eliminated_at', '>', $since)->min('eliminated_at');
         $closed = (clone $mine)->where('eliminated_at', '>', $since)->count();
-        $text = "All $max of your startup slots are in use: $live running";
+        $outright = count(Ownership::maturedOwned((int) $owner->user_id));
+        $text = "You own $max companies outright, the most you may: $live startups"
+            . ($outright > 0 ? " and $outright matured companies whose shares you hold all of" : '');
         if ($closed > 0) {
             $text .= ", and $closed that ended within the last game day (a slot reopens a game day after its startup ends; the next at "
                 . DronePage::when((int) $held + (int) config('forge.startup_slot_days') * 86400) . ')';
         }
-        return $text . '. Mature or close one first.';
+        return $text . '. Close one, or sell a share of a matured one, first.';
     }
 
     /** What a visitor without an account is told (#871) */
@@ -127,12 +134,26 @@ class Startups
         return ['ok' => true, 'company' => (int) $company->company_id, 'name' => $company->name];
     }
 
-    /** The account's startup, or the reason it can't act on it: [company, null] or [null, [status, error]] */
-    private static function own(User $owner, int $companyId): array
+    /**
+     * The account's startup, or the reason it can't act on it: [company,
+     * null] or [null, [status, error]]. $matured: a matured company it owns
+     * outright will do too (#923: changing its code)
+     */
+    private static function own(User $owner, int $companyId, bool $matured = false): array
     {
         $company = DB::table('companies')->where('company_id', $companyId)->first();
-        if (!$company || (int) $company->owner_id !== (int) $owner->user_id) {
+        // Its founder, or (a matured company) a player holding its shares
+        $holds = $matured && $company && (int) $company->startup === 0
+            && PlayerShares::held((int) $owner->user_id, $companyId) > 0;
+        if (!$company || (int) $company->owner_id !== (int) $owner->user_id && !$holds) {
             return [null, [404, 'You have no such company.']];
+        }
+        if ($matured && (int) $company->startup === 0 && $company->eliminated_at === null) {
+            if (!Ownership::ownedBy($company, (int) $owner->user_id)) {
+                return [null, [403, 'Its code is locked: you don\'t own all its shares. A company\'s code can be changed only '
+                    . 'while one player owns it outright.']];
+            }
+            return [$company, null];
         }
         if ((int) $company->startup !== 1) {
             return [null, [409, 'That company has matured: it is no longer a startup.']];
@@ -143,18 +164,27 @@ class Startups
         return [$company, null];
     }
 
-    /** What reprogramming the startup adds to its debt: the first push is free (#658) */
+    /** What changing its code costs: nothing (#923: the push fee is retired) */
     public static function pushFee(object $company): int
     {
-        return (int) $company->pushes === 0 ? 0 : (int) config('forge.startup_push_fee');
+        return 0;
     }
 
-    /** Reprograms a startup: its working drones start over on the script, and the fee goes on its debt */
+    /**
+     * Changes the code of a company the account owns outright (a startup, or
+     * a matured company whose shares it holds all of): its working drones
+     * start over on the script, for free (#923). Not while its shares are on
+     * offer: buyers get the code they watched run
+     */
     public static function reprogram(User $owner, int $companyId, string $script): array
     {
-        [$company, $error] = self::own($owner, $companyId);
+        [$company, $error] = self::own($owner, $companyId, true);
         if ($error) {
             return ['ok' => false, 'status' => $error[0], 'error' => $error[1]];
+        }
+        if (Ownership::onOffer($companyId)) {
+            return ['ok' => false, 'status' => 409, 'error' => 'Its shares are on offer: its code can\'t change while they are, '
+                . 'so buyers get the code they watched run. Withdraw your sell orders first.'];
         }
         if ($problem = Release::scriptProblem($script)) {
             return ['ok' => false, 'status' => 422, 'error' => $problem];
@@ -162,21 +192,14 @@ class Startups
         $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
             ->whereNull('station_id')->where('language', 'lua')->orderBy('agent_id')->pluck('agent_id')->all();
         if (!$drones) {
-            return ['ok' => false, 'status' => 409, 'error' => 'This startup has no working drone to reprogram.'];
+            return ['ok' => false, 'status' => 409, 'error' => 'This company has no working drone to reprogram.'];
         }
         $fee = self::pushFee($company);
-        // A push may not make maturing impossible (#876): each paid push adds to
-        // the debt, the cap stays at twice what it was lent, so after enough
-        // pushes the line to mature at would sit over what it may hold
-        $cap = self::creditCap($company);
-        if ($cap !== null && (int) $company->debt + $fee + self::matureMargin() > $cap) {
-            return ['ok' => false, 'status' => 409, 'error' => 'This push would raise its debt to ' . number_format((int) $company->debt + $fee)
-                . ': with ' . number_format(self::matureMargin()) . ' more to mature it would need more than it may hold ('
-                . number_format($cap) . '), so it could never mature. Close it and found a new startup with this code instead.'];
-        }
         return DB::transaction(function () use ($company, $companyId, $script, $drones, $fee) {
+            // The new code is its owner's alone again (#931), until its shares are offered
             $done = DB::table('companies')->where('company_id', $companyId)->where('pushes', $company->pushes)
-                ->update(['debt' => DB::raw('debt + ' . $fee), 'pushes' => DB::raw('pushes + 1')]);
+                ->update(['pushes' => DB::raw('pushes + 1')]
+                    + (\Illuminate\Support\Facades\Schema::hasColumn('companies', 'code_public_t') ? ['code_public_t' => null] : []));
             if (!$done) {
                 return ['ok' => false, 'status' => 409, 'error' => 'Another push is under way: try again.'];
             }
@@ -186,7 +209,7 @@ class Startups
                 'fee' => $fee, 'drones' => count($drones), 'script' => $script]);
             CodePush::send($drones, $script);
             return ['ok' => true, 'number' => $number, 'fee' => $fee, 'drones' => $drones,
-                'debt' => (int) $company->debt + $fee];
+                'debt' => (int) $company->debt];
         });
     }
 
@@ -197,6 +220,13 @@ class Startups
         if ($error) {
             return ['ok' => false, 'status' => $error[0], 'error' => $error[1]];
         }
+        self::endStartup($companyId);
+        return ['ok' => true, 'company' => $companyId, 'name' => $company->name];
+    }
+
+    /** Ends a startup (closed: by its code's close_company(), #925): its debt is cancelled and it leaves with all it holds */
+    public static function endStartup(int $companyId): void
+    {
         $now = World::gameNow();
         DB::transaction(function () use ($companyId, $now) {
             DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
@@ -208,7 +238,6 @@ class Startups
             DB::table('companies')->where('company_id', $companyId)->update(['credits' => 0, 'debt' => 0,
                 'eliminated_at' => $now, 'end_cause' => 'closed', 'broke_since' => null]);
         });
-        return ['ok' => true, 'company' => $companyId, 'name' => $company->name];
     }
 
     /** A startup's credit cap in thousandths of its debt (#672; 0: none) */
@@ -302,6 +331,8 @@ class Startups
             'companies' => $rows->where('startup', 0)->map(fn ($c) => [
                 'company_id' => (int) $c->company_id, 'name' => $c->name, 'drone' => $drone($c->company_id),
                 'credits' => (int) $c->credits, 'ended' => $c->eliminated_at !== null,
+                // Its code can change while its founder holds all its shares (#923)
+                'owned_outright' => Ownership::ownedBy($c, (int) $owner->user_id),
             ])->values()->all(),
             'slots' => ['used' => self::slotsInUse((int) $owner->user_id), 'max' => (int) config('forge.startup_max')],
             'grant' => self::grant(),

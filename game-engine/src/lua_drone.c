@@ -381,6 +381,15 @@ static int l_pay_out(lua_State* L)
     return 1;
 }
 
+/* close_company() (#925): the kill switch. Asks for the company to end;
+   the website ends it within a real minute. Returns 0, or a failure code */
+static int l_close_company(lua_State* L)
+{
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_request_close(engine_get_db_connection(), engine_get_current_drone_id(), game_time_now_seconds()));
+    return 1;
+}
+
 /* perform(protocol, ...): the arguments in the order FORTH pushes them
    (the last on top). A parameter the protocol takes as a double is one Lua
    number here: it is split into its two cells. Returns the result: 0 when the
@@ -777,6 +786,7 @@ static void lua_drone_sandbox(lua_State* L)
     const luaL_Reg prims[] = {
         { "print", l_print }, { "report", l_report }, { "perform", l_perform }, { "query", l_query }, { "set_status", l_set_status },
         { "set_dividend_share", l_set_dividend_share }, { "pay_out", l_pay_out },
+        { "close_company", l_close_company },
         { NULL, NULL } };
     for(int i = 0; prims[i].name; i++)
     {

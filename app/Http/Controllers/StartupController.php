@@ -42,8 +42,7 @@ class StartupController extends Controller
         $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length')]);
         $result = Startups::reprogram($user, $id, str_replace("\r\n", "\n", (string) $request->input('script')));
         return $this->done($result, $result['ok'] ? 'The new code is on its way to ' . count($result['drones'])
-            . ' drone(s); ' . number_format($result['fee']) . ' credits go on the startup\'s debt, which is now '
-            . number_format($result['debt']) . '.' : '');
+            . ' drone(s), for free.' : '');
     }
 
     public function close(int $id)
@@ -51,8 +50,10 @@ class StartupController extends Controller
         if (!$user = $this->player()) {
             return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
-        $result = Startups::close($user, $id);
-        return $this->done($result, $result['ok'] ? $result['name'] . ' is closed: it has left the game, and its debt is cancelled.' : '');
+        // The Close button pushes code that calls close_company() (#925)
+        $result = \App\Services\Closures::button($user, $id);
+        return $this->done($result, $result['ok'] ? 'Its drones are on their way to closing it: code that calls close_company() '
+            . 'reaches them at the speed of light, and the company ends within a real minute after.' : '');
     }
 
     public function mature(int $id)
