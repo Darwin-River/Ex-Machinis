@@ -201,11 +201,16 @@ class WorldController extends Controller
             array_map('intval', $data['v'] ?? []), $data['s'] ?? []));
     }
 
-    public function map()
+    public function map(\Illuminate\Http\Request $request)
     {
         $planets = World::map();
         $places = World::places();
         $farMap = \App\Services\FarMap::seasons();   // #922
-        return view('world.map', compact('planets', 'places', 'farMap'));
+        // A resource's heat map over it (#952): ?resource=ID, &season=next
+        $options = \App\Services\ResourceMap::options();
+        $chosen = (int) $request->query('resource', 0);
+        $heat = in_array($chosen, array_column($options, 'resource'), true)
+            ? \App\Services\ResourceMap::build($chosen, $request->query('season') === 'next') : null;
+        return view('world.map', compact('planets', 'places', 'farMap', 'options', 'heat'));
     }
 }

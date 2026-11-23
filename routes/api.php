@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
     // Events that explain the charts (#720): the world's, and a company's own
     Route::middleware('throttle:api-read')->get('world-events', 'ApiController@worldEvents');
     Route::middleware('throttle:api-read')->get('far-map', 'ApiController@farMap');
+    Route::middleware('throttle:api-read')->get('resource-map', 'ApiController@resourceMap');
     Route::middleware('throttle:api-read')->get('companies/{id}/events', 'ApiController@companyEvents')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('companies/{id}/lineage', 'ApiController@companyLineage')->whereNumber('id');
     Route::middleware('throttle:api-read')->get('lineage', 'ApiController@lineage');
