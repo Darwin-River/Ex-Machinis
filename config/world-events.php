@@ -63,4 +63,9 @@ return [
         'label' => 'Crowded sites yield less',
         'text' => 'Past 10 drones mining a mineral at a place in a game hour, each run there yields less (never nothing; a startup counts as half a drone), so miners\' income at the busiest sites fell and quieter sites paid more.',
     ],
+    [
+        'key' => 'made-goods-spread', 'kind' => 'rule', 'migration' => '0101_made_goods_spread', 'issue' => 964,
+        'label' => 'Made goods pay more',
+        'text' => 'The House buys alloys, polymers, parts and systems at 85% of their value (it was 75%) and sells parts and systems at 1.3 times (it was 1.5), so making and selling goods paid more, and buying parts to make systems began to pay.',
+    ],
 ];

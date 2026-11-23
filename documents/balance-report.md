@@ -11,9 +11,9 @@ A **guard** fails the build when it is broken. A **target** is reported until it
 | ID | Objective | Now | Band | Kind | Met |
 |---|---|---|---|---|---|
 | PO-04 | Mining pays a living (credits a tool-hour) | 11.9 | at least 10 | guard | yes |
-| PO-05 | Making things pays more than mining (ratio) | 0.61 | at least 1.0 | target | **no** |
-| PO-06 | Each tier pays more than the one below (ratio) | 1.03 | at least 1.1 | target | **no** |
-| PO-07 | Specialists can trade (credits a tool-hour) | -38.9 | at least 0 | target | **no** |
+| PO-05 | Making things pays more than mining (ratio) | 1.29 | at least 1.0 | target | yes |
+| PO-06 | Each tier pays more than the one below (ratio) | 1.25 | at least 1.1 | target | yes |
+| PO-07 | Specialists can trade (credits a tool-hour) | 2.4 | at least 0 | target | yes |
 | PO-08 | Every made good has a buyer (goods) | 0 | at most 0 | guard | yes |
 | PO-09 | No free loops (goods) | 0 | at most 0 | guard | yes |
 | PO-10 | Equipment is worth building (ratio) | 9.5 | at most 1.5 | target | **no** |
@@ -60,9 +60,9 @@ Mined at the Moon's abundance, refined and sold to the Moon Depot, after 5% sale
 
 | Tier | One step, median | Whole chain, median | Lowest one step | Highest one step |
 |---|---|---|---|---|
-| 2 | 7 | 7 | Organics (A3) -16.3 | Polymers (A1) 11.0 |
-| 3 | 6 | 7.2 | Tanks (A1) -26.2 | Rods (A1) 14.6 |
-| 4 | -38.9 | 16.7 | Thrusters (A1) -81.9 | Pumps (A1) -4.0 |
+| 2 | 12.3 | 12.3 | Organics (A3) -16.3 | Polymers (A1) 15.3 |
+| 3 | 15.2 | 15.4 | Tanks (A1) -8.4 | Rods (A1) 20.5 |
+| 4 | 2.4 | 23.8 | Torches (A1) -21.8 | Pumps (A1) 23.6 |
 
 ### Equipment and ships (PO-10, PO-11)
 

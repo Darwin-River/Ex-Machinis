@@ -1299,6 +1299,48 @@ for st, supply in ((2, 6000), (3, 6000)):
 # buy its inputs, but a miner who asks less sells first: the House's price
 # is a ceiling to undercut.
 HOUSE_MARKUP = 1.5
+# The House's spread by tier (a resource's first digit; #964, a tuning
+# change per DV-03): it sells a good at ASK_MARKUP times its value and buys
+# it at BID_SHARE times its value (applied below), HOUSE_MARKUP and
+# BUY_SHARE for tiers not listed. A narrower spread on the made goods lets a
+# company buy its inputs from the House, make one step and still earn: the
+# ladder's specialists (PO-07). Ores and refined goods keep the wide spread,
+# so buying ore to refine never beats buying the refined goods.
+# Since #964: made goods (alloys and polymers up to systems) bought at 85% of
+# their value, parts and systems sold at 1.3 times. Static check before ->
+# after: tier 2 to 4 one-step medians 7, 6, -39 -> 12, 15, 2 credits a
+# tool-hour; making over mining 0.61 -> 1.29 (PO-05); tier step 1.03 -> 1.25
+# (PO-06). Wages (WAGE) unchanged: the spread alone met the ladder targets
+ASK_MARKUP = {3: 1.3, 4: 1.3}
+BID_SHARES = {2: 0.85, 3: 0.85, 4: 0.85}
+
+
+def tier_of(rid):
+    return int(str(rid)[0])
+
+
+def made_good(rid):
+    """A good made by a recipe from refined goods (alloys and polymers up),
+    not an ore or a refined good: those keep the wide spread"""
+    return tier_of(rid) >= 2 and str(rid) not in RAW_VALUE and int(rid) not in (FUEL, SCRAP)
+
+
+def markup(rid):
+    return ASK_MARKUP.get(tier_of(rid), HOUSE_MARKUP) if made_good(rid) else HOUSE_MARKUP
+
+
+def bid_share(rid):
+    return BID_SHARES.get(tier_of(rid), BUY_SHARE) if made_good(rid) else BUY_SHARE
+
+
+def ask_for(value, rid):
+    """The House's ask for a good of this value (rounded up)"""
+    return math.ceil(round(value * markup(rid), 6))
+
+
+def value_under(ask, rid):
+    """The most a good's value can be under the House's ask (rounded down)"""
+    return math.floor(round(ask / markup(rid), 6))
 ORES = (1100, 1110, 1120, 1130)
 def ore_value(ore):
     for pid, rec in recipes.items():
@@ -1310,11 +1352,11 @@ for st in (1, 2, 3):
     bought = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
     for rid in (2011, 2012, 2013, 2031, 2032, 2033, 2041, 2042, 2043):
         if rid in bought:
-            STATION_GOODS.append((st, rid, SELLS, -(-bought[rid] * 3 // 2), 200, 0))
+            STATION_GOODS.append((st, rid, SELLS, ask_for(bought[rid], rid), 200, 0))
     for ore in ORES:
         value = ore_value(ore)
         if value:
-            STATION_GOODS.append((st, ore, SELLS, -(-value * 3 // 2), 400, 0))
+            STATION_GOODS.append((st, ore, SELLS, ask_for(value, ore), 400, 0))
 # Every product at every exchange (#380): each exchange buys and sells a
 # little of everything a drone can make, mine or refine, so any good can be
 # bought to use or made to sell, wherever a player starts. It buys at the
@@ -1352,15 +1394,15 @@ for st in (1, 2, 3):
             value = min(value or cheapest_sale[rid], cheapest_sale[rid] * 2 // 3)
         if value is None:
             continue
-        if value * 3 // 2 > MAX_LISTED:
+        if ask_for(value, rid) > MAX_LISTED:
             continue
         if (rid, BUYS) not in listed:
             # never more than it sells for here, less the markup
-            buy = min(value, sells * 2 // 3) if sells else value
+            buy = min(value, value_under(sells, rid)) if sells else value
             STATION_GOODS.append((st, rid, BUYS, max(1, buy), small_daily(value), 0))
             listed[(rid, BUYS)] = buy
         if sells is None:
-            sell = max(-(-value * 3 // 2), listed[(rid, BUYS)] * 3 // 2 + 1)
+            sell = max(ask_for(value, rid), math.floor(round(listed[(rid, BUYS)] * markup(rid), 6)) + 1)
             STATION_GOODS.append((st, rid, SELLS, sell, small_daily(value), 0))
 # Salvage (#929): every exchange buys scrap from wrecks' hulls, at 12 a unit
 # before the buying share below (it sells none)
@@ -1373,7 +1415,8 @@ for st in (1, 2, 3):
 # here the buying ones come down. Fuel, the Mining Cruiser hull and the kits
 # keep their prices: they are what a company pays to run and to grow.
 BUY_SHARE = 0.75
-STATION_GOODS = [(st, rid, side, max(1, int(price * BUY_SHARE)) if side == BUYS else price, daily, day)
+STATION_GOODS = [(st, rid, side, max(1, int(price * bid_share(rid))) if side == BUYS else price,
+                  daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
 # Each exchange is short of different things (#380 round 34: every exchange
 # priced a good the same, asking exactly twice its bid, so there was nothing

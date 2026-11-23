@@ -91,7 +91,7 @@ class Model:
         if rid in self.ask:
             return self.ask[rid]
         raw = self.g.RAW_VALUE.get(str(rid))
-        return raw * self.g.HOUSE_MARKUP if raw else None
+        return raw * (self.g.markup(rid) if hasattr(self.g, "markup") else self.g.HOUSE_MARKUP) if raw else None
 
     def chain(self, rid, seen=()):
         """(cash cost, tool-hours, fuel credits) for one unit, made all the way
