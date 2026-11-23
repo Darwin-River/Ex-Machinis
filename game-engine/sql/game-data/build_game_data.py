@@ -784,12 +784,34 @@ for m in re.finditer(r"\((\d+),'((?:[^'\\]|\\.)*)','([^']*)'", obj_insert):
     bodies[m.group(3)].append(int(m.group(1)))
 for b in new_bodies:
     bodies[b[2]].append(b[0])
+# Resources by place (#922): Metals (A3), which the upper tiers need
+# (superconductors, computers, lasers, batteries, reactors, most modules and
+# every ship), come only from far away. The minerals that refine to them are
+# found only beyond the Earth and Mars systems and the inner planets, on a
+# few bodies at a time (their homes), rich there; the homes move each season
+# (App\Services\FarMap, from far_minerals and far_homes). Every other mineral
+# is found, as before, on every body of its type.
+NEAR_BODIES = {1, 2, 3, 4} | {int(m.group(1)) for m in re.finditer(
+    r"\((\d+),'(?:[^'\\]|\\.)*','Moon',[^,]*,(3|4),", obj_insert)}
+FAR_METAL = '2013'
+FAR_MINERALS = sorted(r for r in mineral_tags
+                      if any(list(rec['inputs']) == [r] and FAR_METAL in rec['outputs'] for rec in recipes.values()))
+# How many homes a far mineral has at a time, by the kind of body it's found on, and how rich they are
+FAR_HOMES = {'Planet': 2, 'Moon': 4, 'Asteroid': 2, 'Comet': 2, 'Ring': 4}
+FAR_MULTIPLIER = 10
 abundances = []
+far_minerals = []
+far_homes = []
 for rid, tag in sorted(mineral_tags.items(), key=lambda kv: int(kv[0])):
     kind = MINERAL_BODY_TYPES.get(tag)
     targets = bodies.get(kind, [])
     if not targets:
         note(f'mineral {rid} "{resources[rid]["name"]}" is found on {tag}s, but the map has none: not minable')
+    if rid in FAR_MINERALS:
+        far = sorted(t for t in targets if t not in NEAR_BODIES)
+        far_minerals.append((int(rid), min(FAR_HOMES.get(kind, 2), len(far)), FAR_MULTIPLIER))
+        far_homes.extend((int(rid), obj) for obj in far)
+        continue
     for obj in targets:
         abundances.append((obj, int(rid), DEFAULT_ABUNDANCE))
 
@@ -1113,7 +1135,9 @@ BUYS, SELLS = 1, 2
 # Step 15 doubled the refined metals (10, 15, 20 left a simple Moon miner
 # losing money) and has the far Mars Exchange pay half as much again for
 # them, so hauling metals there pays.
-METALS = ((2011, 20, 200), (2012, 30, 150), (2013, 40, 100))
+# Metals (A3) are found only far away (#922): worth twice what they were
+# (40), so hauling them pays
+METALS = ((2011, 20, 200), (2012, 30, 150), (2013, 80, 100))
 STATION_GOODS = []
 for st in (1, 2):
     for rid, price, demand in METALS + ((2031, 8, 200), (2041, 12, 200)):
@@ -1154,7 +1178,7 @@ WAGE = {2: 20, 3: 30, 4: 45}   # credits a game hour, by tier (first digit): hal
 # Fuel was 5 credits; 3 since round 37 (#380): a trip, a round of
 # thinking and a fuel reserve cost less, so hauling and long trips pay
 FUEL_PRICE = 3                 # what the House sells fuel for
-RAW_VALUE = {'2011': 20, '2012': 30, '2013': 40, '2031': 8, '2032': 10, '2033': 12,
+RAW_VALUE = {'2011': 20, '2012': 30, '2013': 80, '2031': 8, '2032': 10, '2033': 12,
              '2041': 12, '2042': 15, '2043': 18}
 
 
@@ -2161,6 +2185,20 @@ def demand_budget(st):
 MARKET_MOODS = {1: (80, 20, 150), 2: (200, 7, 300), 3: (140, 12, 350)}
 STATIONS = [(sid, name, obj, max(cap, demand_budget(sid)), max(refill, demand_budget(sid))) + MARKET_MOODS[sid]
             for sid, name, obj, cap, refill in STATIONS]
+# The House doesn't sell what is found only far away (#922): Metals (A3), the
+# ores that refine to them, and the goods up to systems made with them; it
+# still buys them all. Modules and kits stay on sale: they are what a
+# company needs to start and to grow.
+def needs_far_metal(rid, seen=()):
+    rid = str(rid)
+    if rid == FAR_METAL or rid in FAR_MINERALS:
+        return True
+    for rec in recipes.values():
+        if list(rec['outputs']) == [rid] and rid not in seen:
+            return any(needs_far_metal(i, seen + (rid,)) for i in rec['inputs'])
+    return False
+FAR_GOODS = {int(r) for r in resources if str(r)[0] in '1234' and needs_far_metal(r)}
+STATION_GOODS = [g for g in STATION_GOODS if not (g[2] == SELLS and g[1] in FAR_GOODS)]
 table('stations', ['id', 'name', 'object_id', 'budget_cap', 'refill_per_day',
                    'swing_permille', 'cycle_days', 'shock_permille'], STATIONS)
 table('station_goods', ['station_id', 'resource', 'side', 'price', 'daily_units', 'from_day', 'steady'],
@@ -2199,6 +2237,11 @@ table('abundancies', ['location', 'resource', 'multiplier'], abundances)
 lines.append('-- Mining deposits (#324 step 11): what each holds; how much is left')
 lines.append('-- (deposit_state) is kept. A deposit with no state yet is full.')
 table('deposits', ['object_id', 'resource', 'capacity', 'refill_per_day'], deposits)
+lines.append('-- Resources by place (#922): the minerals found only far away, how many homes')
+lines.append('-- each has at a time and how rich, and where they can be; FarMap picks the')
+lines.append('-- homes each season and adds them to abundancies and deposits')
+table('far_minerals', ['resource', 'homes', 'multiplier'], far_minerals)
+table('far_homes', ['resource', 'object_id'], far_homes)
 table('queries', ['id', 'name', 'description', 'parameters', 'script'], queries)
 lines += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
 

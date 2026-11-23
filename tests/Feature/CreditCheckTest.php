@@ -48,6 +48,7 @@ class CreditCheckTest extends TestCase
 
     public function testCreditsBalanceThroughEveryKindOfFlow()
     {
+        CreditCheck::restart();   // whatever other tests left behind
         $first = CreditCheck::check();
         $this->assertNull($first['difference'], 'the first check is a baseline');
 
@@ -107,6 +108,7 @@ class CreditCheckTest extends TestCase
 
     public function testCreditsChangedWithoutAFlowAreCaught()
     {
+        CreditCheck::restart();
         CreditCheck::check();
         $company = (int) DB::table('companies')->where('house', 0)->value('company_id');
         DB::table('companies')->where('company_id', $company)->update(['credits' => DB::raw('credits + 500')]);

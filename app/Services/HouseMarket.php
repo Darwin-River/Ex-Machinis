@@ -59,6 +59,12 @@ class HouseMarket
             } catch (\Throwable $e) {
                 report($e);
             }
+            // Where the far minerals are this season (#922)
+            try {
+                FarMap::applyIfDue();
+            } catch (\Throwable $e) {
+                report($e);
+            }
             // Do credits balance? Once a game day (#937)
             try {
                 CreditCheck::checkIfDue();

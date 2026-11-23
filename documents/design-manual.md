@@ -357,6 +357,9 @@ What `perform` (and each action word) returns when an action fails. The full lis
 | Broke days before dissolving | 50 | `house_rules.dissolve_days` |
 | Game days without a sale before a matured company is wound up (warned at 30) | 60 | `WindUp::DAYS`, `WindUp::WARN` |
 | Mining deposits run dry and refill | off (0) | `house_rules.deposits_deplete` |
+| Far minerals (Metals (A3)): homes at a time, by body | planets 2, moons 4, asteroids 2, comets 2, rings 4, at an abundance of 10 (#922) | `FAR_HOMES`, `FAR_MULTIPLIER` in `build_game_data.py` |
+| A far-map season; the next published | 28 real days; 7 real days ahead (#922) | `FarMap::SEASON_DAYS`, `FarMap::PUBLISH_DAYS` |
+| Metals (A3)'s value | 80 (#922; 40 before) | `METALS`, `RAW_VALUE` in `build_game_data.py` |
 | A plunderer's share | 50% | `house_rules.plunder_share` |
 | Starting fuel | 100 | `forge.starting_fuel` |
 
@@ -1244,6 +1247,12 @@ The following fields are contained in the abundancies table:
 * location [INT(5)] - This is the location to which the abundancies.multiplier applies.
 * resource [INT(5)] - This is the resource to which the abundancies.multiplier applies.
 * multiplier [INT(2)] - This is the amount that the harvested resource is multiplied by.
+
+<a name="Far-map"></a>**Resources by place (#922).** Metals (A3) (2013), which the upper tiers need (superconductors, solar arrays, lasers, computers, batteries, reactors, most modules and every ship), come only from far away:
+* **The far minerals** are the ones whose refining recipe yields Metals (A3): voxite and zenolite (planets), kunspar (moons), halosite (comets) and neptine (rings). `build_game_data.py` leaves them out of `abundancies` and `deposits`, and writes `far_minerals` (resource, `homes` at a time, `multiplier` 10) and `far_homes` (every body of the mineral's type outside the near bodies: Mercury, Venus, Earth, Mars and their moons). Homes at a time: planets 2, moons 4, asteroids 2, comets 2, rings 4 (`FAR_HOMES`). Every other mineral is still found on every body of its type at 5.
+* **Seasons** (`App\Services\FarMap`, migration 0095): every `FarMap::SEASON_DAYS` (28) real days a season begins (`far_seasons`, real time). Each season's homes are the first `homes` of the mineral's far bodies ordered by `sha1("far-map:<season>:<resource>:<object>")`, so they are fixed in advance; `far_map` holds the current season's and the next's. `FarMap::sync` replaces the far minerals' rows in `abundancies` and `deposits` (capacity and refill from the multiplier, as the game data's 400 and 80 runs) with the current season's, and drops `deposit_state` for homes the mineral left, so a new home starts full. It runs at start-up (`php artisan forge:far-map` in `deploy/app/entrypoint.sh`, after the game data is loaded) and on the website's tick (`FarMap::applyIfDue`, at most once a real minute, which also starts a new season when one is due). The engines read `abundancies` and `deposits` as before; nothing in them changed.
+* **What the players see:** the Map page's "Where Metals (A3) come from" (this season's homes, and the next season's from `FarMap::PUBLISH_DAYS`, 7 real days, before it starts), and `GET /api/v1/far-map`.
+* **The exchanges** don't sell Metals (A3), the far minerals, or any good of tiers 1 to 4 made with them (`FAR_GOODS` in `build_game_data.py`); modules and kits are still sold. They buy them all. Metals (A3) are valued at 80 (40 before), so every good made with them is worth more.
 
 ##### Tables: deposits and deposit_state
 Minerals are not endless (#324 step 11). Each mineral at each place is a deposit with a capacity, and mining takes from it. A mined-out deposit yields nothing until it refills, which it does slowly over game time. This stops one drone from mining a spot forever and makes busy places worth fighting over.

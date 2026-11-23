@@ -43,6 +43,12 @@ class ApiController extends Controller
             'credits' => \App\Services\CreditCheck::status()]);
     }
 
+    /** Where the far minerals are found this season, and next season once published (#922) */
+    public function farMap(): JsonResponse
+    {
+        return response()->json(\App\Services\FarMap::seasons());
+    }
+
     /** The economy dashboard (#698): the same figures as /dashboard, kept for a minute */
     public function dashboard(): JsonResponse
     {
