@@ -8,9 +8,16 @@ use Illuminate\Support\Facades\DB;
  * A resource heat map on the solar-system map (#952): where a mineral is
  * found, or the minerals a refined material comes from, this season or the
  * next (#922). The bodies are the map's: each planet (its moons and rings
- * counted with it), and each asteroid and comet on its own. A body's heat
- * is the sum of the abundances of the chosen minerals on it and on what
- * orbits it.
+ * counted with it), and each asteroid and comet on its own.
+ *
+ * Since #981 a body's heat is its best site's recovery rate: what one
+ * mining run there would bring in now for a drone that arrives, counting
+ * crowding (#974) the way the engine does (db_crowd_yield): past
+ * house_rules.crowd_capacity drones mining a mineral at a place in the last
+ * game hour, a run yields abundance x capacity / crowd, at least 1. For a
+ * mineral the rate is the units a run yields; for a refined good, the units
+ * of it a run's ore refines to. Next season's homes have nobody mining them
+ * yet, so they show their abundance.
  */
 class ResourceMap
 {
@@ -66,6 +73,9 @@ class ResourceMap
     {
         $minerals = self::sources($resource);
         $names = DB::table('resources')->pluck('name', 'id')->all();
+        $perOre = self::perOre($resource, $minerals);
+        $crowds = $next ? [] : self::crowds($minerals);
+        $capacity = self::capacity();
         $seasons = FarMap::seasons();
         $far = \Illuminate\Support\Facades\Schema::hasTable('far_minerals')
             ? DB::table('far_minerals')->pluck('resource')->map(fn ($r) => (int) $r)->all() : [];
@@ -102,13 +112,17 @@ class ResourceMap
                 continue;
             }
             $i = $byId[$body];
-            $bodies[$i]['heat'] += (int) $r['multiplier'];
+            $mineral = (int) $r['resource'];
+            $crowd = $crowds[(int) $o->object_id][$mineral] ?? ['weight' => 0, 'drones' => 0];
+            $yield = self::runYield((int) $r['multiplier'], $crowd['weight'], $capacity);
+            $rate = isset($perOre[$mineral]) ? round($yield * $perOre[$mineral], 2) : $yield;
+            $bodies[$i]['heat'] = max($bodies[$i]['heat'], $rate);
             $bodies[$i]['places'][] = ['object_id' => (int) $o->object_id, 'name' => $o->object_name,
-                'mineral' => (int) $r['resource'], 'mineral_name' => $names[(int) $r['resource']] ?? null,
-                'multiplier' => (int) $r['multiplier']];
+                'mineral' => $mineral, 'mineral_name' => $names[$mineral] ?? null,
+                'multiplier' => (int) $r['multiplier'], 'miners' => $crowd['drones'], 'yield' => $yield, 'rate' => $rate];
         }
         foreach ($bodies as &$b) {
-            usort($b['places'], fn ($x, $y) => [$y['multiplier'], $x['name']] <=> [$x['multiplier'], $y['name']]);
+            usort($b['places'], fn ($x, $y) => [$y['rate'], $y['multiplier'], $x['name']] <=> [$x['rate'], $x['multiplier'], $y['name']]);
         }
         unset($b);
         $max = max(array_merge([0], array_column($bodies, 'heat')));
@@ -121,8 +135,68 @@ class ResourceMap
             'next' => $nextShown,
             'next_published' => (bool) ($seasons['next']['published'] ?? false),
             'max_heat' => $max,
+            'crowd_capacity' => $capacity,
             'bodies' => $bodies,
         ];
+    }
+
+    /**
+     * What one mining run yields a drone that arrives where the drones that
+     * mined there in the last game hour weigh $weight thousandths (#974, as
+     * db_crowd_yield, counting the newcomer as a matured company's drone)
+     */
+    public static function runYield(int $abundance, int $weight, int $capacity): int
+    {
+        if ($abundance <= 0) {
+            return 0;
+        }
+        $crowd = $weight + 1000;
+        if ($capacity <= 0 || $crowd <= $capacity * 1000) {
+            return $abundance;
+        }
+        return max(1, intdiv($abundance * $capacity * 1000, $crowd));
+    }
+
+    /** house_rules.crowd_capacity (#974), 0 before migration 0101 or when crowding is off */
+    private static function capacity(): int
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('house_rules', 'crowd_capacity')) {
+            return 0;
+        }
+        return (int) DB::table('house_rules')->where('id', 1)->value('crowd_capacity');
+    }
+
+    /** By place and mineral: the drones that mined it there in the last game hour, and their weight (thousandths) */
+    private static function crowds(array $minerals): array
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('mining_runs')) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::table('mining_runs')->whereIn('resource', $minerals)->where('game_t', '>', World::gameNow() - 3600)
+                     ->groupBy('object_id', 'resource')
+                     ->get(['object_id', 'resource', DB::raw('SUM(weight) AS weight'), DB::raw('COUNT(*) AS drones')]) as $r) {
+            $out[(int) $r->object_id][(int) $r->resource] = ['weight' => (int) $r->weight, 'drones' => (int) $r->drones];
+        }
+        return $out;
+    }
+
+    /** Units of the resource a unit of each mineral refines to (1 for the mineral itself) */
+    private static function perOre(int $resource, array $minerals): array
+    {
+        $out = [];
+        foreach (Recipes::making($resource) as $r) {
+            $uses = $r['uses'];
+            if (count($uses) !== 1 || !in_array($uses[0]['resource'], $minerals, true) || $uses[0]['units'] <= 0) {
+                continue;
+            }
+            foreach ($r['makes'] as $m) {
+                if ($m['resource'] === $resource) {
+                    $out[$uses[0]['resource']] = $m['units'] / $uses[0]['units'];
+                }
+            }
+        }
+        return $out;
     }
 
     /** The map's bodies: the planets as World::map places them, and the asteroids and comets */

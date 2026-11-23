@@ -3,14 +3,15 @@
 -- vladnium and refines them into Organics (A1), Inorganics (A1) and (A2),
 -- and Metals (A1) and (A2): what factories need to brew fuel and make
 -- polymers. It keeps standing sell orders for its goods, sells what nobody
--- bought at the market, and buys its fuel. Mining sites never run dry and
--- yield the same everywhere, so it and its copies work the Moon, nearest the
--- markets; set spread_copies to 1 to send two in three copies to Phobos and
--- Deimos instead.
+-- bought at the market, and buys its fuel. Mining sites never run dry, but
+-- a crowded one yields less a run, so it works the Moon, nearest the
+-- markets, and moves to Phobos or Deimos when a run there would yield more
+-- (move_below); set spread_copies to 1 to send two in three copies there.
 
 -- Settings: change these numbers to make it your own
 low_fuel = 40      -- fuel (units) below which it buys more
 spread_copies = 0  -- 1: copies spread over the Moon, Phobos and Deimos; 0: all at the Moon
+move_below = 3     -- units a run yields here below which it moves to a quieter site (0: stay)
 dry_tries = 12     -- dry tries in a row at the Moon before it tries Phobos
 grow_at = 7000     -- credits at which a matured company launches a copy
                    -- (at least 6500: a hull 3000, a kit 2000, 1500 to work with)
@@ -307,8 +308,22 @@ function mine_and_refine(mineral, mineral_name, load)
   refine(mineral)
 end
 
+-- A crowded site yields less a run: below move_below, move to the Moon,
+-- Phobos or Deimos, whichever yields at least 2 more a run now
+function move_if_crowded(mineral)
+  local here = mine_yield(mineral)
+  if move_below == 0 or here >= move_below or units(fuel) < FUEL_TO_TRY_PHOBOS then return end
+  local place, best = best_yield(mineral, {moon, phobos, deimos})
+  if place == work_site() or best < here + 2 then return end
+  if place == moon then site_number = MOON_SITE elseif place == phobos then site_number = PHOBOS_SITE
+  else site_number = DEIMOS_SITE end
+  set_status("crowded (" .. here .. " a run): moving to " .. place_name(place))
+  go(place)
+end
+
 function work()
   refuel()
+  move_if_crowded(yalspar)
   mine_and_refine(yalspar, "yalspar", YALSPAR_LOAD)
   mine_and_refine(vladnium, "vladnium", VLADNIUM_LOAD)
   sell_when_hold_is_full()

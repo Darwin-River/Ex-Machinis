@@ -11,7 +11,7 @@
             </div>
             {{-- A resource's heat map over the map (#952) --}}
             <form method="get" action="{{ url('map') }}" id="resource-map-form" class="mb-3" style="display: flex; flex-wrap: wrap; gap: .5em; align-items: center">
-                <label for="map-resource">Show where it's found:</label>
+                <label for="map-resource">Show where to mine:</label>
                 <select name="resource" id="map-resource">
                     <option value="0">Nothing (drones only)</option>
                     <optgroup label="Refined goods (from the minerals that make them)">
@@ -44,12 +44,12 @@
                     <circle cx="300" cy="300" r="{{ $p['r'] }}" fill="none" stroke="#3a3a48" stroke-width="1"/>
                 @endforeach
                 @if($heat)
-                    {{-- The glow: brighter and wider where the resource is richer and on more bodies --}}
+                    {{-- The glow: brighter and wider where a mining run brings in more now, at the body's best site (#981) --}}
                     @foreach($heat['bodies'] as $b)
                         @if($b['heat'] > 0)
                             <a href="{{ url('locations/' . $b['places'][0]['object_id']) }}" class="map-heat">
                                 <circle cx="{{ $b['x'] }}" cy="{{ $b['y'] }}" r="{{ round(10 + 26 * sqrt($b['heat'] / max(1, $heat['max_heat'])), 1) }}" fill="url(#map-heat)">
-                                    <title>{{ $b['name'] }}: {{ collect($b['places'])->map(fn ($p) => $p['name'] . ' (' . $p['mineral_name'] . ', ' . $p['multiplier'] . ')')->implode('; ') }}</title>
+                                    <title>{{ $b['name'] }}: {{ collect($b['places'])->take(6)->map(fn ($p) => $p['name'] . ' (' . $p['mineral_name'] . ', ' . $p['rate'] . ' a run' . ($p['miners'] ? ', ' . $p['miners'] . ' mining' : '') . ')')->implode('; ') }}</title>
                                 </circle>
                             </a>
                         @endif
@@ -108,19 +108,19 @@
             @if($heat)
                 <h3 class="mt-4" id="resource-map">Where {{ $heat['resource']['name'] }} {{ $heat['resource']['kind'] === 'refined' ? 'comes from' : 'is found' }}{{ $heat['next'] ? ', next season' : '' }}</h3>
                 <p>@if($heat['resource']['kind'] === 'refined')Refined from {{ collect($heat['minerals'])->pluck('name')->implode(', ') }}. @endif
-                    The glow is brighter where it is richer and on more of a planet's moons and rings (the number is its abundance: the units a mining run brings in).
+                    The glow is brighter where a mining run brings in more {{ $heat['resource']['kind'] === 'refined' ? 'of it, once refined,' : '' }} right now, at the best site around each planet: rich sites glow, and sites crowded with miners dim{{ $heat['crowd_capacity'] ? ' (past ' . $heat['crowd_capacity'] . ' drones mining a mineral there in a game hour, each run yields less)' : '' }}. Each site lists its units a run now, its abundance, and the drones that mined there in the last game hour.
                     @if(collect($heat['minerals'])->contains('moves', true)) Some of these move each season (see below).@endif</p>
                 @php($found = collect($heat['bodies'])->where('heat', '>', 0)->sortByDesc('heat'))
                 <div class="table-custom-responsive">
                     <table class="table-ticket" id="resource-places">
-                        <tr><th>Around</th><th>Found at</th></tr>
+                        <tr><th>Around</th><th>Best now</th><th>Found at (units a run now; abundance; drones mining)</th></tr>
                         @forelse($found as $b)
-                            <tr><td>{{ $b['name'] }}</td>
-                                {{-- The richest six; a mineral found on every moon would list dozens --}}
-                                <td>@foreach(array_slice($b['places'], 0, 6) as $p)<a href="{{ url('locations/' . $p['object_id']) }}">{{ $p['name'] }}</a> ({{ $p['mineral_name'] }}, {{ $p['multiplier'] }})@if(!$loop->last), @endif @endforeach
+                            <tr><td>{{ $b['name'] }}</td><td>{{ $b['heat'] }} a run</td>
+                                {{-- The best six now; a mineral found on every moon would list dozens --}}
+                                <td>@foreach(array_slice($b['places'], 0, 6) as $p)<a href="{{ url('locations/' . $p['object_id']) }}">{{ $p['name'] }}</a> ({{ $p['mineral_name'] }}: {{ $p['rate'] }}; {{ $p['multiplier'] }}; {{ $p['miners'] }})@if(!$loop->last), @endif @endforeach
                                     @if(count($b['places']) > 6) and {{ count($b['places']) - 6 }} more @endif</td></tr>
                         @empty
-                            <tr><td colspan="2">Not found anywhere {{ $heat['next'] ? 'next season' : 'now' }}.</td></tr>
+                            <tr><td colspan="3">Not found anywhere {{ $heat['next'] ? 'next season' : 'now' }}.</td></tr>
                         @endforelse
                     </table>
                 </div>

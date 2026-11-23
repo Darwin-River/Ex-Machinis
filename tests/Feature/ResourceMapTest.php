@@ -83,10 +83,55 @@ class ResourceMapTest extends TestCase
         $map = ResourceMap::build(self::METALS_A1);
         $this->assertSame('refined', $map['resource']['kind']);
         $this->assertSame([self::WOLFITE], array_column($map['minerals'], 'resource'));
-        $this->assertSame(5, $this->body($map, 'Earth')['heat']);
+        // #981: what a run's ore refines to, 5 wolfite x 3/18 Metals (A1)
+        $this->assertEquals(0.83, $this->body($map, 'Earth')['heat']);
+        $this->assertSame(5, $this->body($map, 'Earth')['places'][0]['yield']);
         $options = collect(ResourceMap::options());
         $this->assertSame('refined', $options->firstWhere('resource', self::METALS_A1)['kind']);
         $this->assertSame('mineral', $options->firstWhere('resource', self::KUNSPAR)['kind'], 'a far mineral is offered too');
+    }
+
+    /** #981: a body glows by its best site's run now, crowding counted as the engine does (#974) */
+    public function testCrowdedSitesDim()
+    {
+        DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
+            'tax_permille' => 0, 'plunder_share' => 50, 'crowd_capacity' => 10]);
+        DB::table('mining_runs')->delete();
+        $now = \App\Services\World::gameNow();
+        // 19 drones mined wolfite at the Moon in the last game hour, and one two hours ago
+        $rows = [];
+        for ($i = 0; $i < 19; $i++) {
+            $rows[] = ['object_id' => 10, 'resource' => self::WOLFITE, 'drone' => 900000 + $i, 'game_t' => $now - 60 * $i, 'weight' => 1000];
+        }
+        $rows[] = ['object_id' => 10, 'resource' => self::WOLFITE, 'drone' => 800000, 'game_t' => $now - 7200, 'weight' => 1000];
+        // Two startups' drones (half a drone each) at Phobos
+        $rows[] = ['object_id' => 11, 'resource' => self::WOLFITE, 'drone' => 800001, 'game_t' => $now, 'weight' => 500];
+        $rows[] = ['object_id' => 11, 'resource' => self::WOLFITE, 'drone' => 800002, 'game_t' => $now, 'weight' => 500];
+        DB::table('mining_runs')->insert($rows);
+
+        $map = ResourceMap::build(self::WOLFITE);
+        // A newcomer at the Moon makes 20: 5 x 10 / 20 = 2 a run; Phobos isn't crowded
+        $moon = $this->body($map, 'Earth')['places'][0];
+        $this->assertSame(['Moon', 19, 2, 2, 5], [$moon['name'], $moon['miners'], $moon['yield'], $moon['rate'], $moon['multiplier']]);
+        $this->assertSame(2, $this->body($map, 'Earth')['heat']);
+        $this->assertSame(5, $this->body($map, 'Mars')['heat']);
+        $this->assertSame(2, $this->body($map, 'Mars')['places'][0]['miners']);
+        $this->assertSame(5, $map['max_heat']);
+        $this->assertSame(10, $map['crowd_capacity']);
+        // A refined good dims the same way: 2 wolfite x 3/18
+        $this->assertEquals(0.33, $this->body(ResourceMap::build(self::METALS_A1), 'Earth')['heat']);
+        // The engine's formula: never below 1, and crowding off at capacity 0
+        $this->assertSame(1, ResourceMap::runYield(5, 99000, 10));
+        $this->assertSame(5, ResourceMap::runYield(5, 99000, 0));
+        $this->assertSame(5, ResourceMap::runYield(5, 9000, 10));
+        $this->assertSame(0, ResourceMap::runYield(0, 0, 10));
+
+        $this->get('/map?resource=' . self::WOLFITE)->assertOk()->assertSee('Show where to mine')
+            ->assertSee('</a> (Wolfite (N): 2; 5; 19)', false)->assertSee('Moon (Wolfite (N), 2 a run, 19 mining)', false);
+        $api = $this->getJson('/api/v1/resource-map?resource=' . self::WOLFITE)->assertOk()->assertJsonPath('crowd_capacity', 10)->json();
+        $earth = collect($api['bodies'])->firstWhere('name', 'Earth');
+        $this->assertSame(['object_id' => 10, 'name' => 'Moon', 'mineral' => self::WOLFITE, 'mineral_name' => 'Wolfite (N)',
+            'multiplier' => 5, 'miners' => 19, 'yield' => 2, 'rate' => 2], $earth['places'][0]);
     }
 
     public function testAFarMineralThisSeasonAndNext()

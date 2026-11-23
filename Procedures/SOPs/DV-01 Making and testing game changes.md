@@ -40,7 +40,7 @@
 
       2. <a id="5.3.2"></a>Game engines: `make test` in `game-engine/src`.
 
-      3. <a id="5.3.3"></a>Game data: after editing anything in `game-engine/sql/game-data/` or `documents/economy.xlsx`, run `python3 game-engine/sql/game-data/build_game_data.py` and commit everything it regenerates.
+      3. <a id="5.3.3"></a>Game data: after editing anything in `game-engine/sql/game-data/` or `documents/economy.xlsx`, run `python3 game-engine/sql/game-data/build_game_data.py` and `python3 tools/balance/static_check.py`, and commit everything they regenerate. No playability guard may break; a change made to move an objective is a tuning change, per [DV-03](DV-03%20Tuning%20gameplay%20parameters.md).
 
       4. <a id="5.3.4"></a>Frontend: after changing `resources/assets/`, run `npm run build` and commit `html/build/`.
 
@@ -62,13 +62,15 @@
 
    3. <a id="6.3"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   4. <a id="6.4"></a>[FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md): Raising funds through Ko-fi
+   4. <a id="6.4"></a>[DV-03](DV-03%20Tuning%20gameplay%20parameters.md): Tuning gameplay parameters
 
-   5. <a id="6.5"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
+   5. <a id="6.5"></a>[FR-01](FR-01%20Raising%20funds%20through%20Ko-fi.md): Raising funds through Ko-fi
 
-   6. <a id="6.6"></a>[OR-02](OR-02%20Engaging%20on%20social%20media.md): Engaging on social media
+   6. <a id="6.6"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
 
-   7. <a id="6.7"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   7. <a id="6.7"></a>[OR-02](OR-02%20Engaging%20on%20social%20media.md): Engaging on social media
+
+   8. <a id="6.8"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
 
 7. # <a id="7"></a>Attachments
 

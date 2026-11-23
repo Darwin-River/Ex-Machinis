@@ -1299,6 +1299,48 @@ for st, supply in ((2, 6000), (3, 6000)):
 # buy its inputs, but a miner who asks less sells first: the House's price
 # is a ceiling to undercut.
 HOUSE_MARKUP = 1.5
+# The House's spread by tier (a resource's first digit; #964, a tuning
+# change per DV-03): it sells a good at ASK_MARKUP times its value and buys
+# it at BID_SHARE times its value (applied below), HOUSE_MARKUP and
+# BUY_SHARE for tiers not listed. A narrower spread on the made goods lets a
+# company buy its inputs from the House, make one step and still earn: the
+# ladder's specialists (PO-07). Ores and refined goods keep the wide spread,
+# so buying ore to refine never beats buying the refined goods.
+# Since #964: made goods (alloys and polymers up to systems) bought at 85% of
+# their value, parts and systems sold at 1.3 times. Static check before ->
+# after: tier 2 to 4 one-step medians 7, 6, -39 -> 12, 15, 2 credits a
+# tool-hour; making over mining 0.61 -> 1.29 (PO-05); tier step 1.03 -> 1.25
+# (PO-06). Wages (WAGE) unchanged: the spread alone met the ladder targets
+ASK_MARKUP = {3: 1.3, 4: 1.3}
+BID_SHARES = {2: 0.85, 3: 0.85, 4: 0.85}
+
+
+def tier_of(rid):
+    return int(str(rid)[0])
+
+
+def made_good(rid):
+    """A good made by a recipe from refined goods (alloys and polymers up),
+    not an ore or a refined good: those keep the wide spread"""
+    return tier_of(rid) >= 2 and str(rid) not in RAW_VALUE and int(rid) not in (FUEL, SCRAP)
+
+
+def markup(rid):
+    return ASK_MARKUP.get(tier_of(rid), HOUSE_MARKUP) if made_good(rid) else HOUSE_MARKUP
+
+
+def bid_share(rid):
+    return BID_SHARES.get(tier_of(rid), BUY_SHARE) if made_good(rid) else BUY_SHARE
+
+
+def ask_for(value, rid):
+    """The House's ask for a good of this value (rounded up)"""
+    return math.ceil(round(value * markup(rid), 6))
+
+
+def value_under(ask, rid):
+    """The most a good's value can be under the House's ask (rounded down)"""
+    return math.floor(round(ask / markup(rid), 6))
 ORES = (1100, 1110, 1120, 1130)
 def ore_value(ore):
     for pid, rec in recipes.items():
@@ -1310,11 +1352,11 @@ for st in (1, 2, 3):
     bought = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
     for rid in (2011, 2012, 2013, 2031, 2032, 2033, 2041, 2042, 2043):
         if rid in bought:
-            STATION_GOODS.append((st, rid, SELLS, -(-bought[rid] * 3 // 2), 200, 0))
+            STATION_GOODS.append((st, rid, SELLS, ask_for(bought[rid], rid), 200, 0))
     for ore in ORES:
         value = ore_value(ore)
         if value:
-            STATION_GOODS.append((st, ore, SELLS, -(-value * 3 // 2), 400, 0))
+            STATION_GOODS.append((st, ore, SELLS, ask_for(value, ore), 400, 0))
 # Every product at every exchange (#380): each exchange buys and sells a
 # little of everything a drone can make, mine or refine, so any good can be
 # bought to use or made to sell, wherever a player starts. It buys at the
@@ -1352,15 +1394,15 @@ for st in (1, 2, 3):
             value = min(value or cheapest_sale[rid], cheapest_sale[rid] * 2 // 3)
         if value is None:
             continue
-        if value * 3 // 2 > MAX_LISTED:
+        if ask_for(value, rid) > MAX_LISTED:
             continue
         if (rid, BUYS) not in listed:
             # never more than it sells for here, less the markup
-            buy = min(value, sells * 2 // 3) if sells else value
+            buy = min(value, value_under(sells, rid)) if sells else value
             STATION_GOODS.append((st, rid, BUYS, max(1, buy), small_daily(value), 0))
             listed[(rid, BUYS)] = buy
         if sells is None:
-            sell = max(-(-value * 3 // 2), listed[(rid, BUYS)] * 3 // 2 + 1)
+            sell = max(ask_for(value, rid), math.floor(round(listed[(rid, BUYS)] * markup(rid), 6)) + 1)
             STATION_GOODS.append((st, rid, SELLS, sell, small_daily(value), 0))
 # Salvage (#929): every exchange buys scrap from wrecks' hulls, at 12 a unit
 # before the buying share below (it sells none)
@@ -1373,7 +1415,8 @@ for st in (1, 2, 3):
 # here the buying ones come down. Fuel, the Mining Cruiser hull and the kits
 # keep their prices: they are what a company pays to run and to grow.
 BUY_SHARE = 0.75
-STATION_GOODS = [(st, rid, side, max(1, int(price * BUY_SHARE)) if side == BUYS else price, daily, day)
+STATION_GOODS = [(st, rid, side, max(1, int(price * bid_share(rid))) if side == BUYS else price,
+                  daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
 # Each exchange is short of different things (#380 round 34: every exchange
 # priced a good the same, asking exactly twice its bid, so there was nothing
@@ -1390,12 +1433,24 @@ PLACE_FACTOR = {   # station: {tier (a resource's first digit): factor}
     2: {1: 0.85, 2: 0.85, 3: 1.10, 4: 1.20, 5: 1.10},   # Moon Depot
     3: {1: 1.00, 2: 1.00, 3: 1.25, 4: 1.10, 5: 1.15},   # Mars Exchange
 }
+# What an exchange pays for ores and refined goods where it differs from
+# PLACE_FACTOR (#963, a tuning change per DV-03): the Moon Depot, beside the
+# mines, paid 15% under the base price for them, so the Miner and Refiner
+# starters, which sell there, took twice as long as the Maker to mature
+# (round 73: 68 to 77 and 59 to 60 game days against 29 to 33). It now pays
+# full price, and still sells them at its lower price: raising both would
+# have raised what makers pay for metals at the Moon, the cheapest place to
+# buy them (the balance check's PO-05 fell from 1.29 to 0.45)
+BID_PLACE_FACTOR = {2: {1: 1.00, 2: 1.00}}
 FIXED_PRICES = {FUEL, 6001, MINING_KIT, FACTORY_KIT}
-def place_factor(st, rid):
+def place_factor(st, rid, side=None):
     twist = ((rid * 7919 + st * 104729) % 21 - 10) / 100   # -0.10 to +0.10
-    return PLACE_FACTOR[st].get(int(str(rid)[0]), 1.0) + twist
+    factor = PLACE_FACTOR[st].get(tier_of(rid), 1.0)
+    if side == BUYS and not made_good(rid):
+        factor = BID_PLACE_FACTOR.get(st, {}).get(tier_of(rid), factor)
+    return factor + twist
 STATION_GOODS = [(st, rid, side, price if rid in FIXED_PRICES else
-                  max(1, min(MAX_LISTED, round(price * place_factor(st, rid)))), daily, day)
+                  max(1, min(MAX_LISTED, round(price * place_factor(st, rid, side)))), daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
 # A kit is no cheaper than its parts (#657, round 66: a Mining Kit cost 2,000
 # at Earth, and its parts sold to the House for 2,283 at the Moon and 2,331
@@ -1832,13 +1887,46 @@ queries.append((671, 'My lineage',
                 'released or registered, 1 for its clones, and so on).', 0,
                 "SELECT IFNULL(parent_id, 0), generation FROM agents WHERE agent_id = [drone_id];"))
 
+# Crowded sites (#974): past house_rules.crowd_capacity drones mining a
+# mineral at a place in the last game hour (a startup's drone counts
+# crowd_startup_permille of one), a run yields abundance x capacity / crowd,
+# at least 1. The engine's db_crowd_yield works out the same number; these
+# give it to a drone's code, counting the asking drone as if it mined now.
+CROWD_RULES = "LEFT JOIN house_rules AS h ON h.id = 1"
+
+
+def crowd_sql(place, resource, abundance):
+    """(other drones mining resource at place in the last game hour, what a
+    run there would yield the asking drone now), as SQL expressions"""
+    me_weight = ("IF(IFNULL((SELECT c.startup FROM agents AS ma JOIN companies AS c ON c.company_id = ma.company_id "
+                 "WHERE ma.agent_id = [drone_id]), 0) = 1, IFNULL(h.crowd_startup_permille, 1000), 1000)")
+    recent = (f"FROM mining_runs AS m WHERE m.object_id = {place} AND m.resource = {resource} "
+              "AND m.drone <> [drone_id] AND m.game_t > [game_now] - 3600")
+    crowd = f"({me_weight} + (SELECT IFNULL(SUM(m.weight), 0) {recent}))"
+    miners = f"(SELECT COUNT(*) {recent})"
+    yields = (f"IF(IFNULL({abundance}, 0) <= 0, 0, IF(IFNULL(h.crowd_capacity, 0) <= 0 OR {crowd} <= h.crowd_capacity * 1000, "
+              f"{abundance}, GREATEST(1, FLOOR({abundance} * h.crowd_capacity * 1000 / {crowd}))))")
+    return miners, yields
+
+
+_miners, _yield = crowd_sql('d.object_id', 'd.resource', 'a.multiplier')
 queries.append((640, 'Deposits here',
                 '[R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), '
-                'capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills.', 0,
+                'capacity (2 cells), units regained per game day, other drones that mined it here in the last game '
+                'hour, and what a run yields now (less at a crowded site).', 0,
                 "SELECT d.resource, FLOOR(LEAST(d.capacity, IFNULL(s.amount, d.capacity) + d.refill_per_day * "
                 "([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400)) AS d_units, d.capacity AS d_capacity, "
-                "d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id "
-                f"AND s.resource = d.resource WHERE d.object_id = {HERE_} ORDER BY d.resource;"))
+                f"d.refill_per_day, {_miners} AS miners, {_yield} AS yield FROM deposits d "
+                "LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource "
+                "LEFT JOIN abundancies a ON a.location = d.object_id AND a.resource = d.resource "
+                f"{CROWD_RULES} WHERE d.object_id = {HERE_} ORDER BY d.resource;"))
+_miners, _yield = crowd_sql('[value_2]', '[value_1]', 'a.multiplier')
+queries.append((411, 'Mining yield at a place',
+                '[P R 411 query]: Mining resource R at place P: its abundance there, other drones that mined it '
+                'there in the last game hour, and what a run would yield this drone now (less at a crowded site).', 2,
+                f"SELECT IFNULL(a.multiplier, 0) AS abundance, {_miners} AS miners, {_yield} AS yield "
+                f"FROM (SELECT 1 AS one) AS x {CROWD_RULES} "
+                "LEFT JOIN abundancies AS a ON a.location = [value_2] AND a.resource = [value_1];"))
 
 # Local information (#324 step 14): a drone sees live market orders only
 # where it is. The solar order lists (601, 611, 612) now list the orders at
@@ -1852,15 +1940,17 @@ local_queries = {
     # left to mine now, then the nearest to the drone
     410: ('List best extraction sites',
           'The 10 best places to mine resource N: place, abundance, units left there now, distance from the drone '
-          '(thousand km). Richest first, then most left, then nearest.', 1,
+          '(thousand km), what a run there would yield it now (less at a crowded site, #974). Best yield first, '
+          'then most left, then nearest.', 1,
           "SELECT a.location AS place, a.multiplier AS abundance, FLOOR(IFNULL(LEAST(d.capacity, IFNULL(s.amount, "
           "d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400), 0)) AS d_units, "
-          "IFNULL(ROUND(SQRT(POW(o.x_coord - h.x_coord, 2) + POW(o.y_coord - h.y_coord, 2) + POW(o.z_coord - h.z_coord, 2)) "
-          f"/ 1000), 0) AS d_distance FROM abundancies AS a INNER JOIN objects AS o ON o.object_id = a.location "
-          f"INNER JOIN objects AS h ON h.object_id = {HERE_} "
+          "IFNULL(ROUND(SQRT(POW(o.x_coord - h0.x_coord, 2) + POW(o.y_coord - h0.y_coord, 2) + POW(o.z_coord - h0.z_coord, 2)) "
+          f"/ 1000), 0) AS d_distance, {crowd_sql('a.location', 'a.resource', 'a.multiplier')[1]} AS yield "
+          "FROM abundancies AS a INNER JOIN objects AS o ON o.object_id = a.location "
+          f"INNER JOIN objects AS h0 ON h0.object_id = {HERE_} {CROWD_RULES} "
           "LEFT JOIN deposits AS d ON d.object_id = a.location AND d.resource = a.resource "
           "LEFT JOIN deposit_state AS s ON s.object_id = a.location AND s.resource = a.resource "
-          "WHERE a.resource = [value_1] ORDER BY a.multiplier DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
+          "WHERE a.resource = [value_1] ORDER BY yield DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
     601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
           'wanted maximum, stock it holds free (plus what is on its way in), order handle (#927: pass it to push), planets (1: an order of the planets), mine (1: its own).' + LOCAL_NOTE, 1, orders(5, True)),
     611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '
@@ -2143,7 +2233,7 @@ QUERY_FUNCS = {
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
     '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '712': 'obligations()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
-    '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
+    '640': 'deposits()', '411': 'mine_yield(R, P)', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
     '704': 'trip_to(P)', '705': 'trip_between(A, B)', '706': 'house_demand(N)', '707': 'house_supply(N)', '710': 'orbiting(N)', '720': 'drones_at(N)',
@@ -2332,31 +2422,35 @@ table('far_homes', ['resource', 'object_id'], far_homes)
 table('queries', ['id', 'name', 'description', 'parameters', 'script'], queries)
 lines += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
 
-with open(OUT, 'w', encoding='utf-8') as f:
-    f.write('\n'.join(lines))
+# Run as a script, write the game data and the manual's query appendix. Imported
+# (tools/balance, #961), only work the numbers out: the balance check reads
+# them without writing anything
+if __name__ == '__main__':
+    with open(OUT, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
 
-# The design manual's query appendix is written from the same data
-MANUAL = os.path.join(REPO, 'documents', 'design-manual.md')
-START, END = '<!-- queries:start', '<!-- queries:end -->'
-manual = open(MANUAL, encoding='utf-8').read()
-a = manual.index(START)
-a = manual.index('\n', a) + 1
-b = manual.index(END)
-cell = lambda v: str(v).replace('|', '\\|').replace('\n', ' ')
-table_md = ['| Category | Query ID | Name | Usage and description | Parameters | MySQL script |',
-            '|:--|:--|:--|:--|:--|:--|']
-for qid, name, desc, params, script in queries:
-    table_md.append(f'| {cell(category.get(str(qid), "Spacecraft"))} | {qid} | {cell(name)} | {cell(desc)} '
-                    f'| {params} | `{cell(script)}` |')
-manual = manual[:a] + '\n'.join(table_md) + '\n' + manual[b:]
-with open(MANUAL, 'w', encoding='utf-8') as f:
-    f.write(manual)
+    # The design manual's query appendix is written from the same data
+    MANUAL = os.path.join(REPO, 'documents', 'design-manual.md')
+    START, END = '<!-- queries:start', '<!-- queries:end -->'
+    manual = open(MANUAL, encoding='utf-8').read()
+    a = manual.index(START)
+    a = manual.index('\n', a) + 1
+    b = manual.index(END)
+    cell = lambda v: str(v).replace('|', '\\|').replace('\n', ' ')
+    table_md = ['| Category | Query ID | Name | Usage and description | Parameters | MySQL script |',
+                '|:--|:--|:--|:--|:--|:--|']
+    for qid, name, desc, params, script in queries:
+        table_md.append(f'| {cell(category.get(str(qid), "Spacecraft"))} | {qid} | {cell(name)} | {cell(desc)} '
+                        f'| {params} | `{cell(script)}` |')
+    manual = manual[:a] + '\n'.join(table_md) + '\n' + manual[b:]
+    with open(MANUAL, 'w', encoding='utf-8') as f:
+        f.write(manual)
 
-print(f'Wrote {os.path.relpath(OUT, REPO)}: {len(resources)} resources, {len(protocols)} protocols, '
-      f'{len(effect_rows)} effects, {len(loc_eff)} location effects, {len(mkt_eff)} market effects, '
-      f'{len(new_bodies)} new bodies, {len(planet_updates)} planet orbit corrections, '
-      f'{len(abundances)} abundances, {len(queries)} queries.')
-if notes:
-    print('\nAssumptions and gaps:')
-    for n in notes:
-        print(' -', n)
+    print(f'Wrote {os.path.relpath(OUT, REPO)}: {len(resources)} resources, {len(protocols)} protocols, '
+          f'{len(effect_rows)} effects, {len(loc_eff)} location effects, {len(mkt_eff)} market effects, '
+          f'{len(new_bodies)} new bodies, {len(planet_updates)} planet orbit corrections, '
+          f'{len(abundances)} abundances, {len(queries)} queries.')
+    if notes:
+        print('\nAssumptions and gaps:')
+        for n in notes:
+            print(' -', n)
