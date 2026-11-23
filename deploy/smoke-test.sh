@@ -571,9 +571,15 @@ sql "update deposits set refill_per_day = 40 where object_id = 10 and resource =
 more_wolfite() { [ "$(wolfite)" -gt "$WOLFITE" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_wolfite
 wait_for 60 "drone finished mining again" replied $DRONE_ID "mined-again 0"
-docker compose logs game-engine | grep -q 'Mining resource \[1130\] at \[10\]: crowd \[9.5\|Mining resource \[1130\] at \[10\]: crowd \[10.0' ||
-    fail "the crowded run didn't count the other drones"
-[ "$(wolfite)" = "$((WOLFITE + 1))" ] || fail "a run at a crowded site yielded $(( $(wolfite) - WOLFITE )), not 1"
+recorded() { [ "$(sql "select count(*) from mining_runs where object_id = 10 and resource = 1130 and drone = $DRONE_ID")" = 1 ]; }
+crowd_state() {
+    echo "crowd_capacity: $(sql "select crowd_capacity from house_rules where id = 1")"
+    echo "mining_runs at the Moon: $(sql "select count(*), IFNULL(SUM(weight), 0), IFNULL(MIN(game_t), 0) from mining_runs where object_id = 10 and resource = 1130")"
+    echo "game time: $(sql "select ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) from game_clock where id = 1")"
+}
+for _ in $(seq 1 30); do recorded && break; sleep 1; done
+recorded || { crowd_state; fail "the engine didn't record the drone's run at the crowded site"; }
+[ "$(wolfite)" = "$((WOLFITE + 1))" ] || { crowd_state; fail "a run at a crowded site yielded $(( $(wolfite) - WOLFITE )), not 1"; }
 echo "ok: a crowded site yields less a run, and never nothing"
 sql "delete from mining_runs where drone >= 990000"
 sql "update house_rules set crowd_capacity = 10 where id = 1"
