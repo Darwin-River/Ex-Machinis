@@ -57,6 +57,7 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
 - [Chapter 7: Maturing and Shares](#chapter-7-maturing-and-shares)
   - [Maturing a startup](#maturing-a-startup)
   - [Dividends: what a share earns](#dividends-what-a-share-earns)
+  - [Loans](#loans)
   - [Cash-out value: what a share is worth](#cash-out-value-what-a-share-is-worth)
   - [Selling to the bank, and buying from it](#selling-to-the-bank-and-buying-from-it)
   - [Trading shares with other players](#trading-shares-with-other-players)
@@ -497,10 +498,10 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -2 | not enough of a resource in the cargo hold (or, for `go`, no Engine to fly with) |
 | -3 | not enough room in the cargo hold |
 | -4 | not enough credits |
-| -5 | the seller's order doesn't allow selling that many; from `close_company`, the drone has no live company of its own to close (or it is the House's) |
+| -5 | the seller's order doesn't allow selling that many |
 | -6 | the buyer's order doesn't allow buying that many |
 | -7, -8 | wrong price: the order's price has changed |
-| -9 | the action was stopped |
+| -9 | the action was stopped; from `close_company`, the drone has no live company of its own to close (or it is the House's) |
 | -10 | the other drone has no matching buy or sell order, or no order with that order handle is here (a pull needs a sell order, a push a buy order) |
 | -11 | there is no such protocol |
 | -12 | refused, for example because a parameter names something that doesn't exist; from `buy_here` or `sell_here`, nobody here sells or buys it |
@@ -514,6 +515,8 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -20 | your company already has as many working drones as it may: 8 (from `launch`; the kit stays aboard) |
 | -21 | a startup pays nothing out to shareholders: it has none until it matures (from `pay_out`) |
 | -22 | `push` or `pull` named another company's drone by its ID: trade with another company's order by its order handle (from `best_offer`, `best_bid` or the order lists); a drone ID works only for your own company's drones |
+| -23 | only a public company asks for loans (from `request_loan`): a startup, a company its player owns outright, or one released before the new rules can't borrow (see [Loans](#loans)) |
+| -24 | the company still owes its lenders (from `close_company`): it repays them first (see [Loans](#loans)) |
 | -30 | refused by your [fuel floor](#fuel-floor) |
 
 Your script can use the result to decide what to do next. For example, this function tries to pull 5 kunspar from the cheapest sell order here (`best_offer` gives its order handle) and says whether it worked:
@@ -1064,7 +1067,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, its order handle for `pull`, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, its order handle for `push`, and how many it wants; 0, 0, 0 if none; for a startup both look only at the planets' orders), `import_price(resource, n)` (what n units would cost from the planets here now; 0 when they don't sell it here), `house_only()` (true for a startup, which trades only with the planets; `nil` for a company that may trade with anyone), `house_supply(resource)` and `house_demand(resource)` (what the House sells and still buys at each exchange), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held, planets, mine}`; `drone` is the order handle), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
 | Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
 | Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `company_age(company)` (game days since a company was founded, yours if left out: use it for a plan about your company's own life, such as growing only in its first 24 days; the Foundry design used `today()` for that, so a company released on day 8 could grow for only 16 days), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place; here if left out), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `fleet()` (`{drones, cap, coming}`: your company's working drones, the most it may have, launches on their way), `fleet_full()` (true when a launch would fail with -20), `recipe(resource)` (see below), `hold()`, `cargo_mass()`, `capacity()`, `space()`, `now()`, `lineage()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()`, `place_name(place)`, `trip_to(place)`, `trip_between(a, b)`, `deposits()`, `minerals(place)`, `best_sites(mineral)`, `drones_at(place)`, `wrecks_at(place)`, `wrecks()`, `wreck_hold(wreck)`, `resource_name(resource)`, `producers(resource)`, `protocol_name(protocol)`, `events_affecting(drone)`, `event(id)` (see [Chapter 9](#chapter-9-asking-questions)) |
-| Its company's money and end | `set_dividend_share(x)` and `pay_out(n)` (what it pays its shareholders: see [Dividends](#dividends-what-a-share-earns)), `close_company()` (asks for its company to end: see [Closing a company](#closing-a-company)) |
+| Its company's money and end | `set_dividend_share(x)` and `pay_out(n)` (what it pays its shareholders: see [Dividends](#dividends-what-a-share-earns)), `request_loan(amount, rate, due_in)`, `cancel_request(id)`, `repay(id)` and `obligations()` (what it borrows and owes: see [Loans](#loans)), `close_company()` (asks for its company to end: see [Closing a company](#closing-a-company)) |
 | Saying what it's doing | `set_status(text)`: a line shown on the drone's page and in the API (see [Saying what it's doing](#saying-what-its-doing)) |
 | Any query | `ask(id, ...)` returns a query's rows (an empty table if it fails); `query(id, ...)` is the same but returns `nil` and a code if it fails (see [Chapter 9](#chapter-9-asking-questions)) |
 | Any protocol | `perform(protocol, ...)` runs a protocol by its number, its arguments in the order the Protocols page lists them, and returns 0 or a negative code |
@@ -1504,7 +1507,9 @@ A company ends through its own code. `close_company()` asks for the drone's comp
 - **a startup** closes as it always has: its debt is cancelled, its credits go back to the bank, and its drones become empty wrecks nobody can plunder;
 - **a matured company** shares its credits among its shareholders by their shares (the bank's part leaves the game). What the bank still owes for shares sold to it is paid, at no more than each share got. Its share orders are withdrawn, and its drones become wrecks **with what they hold**, for anyone to plunder.
 
-`close_company()` returns 0, or -5 when the drone has no live company of its own to close (or it is the House's). Calling it again while the closing is pending returns 0 and changes nothing.
+A company that owes its lenders pays them first: `close_company()` is refused while any loan isn't repaid, and when a company is wound up or closed, its credits go to its lenders before its shareholders (see [Loans](#loans)).
+
+`close_company()` returns 0, -24 while the company still owes its lenders, or -9 when the drone has no live company of its own to close (or it is the House's). Calling it again while the closing is pending returns 0 and changes nothing.
 
 On the page of a company you own outright, the **Close** button (or `POST /api/v1/startups/{id}/close`) pushes it this code for you:
 
@@ -1542,6 +1547,31 @@ end
 - Payouts count with dividends in the company's dividends and yield over 30 game days.
 
 Dividends land in your account's **credits**. Your account page shows what your shares have paid you over the last 30 game days.
+
+### Loans
+
+A public company can borrow, and players lend to it (#928). Only a public company asks: its code is locked and anyone can read it, so a lender can see what it will do with the credits and how it means to repay.
+
+**Asking.** The company's code calls `request_loan(amount, rate, due_in)`: borrow `amount` credits at `rate` percent simple interest for the whole loan (6.5 means 6.5%), due `due_in` game days from now. It returns the request's id; -5 when the amount is under 1, the rate negative or `due_in` under 1; and -23 when the company isn't public. A company is public once it has matured and its shares are held by more than one holder, the bank included: a startup, a company one player owns outright and a company released before the new rules get -23. `cancel_request(id)` withdraws what isn't backed yet; `repay(id)` repays all of a request's loans early, the principal plus the interest due so far (in proportion to the time gone), all or nothing: if the company can't pay all of it, nothing happens. Both return 0 when recorded (the website settles them within a real minute), or -9 when the company has no such request. `obligations()` lists what it owes or has asked for, each `{kind, id, credits, rate, due_in}`: `kind` is `"loan"` (credits still owed) or `"request"` (credits still to back), and `due_in` is the game days until it is due (0 or less: due now).
+
+```lua
+-- Ask for a loan only when none is open
+function borrow()
+  if #obligations() > 0 then return end
+  local id = request_loan(20000, 5, 30)   -- 20,000 at 5%, due in 30 game days
+  if id < 0 then set_status("no loan: " .. id) end
+end
+```
+
+**Lending.** The **Loans** page (`/market/loans`; a company's page links to it) lists each open request: the company, the amount, what is still to back, the rate, the rate a game year (the rate × 365 ÷ the loan's game days, to compare short loans with long ones), and the due date, with a **Lend** form. You need at least **5,000 credits** to back new loans; below that, loans you have already backed run to their due date. You can't back more than is still to back, or more than you hold, and only a public company still trading can be backed. What you back is lent at once: it moves from your credits to the company's. **Your loans** on the same page shows what you have lent, the interest earned, what is still owed to you, your defaults, and each loan. The [API](api.md) does the same: `GET /api/v1/loans`, `POST /api/v1/loans/{id}/back` and `GET /api/v1/account/loans`.
+
+**Repaying.** On the due date the company repays each lender the principal plus the rate: 1,000 lent at 6% comes back as 1,060.
+
+**Default.** If it can't repay in full on the due date, what it has (its credits less any processor tax it owes) goes to the lenders of the loans due, in proportion to what each is owed, and those loans are marked **defaulted**. From then on, every credit it receives goes to them until they are paid, and its dividends and `pay_out` pay nothing: its dividend days pass paying nothing. Its page says **In default**.
+
+**Takeovers and endings.** When one player comes to hold every share, the company's loans fall due at once and its open requests are withdrawn. When a company is wound up or closed, its lenders are paid first from its credits, then its shareholders; its open requests are withdrawn, its loans close, and one it couldn't repay in full is marked defaulted.
+
+**Before you lend, read its page.** A company's page has a **Loans** section: its open requests, and each loan with its lender, amount, rate, what is owed, the due date and whether it is repaid or defaulted. A loan backed by the company's founder or one of its 5 biggest shareholders is marked **insider**. Read its code too: when does it ask, and does it set credits aside to repay?
 
 ### Cash-out value: what a share is worth
 
@@ -2176,6 +2206,7 @@ An action that fails is not an error: it returns a negative code (see [Issuing C
 - **The new rules, live since 14 November 2026.** Every release is a **startup**: the bank lends it a drone and its starting credits, it trades only with the House, and you can change its code until you mature it. A matured company's 100 shares are yours, to keep, sell to the bank or trade with other players. [Chapter 1](#chapter-1-getting-started) takes you through your first startup, and [Chapter 7](#chapter-7-maturing-and-shares) explains maturing, shares and the bank.
 - **Ownership, November 2026.** A company one player owns outright (a startup, or a matured company whose shares they hold all of) can have its code changed at any time, for free, and keeps it private; at most 5 a player. The first share sold makes it public and locks its code, and a seller can't buy that company's shares for 7 real days. A company ends through its own code, with `close_company()`. The startup credit cap, its daily buying cap, the push fee and offerings of new shares are retired (see [Owned outright, or public](#owned-outright)).
 - **Anonymous trading and the planets, November 2026.** The order books name an order by its [order handle](#order-handles), not its drone: `best_offer`, `best_bid` and the order lists give handles, and `push` and `pull` take them. A drone ID works only for your own company's drones; another company's fails with -22. The House's station drones are the planets' market: their [import price](#import-price) rises with recent buying (fuel stays flat), and they [step back](#planets-step-back) where players trade a good among themselves. `import_price(r, n)` says what n units would cost from them.
+- **Loans, November 2026.** A public company's code can ask to borrow with `request_loan(amount, rate, due_in)`, and players with at least 5,000 credits lend to it from the Loans page or the API. On the due date it repays the principal plus the rate; one that can't is in default, and every credit it receives goes to its lenders, its dividends stopped, until they are paid. `close_company()` is refused (-24) while it owes, and when a company ends its lenders are paid first. See [Loans](#loans).
 - **Salvage, November 2026.** Plunder takes only a wreck's goods; its modules stay aboard. A spacecraft with a **Salvager (A1)** recovers them with `salvage(wreck)`, one a run, then the hull as **Scrap (A1)**, which every exchange buys. Wrecks decay by 2% of what is left a game day, and salvage gets that share; `wrecks()` gives each wreck's condition, modules and scrap, and the Map lists the wreck field. See [Wrecks and plunder](#wrecks-and-plunder).
 - Every example is written in Lua, with the game's [library of functions](#the-game-functions) (`mine(kunspar)`, `go(moon)`, `buy_here(20, fuel)`...).
 - [Chapter 4](#chapter-4-issuing-commands) starts with equipping your drone: it starts with credits and no equipment, and buys a Mining Kit (engine, mining and refining modules), a Factory Kit (engine and the tools that make things), single modules, or nothing at all. Travel uses protocol 5001 (your engine) instead of 5.

@@ -173,6 +173,22 @@ class LoansTest extends TestCase
         $this->assertFalse(Loans::owes($id));
     }
 
+    public function testACompanyThatEndsInTheEngineClosesItsLoans()
+    {
+        $owner = $this->player('Broke Owner');
+        $ruth = $this->player('Ruth Broke', 20000);
+        $id = $this->publicCompany($owner, 'Broke Co');
+        $req = $this->request($id, 1000, 600, 30);
+        Loans::back($ruth, $req, 1000);
+        // It went broke in the engine with 300 left
+        DB::table('companies')->where('company_id', $id)->update(['credits' => 300, 'eliminated_at' => World::gameNow(),
+            'end_cause' => 'dissolved']);
+        Loans::settle();
+        $this->assertFalse(Loans::owes($id));
+        $this->assertSame(19000 + 300, $this->credits($ruth), 'what it held went to its lender');
+        $this->assertSame(1, (int) Loans::ofUser((int) $ruth->user_id)['defaults']);
+    }
+
     public function testTheBoardAndTheApi()
     {
         $owner = $this->player('Board Owner');

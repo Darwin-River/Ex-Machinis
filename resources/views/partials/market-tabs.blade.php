@@ -1,7 +1,7 @@
 {{-- The market pages' tab bar (#744): Goods, House, History, Shares and the Trading desk (#779), the page you are on marked --}}
 @php($mtHere = request()->path())
 <nav class="mt-tabs" aria-label="Market pages">
-    @foreach(['market' => 'Goods', 'market/house' => 'House', 'market/history' => 'History', 'market/shares' => 'Stock exchange', 'market/trade' => 'Trading desk'] as $mtPath => $mtLabel)
+    @foreach(['market' => 'Goods', 'market/house' => 'House', 'market/history' => 'History', 'market/shares' => 'Stock exchange', 'market/loans' => 'Loans', 'market/trade' => 'Trading desk'] as $mtPath => $mtLabel)
         <a href="{{ url($mtPath) }}" @if($mtHere === $mtPath) aria-current="page" @endif>{{ $mtLabel }}</a>
     @endforeach
 </nav>

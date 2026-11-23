@@ -266,6 +266,13 @@ class Loans
             DB::table('loan_actions')->where('id', $a->id)->update(['done_t' => $now, 'outcome' => $outcome]);
             $n++;
         }
+        // A company that ended in the engine (broke, or no drones left: #928)
+        // closes its loans, its lenders paid from whatever it still held
+        foreach (DB::table('loans AS l')->join('companies AS c', 'c.company_id', '=', 'l.company_id')->whereNull('l.closed_t')
+                     ->whereNotNull('c.eliminated_at')->distinct()->pluck('l.company_id') as $company) {
+            DB::transaction(fn () => self::onEnding((int) $company, self::spendable((int) $company)));
+            $n++;
+        }
         // Due, or in default: every credit the company has goes to its lenders
         foreach (DB::table('loans')->whereNull('closed_t')->where('due_t', '<=', $now)->distinct()->pluck('company_id') as $company) {
             DB::transaction(function () use ($company) {
