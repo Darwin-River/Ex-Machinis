@@ -581,6 +581,22 @@ else
         fail "MEMORY_STATE=0 but the holdings feed wrote changes"
 fi
 
+# The engine's own event ids (ENGINE_OWNS_EVENTS=1, #694 stage 4 step 6):
+# the drones' turns above inserted events with ids the engine reserved, and
+# no reservation or insert failed. Off: the engines never said a word of it
+GE_LOG=$(docker compose logs game-engine events-engine)
+if [ "${ENGINE_OWNS_EVENTS:-0}" = 1 ]; then
+    grep -q "ENGINE_OWNS_EVENTS=1: this engine reserves its events' ids" <<<"$GE_LOG" ||
+        fail "ENGINE_OWNS_EVENTS=1 but no engine reserved an event id"
+    if grep -q "WARNING: ENGINE_OWNS_EVENTS" <<<"$GE_LOG"; then
+        grep "WARNING: ENGINE_OWNS_EVENTS" <<<"$GE_LOG" | head -5
+        fail "reserving or inserting an event id failed"
+    fi
+    echo "ok: the engines reserve their events' ids"
+elif grep -q "ENGINE_OWNS_EVENTS" <<<"$GE_LOG"; then
+    fail "ENGINE_OWNS_EVENTS=0 but an engine reserved event ids"
+fi
+
 plundered() { [ "$(sql "select IFNULL(plundered_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
               [ "$(sql "select IFNULL(SUM(units), 0) from sqInventory where drone=$DRY")" = 0 ]; }
 if ! wait_quietly 90 plundered; then

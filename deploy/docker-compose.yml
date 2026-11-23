@@ -63,6 +63,13 @@ x-engine-env: &engine-env
   # before, and the feed's triggers write nothing. To roll back: 0, then
   # up -d
   MEMORY_STATE: ${MEMORY_STATE:-0}
+  # The engine's own event ids (#694 stage 4 step 6): 1 makes the engines
+  # reserve the ids of the events they insert from the events table's own
+  # counter, then insert them with those ids, as step 7 (write-behind) will
+  # need. The order of ids is as before; it costs a few statements a turn
+  # and gains nothing yet. Needs nothing else on. 0 (the default): as
+  # before. To roll back: 0, then up -d
+  ENGINE_OWNS_EVENTS: ${ENGINE_OWNS_EVENTS:-0}
   # No email (#367 step 5): drones' replies go to drone_messages, which the
   # website shows
   EMAIL_ENABLED: "0"

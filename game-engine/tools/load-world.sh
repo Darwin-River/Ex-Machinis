@@ -18,7 +18,8 @@
 # EVENT_HEAP (0; 1 with EVENTS_IN_ENGINE=1: due events from memory, step 3);
 # WAKE_HEAP (0; 1: drone wakes from memory, step 4); MEMORY_STATE (0; 1:
 # holdings and units() from memory, step 5; MEMORY_STATE_CHECK=1 also asks
-# MySQL each units() and logs any difference).
+# MySQL each units() and logs any difference); ENGINE_OWNS_EVENTS (0; 1:
+# the engines reserve their events' ids, step 6).
 # Run from the
 # repository root, with the engines built (make -C game-engine/src all).
 set -e
@@ -59,7 +60,7 @@ export FORTH_IMAGE_PATH=$DIR/bin/eforth.blk FORTH_VM_OUT_PATH=$DIR/tmp SEND_EMAI
 export GAME_TIME_SCALE=${GAME_TIME_SCALE:-1800} GAME_TIME_FLOOR=${GAME_TIME_FLOOR:-60}
 export CLOCK_LAG_HIGH=${CLOCK_LAG_HIGH:-10} CLOCK_LAG_LOW=${CLOCK_LAG_LOW:-3} APP_TRACE_LEVEL=-1
 export EVENTS_IN_ENGINE=${EVENTS_IN_ENGINE:-0} EVENT_HEAP=${EVENT_HEAP:-0} WAKE_HEAP=${WAKE_HEAP:-0}
-export MEMORY_STATE=${MEMORY_STATE:-0} MEMORY_STATE_CHECK=${MEMORY_STATE_CHECK:-0}
+export MEMORY_STATE=${MEMORY_STATE:-0} MEMORY_STATE_CHECK=${MEMORY_STATE_CHECK:-0} ENGINE_OWNS_EVENTS=${ENGINE_OWNS_EVENTS:-0}
 ENV
     ( . "$DIR/env.sh"; cd "$DIR"
       # ENGINE_SHARDS game engines (#433), each with its share of the drones

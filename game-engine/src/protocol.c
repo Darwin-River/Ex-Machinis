@@ -22,6 +22,7 @@
 #include "vm.h"
 #include "game_time.h"
 #include "event_order.h"
+#include "event_ids.h"
 
 /******************************* DEFINES *************************************/
 
@@ -142,10 +143,24 @@ static ErrorCode_t protocol_flush_events(Bool_t insert)
   // Inserted in this order, events that land in the same real second (at
   // a high game time scale) are still processed in game-time order: the
   // events engine runs an action's same-second events by ID
+  //
+  // ENGINE_OWNS_EVENTS (#694 stage 4 step 6): the engine takes the ids
+  // itself, from the table's own counter, here: after the order locks and
+  // the delay, where the inserts took them, so each drone's events keep the
+  // id order they had (event_ids.h). If the reservation fails, AUTO_INCREMENT
+  int* ids = NULL;
+  if(insert && g_pending_count > 0 && event_ids_flag_on()) {
+    ids = malloc(sizeof(int) * g_pending_count);
+    if(ids && db_reserve_event_ids(engine_get_db_connection(), g_pending_count, ids) != ENGINE_OK) {
+      free(ids);
+      ids = NULL;
+    }
+  }
   for(int i = 0; insert && result == ENGINE_OK && i < g_pending_count; i++) {
-    g_pending_events[i].event_id = 0;
+    g_pending_events[i].event_id = ids ? ids[i] : 0;
     result = db_insert_event(&g_pending_events[i]);
   }
+  free(ids);
 
   g_pending_count = 0;
   return result;

@@ -12,11 +12,16 @@ LUA_DIR=../lua54
 LUA_SRCS=$(filter-out $(LUA_DIR)/lua.c $(LUA_DIR)/luac.c,$(wildcard $(LUA_DIR)/*.c))
 LUA_OBJS=$(patsubst $(LUA_DIR)/%.c,$(OBJS_PATH)/lua/%.o,$(LUA_SRCS))
 LDFLAGS=-lmysqlclient -lconfig -lm
+# A check build of ENGINE_OWNS_EVENTS (#694 stage 4 step 6, event_ids.h): make
+# CHECK_EVENT_IDS=1 all (after make clean) checks every reservation and insert
+ifeq ($(CHECK_EVENT_IDS),1)
+CFLAGS += -DEVENT_IDS_CHECK
+endif
 
 #---------------------------------------------------------------------------
 # Program sources and name
 #---------------------------------------------------------------------------
-EVENTS_ENGINE_SRCS=static_cache.c shares.c db_shares.c compute.c db_compute.c main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c station.c db_station.c wreck.c db_wreck.c startup.c db_startup.c ee_bindings.c settle_clock.c event_heap.c wake_heap.c
+EVENTS_ENGINE_SRCS=static_cache.c shares.c db_shares.c compute.c db_compute.c main_e.c engine_e.c config_e.c db_e.c db_common.c trace.c event.c orbits.c game_time.c station.c db_station.c wreck.c db_wreck.c startup.c db_startup.c ee_bindings.c settle_clock.c event_heap.c wake_heap.c event_ids.c
 # The game engine carries the events engine too (#694 stage 4 step 2: with
 # EVENTS_IN_ENGINE=1 it settles between turns, settle.c): every events-engine
 # source but its main and its bindings to the shared modules
@@ -93,7 +98,7 @@ $(EXE_PATH)/eforth.blk: dump_image.c embed_image.c
 
 # Orbit maths checked against real positions, long-line wrapping checked on
 # the FORTH VM, VM memory bounds, the game clock, instruction metering and crash handling (need no database)
-test: link-check $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c test_vm_meter.c vm_meter.c test_crash.c crash.c test_double.c vm_library.c test_station.c station.c test_wreck.c wreck.c test_startup.c startup.c test_clock_floor.c clock_floor.c test_event_order.c event_order.c test_static_cache.c static_cache.c test_query_cache.c query_cache.c test_shares.c shares.c test_compute.c compute.c test_settle_clock.c settle_clock.c test_event_heap.c event_heap.c test_wake_heap.c wake_heap.c test_holding_state.c holding_state.c test_lua_equip.c lua_library.lua $(LUA_OBJS)
+test: link-check $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c test_wrap.c wrap.c test_vm_bounds.c embed.c test_game_time.c game_time.c test_vm_meter.c vm_meter.c test_crash.c crash.c test_double.c vm_library.c test_station.c station.c test_wreck.c wreck.c test_startup.c startup.c test_clock_floor.c clock_floor.c test_event_order.c event_order.c test_static_cache.c static_cache.c test_query_cache.c query_cache.c test_shares.c shares.c test_compute.c compute.c test_settle_clock.c settle_clock.c test_event_heap.c event_heap.c test_wake_heap.c wake_heap.c test_holding_state.c holding_state.c test_event_ids.c event_ids.c test_lua_equip.c lua_library.lua $(LUA_OBJS)
 	@mkdir -p $(OBJS_PATH)
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_orbits test_orbits.c -lm
 	$(OBJS_PATH)/test_orbits
@@ -135,6 +140,8 @@ test: link-check $(EXE_PATH)/lua-check check_doc_lua.sh test_orbits.c orbits.c t
 	$(OBJS_PATH)/test_wake_heap
 	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_holding_state test_holding_state.c holding_state.c
 	$(OBJS_PATH)/test_holding_state
+	$(CXX) $(CFLAGS) -o $(OBJS_PATH)/test_event_ids test_event_ids.c event_ids.c
+	$(OBJS_PATH)/test_event_ids
 	# equip() in the Lua library against a pretend drone (#726)
 	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $(OBJS_PATH)/test_lua_equip test_lua_equip.c $(LUA_OBJS) -lm
 	$(OBJS_PATH)/test_lua_equip

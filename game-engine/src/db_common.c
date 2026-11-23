@@ -19,6 +19,7 @@
 #include "trace.h"
 #include "engine.h"
 #include "vm.h"
+#include "event_ids.h"
 
 /******************************* DEFINES *************************************/
 
@@ -583,4 +584,245 @@ ErrorCode_t db_insert_share_request(int action_id, int drone_id, int kind, int s
         "SELECT %d, company_id, %d, %d, %d, %s, %d, %d, %lld FROM agents WHERE agent_id = %d",
         action_id, drone_id, kind, share_company, other, units, price, placed_t, drone_id);
     return db_exec(engine_get_db_connection(), query_text);
+}
+
+/******************************* EVENT IDS (#694 stage 4 step 6) *************/
+
+static long long event_ids_ms(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (long long)t.tv_sec * 1000 + t.tv_nsec / 1000000;
+}
+
+static int event_ids_check_build(void)
+{
+#ifdef EVENT_IDS_CHECK
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/* The NOTICE once a real minute, with the flag on (or in a check build) */
+static void event_ids_tick(void)
+{
+    if(!event_ids_minute_due(event_ids_ms()))
+        return;
+    char line[600];
+    event_ids_notice(line, sizeof(line), event_ids_flag_on(), event_ids_check_build());
+    engine_trace(TRACE_LEVEL_ALWAYS, "%s", line);
+}
+
+/* The reservations' own connection: READ COMMITTED, autocommit off, a lock
+   wait of a second at most. Made at the first reservation, with the
+   settings of the connection that asked */
+static MYSQL* g_ids_hndl = NULL;
+
+static void event_ids_disconnect(void)
+{
+    if(g_ids_hndl)
+        mysql_close(g_ids_hndl);
+    g_ids_hndl = NULL;
+}
+
+static int event_ids_connect(const DbConnection_t* like)
+{
+    if(g_ids_hndl)
+        return 0;
+    MYSQL* h = mysql_init(NULL);
+    if(!h)
+        return -1;
+    if(!mysql_real_connect(h, like->host, like->user, like->password, like->db_name, like->port, NULL, 0)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: ENGINE_OWNS_EVENTS: can't connect for reservations: %s", mysql_error(h));
+        mysql_close(h);
+        return -1;
+    }
+    // Under REPEATABLE READ a rolled-back insert leaves gap locks behind it,
+    // up to the end of the table, until the transaction ends: every other
+    // writer of events would wait. READ COMMITTED leaves none. A wait for a
+    // lock (another transaction holding the end of the table) gives up
+    // after a second: AUTO_INCREMENT instead
+    if(mysql_query(h, "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") ||
+       mysql_query(h, "SET SESSION innodb_lock_wait_timeout = 1") ||
+       mysql_autocommit(h, 0)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: ENGINE_OWNS_EVENTS: can't set up the reservations' connection: %s",
+                     mysql_error(h));
+        mysql_close(h);
+        return -1;
+    }
+    g_ids_hndl = h;
+    return 0;
+}
+
+static int event_ids_query(const char* sql)
+{
+    if(mysql_query(g_ids_hndl, sql)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: ENGINE_OWNS_EVENTS: [%.60s] failed: %s", sql, mysql_error(g_ids_hndl));
+        unsigned int err = mysql_errno(g_ids_hndl);
+        if(err == 2006 || err == 2013)   // gone away, lost: connect again next time
+            event_ids_disconnect();
+        return -1;
+    }
+    return 0;
+}
+
+#ifdef EVENT_IDS_CHECK
+/* Check build: how many of the placeholders just inserted lie in
+   [first, first + n): n when their ids were consecutive */
+static long long event_ids_count_placeholders(int first, int n)
+{
+    char sql[200];
+    snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM events WHERE id BETWEEN %d AND %d AND game_t = -1",
+             first, first + n - 1);
+    if(mysql_query(g_ids_hndl, sql))
+        return -1;
+    MYSQL_RES* res = mysql_store_result(g_ids_hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    long long count = (row && row[0]) ? atoll(row[0]) : -1;
+    if(res) mysql_free_result(res);
+    return count;
+}
+#endif
+
+/** ****************************************************************************
+
+    @brief          ENGINE_OWNS_EVENTS=1: reserves n event ids from the events
+                    table's own AUTO_INCREMENT counter, for the engine to
+                    insert with (see event_ids.h)
+
+    Placeholder rows go in, on a connection of their own, and are rolled
+    back at once: InnoDB never hands out an auto-increment value twice, so
+    their ids are ours, and every later writer's are higher. A statement of
+    known rows takes consecutive values (innodb_autoinc_lock_mode 2, "simple
+    inserts"). Not in the caller's transaction: there, under REPEATABLE READ
+    (one game engine, and settlement), the rollback left gap locks on the
+    end of the table until the caller committed, and the website's inserts
+    deadlocked with settlement.
+
+    @param[in]      connection  The connection that will insert the events
+                                (its settings make the reservations' own)
+    @param[in]      n           How many
+    @param[out]     ids         n ids, in increasing order
+
+    @return         ENGINE_OK, or an error and ids all 0: the caller inserts
+                    by AUTO_INCREMENT, as with the flag off
+
+*******************************************************************************/
+ErrorCode_t db_reserve_event_ids(DbConnection_t* connection, int n, int* ids)
+{
+    if(n <= 0)
+        return ENGINE_OK;
+    memset(ids, 0, sizeof(int) * (size_t)n);
+    if(!connection || event_ids_connect(connection)) {
+        event_ids_stats()->fallbacks++;
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    char sql[64 + EVENT_IDS_CHUNK * 5];
+    int done = 0, failed = 0;
+    while(done < n && !failed) {
+        int chunk = n - done < EVENT_IDS_CHUNK ? n - done : EVENT_IDS_CHUNK;
+        if(event_ids_placeholder_sql(sql, sizeof(sql), chunk) < 0 || event_ids_query(sql)) {
+            failed = 1;
+            break;
+        }
+        int first = (int)mysql_insert_id(g_ids_hndl);
+        if(first <= 0 || (long long)mysql_affected_rows(g_ids_hndl) != chunk) {
+            failed = 1;
+            break;
+        }
+#ifdef EVENT_IDS_CHECK
+        event_ids_stats()->check_ranges++;
+        long long mine = event_ids_count_placeholders(first, chunk);
+        if(mine != chunk) {
+            event_ids_stats()->check_gaps++;
+            engine_trace(TRACE_LEVEL_ALWAYS,
+                "WARNING: EVENT_IDS_CHECK: [%d] placeholders from id [%d], [%lld] of them in the range: not consecutive",
+                chunk, first, mine);
+            failed = 1;
+            break;
+        }
+#endif
+        for(int i = 0; i < chunk; i++)
+            ids[done + i] = first + i;
+        done += chunk;
+        event_ids_stats()->reservations++;
+    }
+    // The placeholders go; the counter stays past them
+    if(g_ids_hndl && event_ids_query("ROLLBACK"))
+        failed = 1;
+    if(failed) {
+        // AUTO_INCREMENT instead, as with the flag off
+        memset(ids, 0, sizeof(int) * (size_t)n);
+        event_ids_stats()->fallbacks++;
+        return ENGINE_DB_QUERY_ERROR;
+    }
+    event_ids_stats()->ids += n;
+    static int announced = 0;
+    if(!announced) {
+        announced = 1;
+        engine_trace(TRACE_LEVEL_ALWAYS,
+            "NOTICE: ENGINE_OWNS_EVENTS=1: this engine reserves its events' ids (first [%d])", ids[0]);
+    }
+    return ENGINE_OK;
+}
+
+/** ****************************************************************************
+
+    @brief          Notes an event insert: which way it took its id, the
+                    check build's per-drone order check, and the NOTICE once
+                    a minute. Called after every events INSERT of the engine's
+                    own (db_insert_event, db_insert_event_e, the fuel refund),
+                    whatever the flag; with it off (and no check build) it
+                    returns at once
+
+    @param[in]      connection    The connection that inserted it (the check
+                                  build reads the drone's events there)
+    @param[in]      id            Its id
+    @param[in]      drone         Its drone
+    @param[in]      owned         1: the id was reserved (ENGINE_OWNS_EVENTS=1)
+    @param[in]      failed_errno  0, or the insert's mysql_errno when it failed
+
+*******************************************************************************/
+void db_event_ids_inserted(DbConnection_t* connection, int id, int drone, int owned, unsigned int failed_errno)
+{
+    if(!event_ids_flag_on() && !event_ids_check_build())
+        return;   // flag off: nothing, as before
+    if(failed_errno) {
+        if(owned && failed_errno == 1062) {   // ER_DUP_ENTRY: never expected
+            event_ids_stats()->duplicates++;
+            engine_trace(TRACE_LEVEL_ALWAYS, "WARNING: ENGINE_OWNS_EVENTS: event id [%d] was taken already", id);
+        }
+        event_ids_tick();
+        return;
+    }
+    if(owned)
+        event_ids_stats()->inserted++;
+    else
+        event_ids_stats()->auto_inserted++;
+#ifdef EVENT_IDS_CHECK
+    // Do this drone's events keep their id order? None of its events that
+    // this connection can see may have a higher id than the one just
+    // inserted, as with AUTO_INCREMENT at the moment of the insert
+    if(drone > 0 && id > 0) {
+        char sql[200];
+        snprintf(sql, sizeof(sql), "SELECT COUNT(*), MAX(id) FROM events WHERE drone = %d AND id > %d", drone, id);
+        if(mysql_query(connection->hndl, sql) == 0) {
+            MYSQL_RES* res = mysql_store_result(connection->hndl);
+            MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+            long long higher = (row && row[0]) ? atoll(row[0]) : 0;
+            event_ids_stats()->check_inserts++;
+            if(higher > 0) {
+                event_ids_stats()->check_inversions++;
+                engine_trace(TRACE_LEVEL_ALWAYS,
+                    "WARNING: EVENT_IDS_CHECK: event [%d] of drone [%d] (%s) is below [%lld] of its events (up to id [%s])",
+                    id, drone, owned ? "reserved" : "AUTO_INCREMENT", higher, row[1] ? row[1] : "?");
+            }
+            if(res) mysql_free_result(res);
+        }
+    }
+#else
+    (void)connection; (void)drone;
+#endif
+    event_ids_tick();
 }

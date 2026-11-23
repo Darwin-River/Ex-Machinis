@@ -60,6 +60,12 @@ typedef enum
 *******************************************************************************/
 ErrorCode_t db_reconnect(DbConnection_t* connection);
 ErrorCode_t db_claim_engine(DbConnection_t* connection, const char* engine);
+/* ENGINE_OWNS_EVENTS (#694 stage 4 step 6, event_ids.h): n event ids reserved
+   from the events table's AUTO_INCREMENT counter; on an error ids are all 0 */
+ErrorCode_t db_reserve_event_ids(DbConnection_t* connection, int n, int* ids);
+/* After each events INSERT of the engine's own: counts, the check build's
+   checks, the NOTICE once a minute. Does nothing with the flag off */
+void db_event_ids_inserted(DbConnection_t* connection, int id, int drone, int owned, unsigned int failed_errno);
 ErrorCode_t db_try_claim_engine(DbConnection_t* connection, const char* engine, int wait_seconds);
 void db_record_engine_start(DbConnection_t* connection, const char* engine);
 
