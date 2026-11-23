@@ -49,6 +49,26 @@ class ApiController extends Controller
         return response()->json(\App\Services\FarMap::seasons());
     }
 
+    /**
+     * Where a resource is found on the solar-system map (#952): ?resource=ID
+     * (a mineral, or a refined good for the minerals it comes from),
+     * &season=next for the far minerals' next season once published. With no
+     * resource, the resources it can show.
+     */
+    public function resourceMap(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $options = \App\Services\ResourceMap::options();
+        $chosen = (int) $request->query('resource', 0);
+        if (!$chosen) {
+            return response()->json(['options' => $options]);
+        }
+        if (!in_array($chosen, array_column($options, 'resource'), true)) {
+            return response()->json(['error' => 'That resource isn\'t found anywhere, and nothing found refines to it.',
+                'options' => $options], 404);
+        }
+        return response()->json(\App\Services\ResourceMap::build($chosen, $request->query('season') === 'next'));
+    }
+
     /** The economy dashboard (#698): the same figures as /dashboard, kept for a minute */
     public function dashboard(): JsonResponse
     {
