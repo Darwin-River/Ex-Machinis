@@ -257,6 +257,12 @@ int db_request_payout(DbConnection_t* connection, int agent_id, long long amount
 /* close_company() (#925): records that the drone's company asks to end;
    the website's tick ends it. 0, or OUTCOME_ACTION_ABORTED */
 int db_request_close(DbConnection_t* connection, int agent_id, long long game_t);
+/* Loans (#928): request_loan records a public company's ask (the request's
+   id, or a negative code); loan_action records cancel_request or repay for
+   the website to settle (0, or a negative code) */
+long long db_request_loan(DbConnection_t* connection, int agent_id, long long amount, int rate_bp, long long due_in,
+                          long long game_t);
+int db_loan_action(DbConnection_t* connection, int agent_id, const char* kind, long long request_id, long long game_t);
 /* Anonymous trading (#927): the drone a push or pull goes to. An order
    handle (>= ORDER_HANDLE_BASE) is turned into its order's drone where the
    acting drone is (OUTCOME_NO_MARKET_ORDER when no such order is there); a

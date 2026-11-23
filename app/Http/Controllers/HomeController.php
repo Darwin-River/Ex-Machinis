@@ -91,6 +91,8 @@ class HomeController extends Controller
         }
         // A company whose code called close_company() ends (#925)
         \App\Services\Closures::settle();
+        // Loans (#928): the code's cancels and repayments, and loans due
+        \App\Services\Loans::settle();
         return response('ok');
     }
 

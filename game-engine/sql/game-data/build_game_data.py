@@ -1800,6 +1800,18 @@ queries.append((708, 'House only',
 # #682: a company may have at most house_rules.fleet_cap working drones (0:
 # no cap; the House's companies are never capped). A launch past it is
 # refused with -20, so a script checks before it buys a kit to launch
+# Loans (#928): what the drone's company owes its lenders, by request, and
+# the requests not yet fully backed
+queries.append((712, 'My obligations',
+                'What this drone\'s company owes or has asked for (#928), one row each: kind (1 a loan, owed by request; '
+                '2 a request not yet fully backed), request id, credits (owed, or still to back), rate (hundredths of a '
+                'percent, for the whole loan), game days until due (0 or less: due now).', 0,
+                "SELECT 1 AS kind, l.request_id, SUM(l.owed - l.repaid) AS credits, MAX(l.rate_bp) AS rate, "
+                "CEIL((MAX(l.due_t) - [game_now]) / 86400) AS due_in FROM loans AS l "
+                f"WHERE l.company_id = {MY_CO} AND l.closed_t IS NULL GROUP BY l.request_id "
+                "UNION ALL SELECT 2, r.id, r.amount - r.backed, r.rate_bp, CEIL((r.due_t - [game_now]) / 86400) "
+                f"FROM loan_requests AS r WHERE r.company_id = {MY_CO} AND r.cancelled_t IS NULL AND r.backed < r.amount "
+                "AND r.due_t > [game_now] ORDER BY 1, 2;"))
 queries.append((709, 'My fleet',
                 'This drone\'s company: working drones, the most it may have (0: no limit), and launches on their way.', 0,
                 "SELECT (SELECT COUNT(*) FROM agents AS w WHERE w.company_id = me.company_id AND w.wrecked_at IS NULL) AS drones, "
@@ -2220,7 +2232,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '712': 'obligations()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '411': 'mine_yield(R, P)', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',

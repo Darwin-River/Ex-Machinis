@@ -326,6 +326,8 @@ function launched()
   -- Paying out, written into the code (#930): a quarter of each day's
   -- profit as dividends, and 1 credit paid out now
   say("policy " .. set_dividend_share(0.25) .. " " .. pay_out(1))
+  -- Loans (#928): only a public company (more than one holder) asks to borrow
+  say("loan " .. request_loan(100, 5, 10))
   -- Sell a unit to the player's other company
   -- (another company's drone by its ID is refused: -22; its order by its handle goes through, #927)
   say("not-own " .. push(1, wolfite, $SISTER))
@@ -339,7 +341,9 @@ function launched()
   say("launch " .. launch(me(), cruiser_kit))
   -- Money past 32,767, once the test sets it
   hold_until(function() return credits() >= 70000 end)
-  say("doubles " .. credits() .. " " .. 300 * 300)
+  -- (whether it is past the line, not the exact balance: processor tax or a
+  -- sale settling can move it a little meanwhile, #960)
+  say("doubles " .. tostring(credits() >= 70000) .. " " .. 300 * 300)
   -- Sell a unit of metal to the Moon Depot's station drone
   hold_until(function() return planets_bid(metals_a1) ~= nil end)
   say("station " .. push(1, metals_a1, planets_bid(metals_a1)))
@@ -412,6 +416,7 @@ wait_for 60 "the drone set its dividend share and asked for a payout" replied $D
          from companies c join agents a on a.company_id = c.company_id where a.agent_id=$DRONE_ID")" = "250 1" ] ||
     fail "set_dividend_share or pay_out didn't reach the database"
 echo "ok: a company's code sets its dividend share and pays out (#930)"
+wait_for 30 "request_loan refuses a company that isn't public (-23: #928)" replied $DRONE_ID "loan -23"
 
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
@@ -517,8 +522,8 @@ sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 
 sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1130, 0, 0) on duplicate key update amount = 0"
 WOLFITE=$(wolfite)
 COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
-sql "update companies set credits = 70000 where company_id = $COMPANY"
-wait_for 60 "a balance of 70,000 and 300 x 300 come out right" replied $DRONE_ID "doubles 70000 90000"
+sql "update companies set credits = 75000 where company_id = $COMPANY"
+wait_for 60 "a balance past 70,000 and 300 x 300 come out right" replied $DRONE_ID "doubles true 90000"
 
 bid() { [ "$(sql "select count(*) from events where drone=$MOON_STATION and event_type=5 and resource=2011 and outcome=1")" -ge 1 ]; }
 wait_for 180 "the Moon Depot's station drone posts its buy order for metals" bid

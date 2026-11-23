@@ -71,6 +71,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('market/house') }}">House</a>
                             <a class="dropdown-item" href="{{ url('market/history') }}">Price history</a>
                             <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
+                            <a class="dropdown-item" href="{{ url('market/loans') }}">Loans</a>
                             <a class="dropdown-item" href="{{ url('market/trade') }}">Trading desk</a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{ url('dashboard') }}">Economy dashboard</a>
