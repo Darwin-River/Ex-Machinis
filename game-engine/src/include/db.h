@@ -1021,6 +1021,9 @@ ErrorCode_t db_get_latest_entry_game_t(int drone, const int* resources, const in
     worked out; sets *taken to what it gives (all of it when the place has
     no deposit of it) */
 ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long long* taken);
+/** A mining run's yield at a crowded site (#974): records the run, and cuts
+    wanted to wanted x crowd_capacity / crowd past the capacity (at least 1) */
+ErrorCode_t db_crowd_yield(int object_id, int resource, int drone, long long wanted, long long* taken);
 
 /** Makes a drone a wreck (e.g. it ran out of fuel) */
 ErrorCode_t db_wreck_drone(int drone_id, const char* cause);

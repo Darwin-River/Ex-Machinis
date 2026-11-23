@@ -4903,6 +4903,90 @@ ErrorCode_t db_take_deposit(int object_id, int resource, long long wanted, long 
     return ENGINE_OK;
 }
 
+/** ****************************************************************************
+
+    @brief          A mining run's yield at a crowded site (#974)
+
+    Records drone's run of resource at object_id in mining_runs, with its
+    weight (a startup's drone counts crowd_startup_permille of a drone), and
+    sums the weights of every drone's run of it there in the last game hour,
+    its own included. Past house_rules.crowd_capacity drones, the run yields
+    wanted x capacity / crowd, at least 1 unit; otherwise all it wanted.
+    Query 411 (mine_yield) works out the same number for a drone's code.
+    Older rows of the site are dropped, so the table holds only the drones
+    mining now.
+
+*******************************************************************************/
+ErrorCode_t db_crowd_yield(int object_id, int resource, int drone, long long wanted, long long* taken)
+{
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    DbConnection_t* connection = engine_get_db_connection();
+    ErrorCode_t result = db_reconnect(connection);
+    long long now = game_time_now_seconds();
+    long long capacity = 0, startup_weight = 1000, weight = 1000, crowd = 0;
+
+    *taken = wanted;
+    if(result != ENGINE_OK || wanted <= 0)
+        return result;
+
+    // The rule and this drone's weight in one read
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL(h.crowd_capacity, 0), IFNULL(h.crowd_startup_permille, 1000), "
+        "IFNULL((SELECT c.startup FROM agents a JOIN companies c ON c.company_id = a.company_id "
+        "WHERE a.agent_id = %d), 0) FROM house_rules h WHERE h.id = 1", drone);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_OK;   // no rule to read (an older schema): full yield
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(row) {
+        capacity = row[0] ? atoll(row[0]) : 0;
+        startup_weight = row[1] ? atoll(row[1]) : 1000;
+        weight = (row[2] && atoi(row[2]) == 1) ? startup_weight : 1000;
+    }
+    if(res)
+        mysql_free_result(res);
+    if(capacity <= 0)
+        return ENGINE_OK;   // crowding off
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO mining_runs (object_id, resource, drone, game_t, weight) VALUES (%d, %d, %d, %lld, %lld) "
+        "ON DUPLICATE KEY UPDATE game_t = VALUES(game_t), weight = VALUES(weight)",
+        object_id, resource, drone, now, weight);
+    if(mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+        return ENGINE_OK;
+    }
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IFNULL(SUM(weight), 0) FROM mining_runs WHERE object_id = %d AND resource = %d AND game_t > %lld",
+        object_id, resource, now - 3600);
+    if(mysql_query(connection->hndl, query_text) == 0) {
+        res = mysql_store_result(connection->hndl);
+        row = res ? mysql_fetch_row(res) : NULL;
+        crowd = row && row[0] ? atoll(row[0]) : 0;
+        if(res)
+            mysql_free_result(res);
+    }
+
+    if(crowd > capacity * 1000) {
+        *taken = wanted * capacity * 1000 / crowd;
+        if(*taken < 1)
+            *taken = 1;
+    }
+
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "DELETE FROM mining_runs WHERE object_id = %d AND resource = %d AND game_t <= %lld",
+        object_id, resource, now - 3600);
+    if(mysql_query(connection->hndl, query_text))
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed: %s", query_text, mysql_error(connection->hndl));
+
+    engine_trace(TRACE_LEVEL_ALWAYS, "Mining resource [%d] at [%d]: crowd [%.1f] drones, capacity [%lld]: [%lld] of [%lld]",
+        resource, object_id, crowd / 1000.0, capacity, *taken, wanted);
+    return ENGINE_OK;
+}
+
 /* db_get_query_info, from the static cache when it has a fresh copy (#431).
    Only the table's fields are cached: the caller's own (parameter values,
    results array, final query) are left as they were. */

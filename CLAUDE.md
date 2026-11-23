@@ -34,7 +34,12 @@ When a change affects players, update the docs in the same PR:
 
 - PHP: `vendor/bin/phpunit`
 - Engine: `make test` in `game-engine/src`
-- Game data: after editing `game-engine/sql/game-data/`, run `python3 game-engine/sql/game-data/build_game_data.py` and commit what it regenerates.
+- Game data: after editing `game-engine/sql/game-data/`, run `python3 game-engine/sql/game-data/build_game_data.py` and `python3 tools/balance/static_check.py`, and commit what they regenerate. No playability guard may break.
+
+## Tuning the game
+
+- Changes to the game's numbers that aim at balance or playability follow DV-03 (`Procedures/SOPs/DV-03 Tuning gameplay parameters.md`): each names its playability objectives (`tools/balance/objectives.json`), predicts their movement, changes one lever family a release, and is measured live and in a playtest round before it is kept, adjusted or reverted.
+- Tuning issues are sub-issues of the backlog, #962, written with DV-03-T1.
 
 ## Outreach and fundraising
 

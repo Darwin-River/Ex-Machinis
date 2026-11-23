@@ -44,7 +44,9 @@
 
       4. <a id="5.3.4"></a>each persona's ratings out of 10 for fun, clarity, depth, feedback, API, Lua (to learn and for fit), would play again, and overall;
 
-      5. <a id="5.3.5"></a>what each persona found hard, what they asked for, and what they praised.
+      5. <a id="5.3.5"></a>what each persona found hard, what they asked for, and what they praised;
+
+      6. <a id="5.3.6"></a>the playability objectives, per [DV-03](DV-03%20Tuning%20gameplay%20parameters.md): the live ones with `tools/balance/measure_live.py` at the round's start and end, and the playtest ones (PO-03, PO-21 to PO-24) from the personas and the round's results.
 
    4. <a id="5.4"></a>File an issue for each bug, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md).
 
@@ -60,9 +62,11 @@
 
    2. <a id="6.2"></a>[DV-01](DV-01%20Making%20and%20testing%20game%20changes.md): Making and testing game changes
 
-   3. <a id="6.3"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
+   3. <a id="6.3"></a>[DV-03](DV-03%20Tuning%20gameplay%20parameters.md): Tuning gameplay parameters
 
-   4. <a id="6.4"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   4. <a id="6.4"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
+
+   5. <a id="6.5"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
 
 7. # <a id="7"></a>Attachments
 

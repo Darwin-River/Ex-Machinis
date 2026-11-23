@@ -363,7 +363,9 @@ function launched()
   local r = mine(wolfite)
   say("mined-dry gained " .. units(wolfite) - k .. " result " .. r)
   hold_until(function() return deposit(wolfite) > 0 end)
-  say("mined-again " .. mine(wolfite))
+  k = units(wolfite)
+  r = mine(wolfite)
+  say("mined-again " .. r .. " gained " .. units(wolfite) - k)
   -- Plunder the wreck the test brought here
   k = units(wolfite)
   r = plunder($DRY)
@@ -586,10 +588,37 @@ sqlw "insert into events (event_type, action, logged, outcome, drone, resource, 
             IFNULL((select x.new_cargo from events x where x.drone = $DRONE_ID and x.outcome = 1 and x.new_cargo is not null
                     order by x.game_t desc, x.id desc limit 1), 0) + $SALVAGER_MASS,
             IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRONE_ID"
+# Crowded sites (#974): past house_rules.crowd_capacity drones mining a
+# mineral at a place in the last game hour, a run yields abundance x capacity
+# / crowd, at least 1. Nine other drones' runs at the Moon (dated ten game
+# days ahead, so the fast clock can't age them out) and a capacity of 1 make
+# a crowd of about 10, so the next run, the one below, yields 1 of its 5
+sql "update house_rules set crowd_capacity = 1 where id = 1"
+sql "insert into mining_runs (object_id, resource, drone, game_t, weight)
+     select 10, 1130, 990000 + k.n, (select ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) + 864000
+                                     from game_clock where id = 1), 1000
+     from (select 1 n union all select 2 union all select 3 union all select 4 union all select 5
+           union all select 6 union all select 7 union all select 8 union all select 9) k"
 sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1130"
 more_wolfite() { [ "$(wolfite)" -gt "$WOLFITE" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_wolfite
 wait_for 60 "drone finished mining again" replied $DRONE_ID "mined-again 0"
+recorded() { [ "$(sql "select count(*) from mining_runs where object_id = 10 and resource = 1130 and drone = $DRONE_ID")" = 1 ]; }
+crowd_state() {
+    echo "crowd_capacity: $(sql "select crowd_capacity from house_rules where id = 1")"
+    echo "mining_runs at the Moon: $(sql "select count(*), IFNULL(SUM(weight), 0), IFNULL(MIN(game_t), 0) from mining_runs where object_id = 10 and resource = 1130")"
+    echo "game time: $(sql "select ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) from game_clock where id = 1")"
+}
+for _ in $(seq 1 30); do recorded && break; sleep 1; done
+recorded || { crowd_state; fail "the engine didn't record the drone's run at the crowded site"; }
+# The drone's own count of the run: right after it, the drone plunders a wreck
+# holding wolfite, so its hold is no measure of the run
+replied $DRONE_ID "mined-again 0 gained 1" || {
+    crowd_state; echo "the drone said: $(sql "select body from drone_messages where agent_id=$DRONE_ID and body like 'mined-again%'")"
+    fail "a run at a crowded site didn't yield exactly 1"; }
+echo "ok: a crowded site yields less a run, and never nothing"
+sql "delete from mining_runs where drone >= 990000"
+sql "update house_rules set crowd_capacity = 10 where id = 1"
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
 echo "ok: no action aborted"
