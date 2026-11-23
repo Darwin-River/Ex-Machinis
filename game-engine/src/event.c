@@ -1331,6 +1331,23 @@ static ErrorCode_t event_apply(Event_t *event)
         return result;
     }
 
+    // A drone salvages a wreck (#929): a module or scrap arrives as an
+    // action of protocol 35, as plunder does
+    if(result == ENGINE_OK && event->event_type == SALVAGE_EVENT_TYPE) {
+        result = db_salvage(event);
+        if(result != ENGINE_OK)
+            return result;   // the caller records the outcome and aborts the action
+
+        event->outcome = OUTCOME_OK;
+        event->logged = 1;
+        event->new_cargo = NULL_VALUE;
+        event->new_credits = NULL_VALUE;
+
+        result = db_update_event(event);
+        if(result == ENGINE_OK) result = event_update_observations(event);
+        return result;
+    }
+
     // The previous event of this resource, kind and state. (The drone's
     // previous event was looked up too, for a log line only: the cargo comes
     // from the holdings. It was the events engine's top cost, #446.)

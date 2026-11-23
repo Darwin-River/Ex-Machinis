@@ -156,7 +156,9 @@ ErrorCode_t db_plunder(Event_t* event)
         "SELECT e.resource, e.installed, e.locked, e.new_quantity, IFNULL(r.mass, 0) FROM events e "
         "JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = %d AND event_type IN (%d, %d) AND drone = %d "
         "GROUP BY resource, installed, locked) latest ON latest.id = e.id "
-        "LEFT JOIN resources r ON r.id = e.resource WHERE e.new_quantity > 0 ORDER BY e.resource",
+        "LEFT JOIN resources r ON r.id = e.resource WHERE e.new_quantity > 0 "
+        // Its modules stay aboard for salvage (#929): plunder takes the hold
+        "AND NOT (e.resource >= 5000 AND e.resource < 5900) ORDER BY e.resource",
         OUTCOME_OK, INCREMENT_INVENTORY_EVENT_TYPE, DECREMENT_INVENTORY_EVENT_TYPE, wreck);
     while(res && n < MAX_WRECK_ROWS && (row = mysql_fetch_row(res))) {
         resources[n] = atoi(row[0]);
@@ -202,6 +204,105 @@ ErrorCode_t db_plunder(Event_t* event)
         if(result == ENGINE_OK)
             result = wr_inventory_event(haul, plunderer, resources[i], 0, 0, taken, masses[i]);
     }
+    return result;
+}
+
+/* Salvage (#929): one of the wreck's modules, or once they are gone up to
+   SALVAGE_SCRAP_RUN units of scrap from its hull, less what it has decayed.
+   A module that doesn't come away whole is lost; scrap decay takes from the
+   hull too. A startup's wreck can't be salvaged, and a startup salvages
+   nothing */
+#define SALVAGE_SCRAP_RUN 10
+ErrorCode_t db_salvage(Event_t* event)
+{
+    int salvager = event->drone_id;
+    int wreck = abs(event->new_quantity);
+    long long now = game_time_now_seconds();
+    MYSQL_RES* res = wr_select(
+        "SELECT w.wrecked_at, w.object_id = p.object_id, wc.startup, pc.startup, IFNULL(w.scrap_left, -1), "
+        "IFNULL((SELECT r.mass FROM resources r WHERE r.id = w.hull_type), 0) "
+        "FROM agents w JOIN agents p ON p.agent_id = %d "
+        "JOIN companies wc ON wc.company_id = w.company_id JOIN companies pc ON pc.company_id = p.company_id "
+        "WHERE w.agent_id = %d AND w.agent_id <> p.agent_id AND w.wrecked_at IS NOT NULL "
+        // A wound-up or retired drone left the game with what it held
+        "AND IFNULL(w.wreck_cause, '') NOT IN ('wound_up', 'reset')",
+        salvager, wreck);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int found = row != NULL;
+    long long wrecked_at = found && row[0] ? atoll(row[0]) : now;
+    int here = found && row[1] && atoi(row[1]);
+    int startup_wreck = found && row[2] && atoi(row[2]);
+    int startup_salvager = found && row[3] && atoi(row[3]);
+    long long scrap_left = found && row[4] ? atoll(row[4]) : -1;
+    long long hull_mass = found && row[5] ? atoll(row[5]) : 0;
+    if(res) mysql_free_result(res);
+    if(startup_salvager) {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] is a startup's: it salvages nothing", salvager);
+        event->outcome = OUTCOME_STARTUP_HOUSE_ONLY;
+        return ENGINE_LOGIC_ERROR;
+    }
+    if(!found || !here || startup_wreck) {
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: no wreck [%d] here to salvage", salvager, wreck);
+        event->outcome = OUTCOME_NO_WRECK;
+        return ENGINE_LOGIC_ERROR;
+    }
+    if(scrap_left < 0)
+        scrap_left = hull_scrap(hull_mass);
+    int condition = wreck_condition(now - wrecked_at);
+
+    // One of its modules first: the latest total of each module aboard
+    int module = 0, installed = 0, locked = 0, mass = 0;
+    long long have = 0;
+    res = wr_select(
+        "SELECT e.resource, e.installed, e.locked, e.new_quantity, IFNULL(r.mass, 0) FROM events e "
+        "JOIN (SELECT MAX(id) AS id FROM events WHERE outcome = %d AND event_type IN (%d, %d) AND drone = %d "
+        "AND resource >= 5000 AND resource < 5900 GROUP BY resource, installed, locked) latest ON latest.id = e.id "
+        "LEFT JOIN resources r ON r.id = e.resource WHERE e.new_quantity > 0 ORDER BY e.resource LIMIT 1",
+        OUTCOME_OK, INCREMENT_INVENTORY_EVENT_TYPE, DECREMENT_INVENTORY_EVENT_TYPE, wreck);
+    if(res && (row = mysql_fetch_row(res))) {
+        module = atoi(row[0]);
+        installed = row[1] ? atoi(row[1]) : 0;
+        locked = row[2] ? atoi(row[2]) : 0;
+        have = atoll(row[3]);
+        mass = row[4] ? atoi(row[4]) : 0;
+    }
+    if(res) mysql_free_result(res);
+
+    ErrorCode_t result = ENGINE_OK;
+    if(module > 0) {
+        int loss = 0, haul = 0;
+        result = wr_haul_action(wreck, &loss);
+        if(result == ENGINE_OK)
+            result = wr_inventory_event(loss, wreck, module, installed, locked, -1, mass);
+        int whole = salvage_whole(wreck, module, have, condition);
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] salvages wreck [%d]: module [%d] %s (condition %d)",
+            salvager, wreck, module, whole ? "whole" : "lost", condition);
+        if(result == ENGINE_OK && whole) {
+            result = wr_haul_action(salvager, &haul);
+            if(result == ENGINE_OK)
+                result = wr_inventory_event(haul, salvager, module, 0, 0, 1, mass);
+        }
+    } else {
+        if(scrap_left <= 0) {
+            ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d]: wreck [%d] has nothing left to salvage", salvager, wreck);
+            event->outcome = OUTCOME_NO_WRECK;
+            return ENGINE_LOGIC_ERROR;
+        }
+        long long take = salvage_scrap(scrap_left, condition, SALVAGE_SCRAP_RUN);
+        long long gone = scrap_left < SALVAGE_SCRAP_RUN ? scrap_left : SALVAGE_SCRAP_RUN;
+        scrap_left -= gone;
+        ee_engine_trace(TRACE_LEVEL_ALWAYS, "Drone [%d] salvages wreck [%d]: [%lld] scrap of [%lld] (condition %d), "
+            "[%lld] left", salvager, wreck, take, gone, condition, scrap_left);
+        if(take > 0) {
+            int haul = 0;
+            result = wr_haul_action(salvager, &haul);
+            if(result == ENGINE_OK)
+                result = wr_inventory_event(haul, salvager, SCRAP_RESOURCE_ID, 0, 0, take, 1);
+        }
+    }
+    if(result == ENGINE_OK)
+        result = wr_exec("UPDATE agents SET scrap_left = %lld, salvaged_by = %d, salvaged_t = %lld WHERE agent_id = %d",
+                         scrap_left, salvager, now, wreck);
     return result;
 }
 

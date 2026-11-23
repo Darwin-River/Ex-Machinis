@@ -359,6 +359,9 @@ function launched()
   end
   local got = units(wolfite) - k
   say("plunder " .. r .. " gained " .. got .. " half " .. tostring(got >= 5))
+  -- Salvage it (#929): with a Salvager aboard, scrap from its hull
+  hold_until(function() return units(5231) > 0 end)
+  say("salvage " .. salvage($DRY))
   -- Hear the released drone's broadcast, from the Earth database
   local id
   hold_until(function() id = heard() return id ~= nil end)
@@ -540,6 +543,14 @@ echo "ok: a mined-out deposit yields nothing"
 # gets half and the wreck is left empty
 sql "update agents set object_id = 10 where agent_id = $DRY"
 give $DRY 1130 10 "$KIT + 10"
+# ...and give the plunderer a Salvager (A1), to salvage the wreck's hull
+# after (#929); its cargo grows by the module's mass from the latest it had
+SALVAGER_MASS=$(sql "select mass from resources where id=5231")
+sqlw "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_cargo, game_t)
+     select 1, 0, 1, 1, $DRONE_ID, 5231, 0, 0, 1,
+            IFNULL((select x.new_cargo from events x where x.drone = $DRONE_ID and x.outcome = 1 and x.new_cargo is not null
+                    order by x.game_t desc, x.id desc limit 1), 0) + $SALVAGER_MASS,
+            IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRONE_ID"
 sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1130"
 more_wolfite() { [ "$(wolfite)" -gt "$WOLFITE" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_wolfite
@@ -650,6 +661,16 @@ if ! wait_quietly 90 replied $DRONE_ID "plunder 0 gained % half true"; then
     sql "select id, protocol, outcome, aborted from actions where drone=$DRONE_ID order by id desc limit 6" >&2
     fail "the plunderer got half the wreck's wolfite"
 fi
+salvaged() { [ "$(sql "select IFNULL(salvaged_by, 0) from agents where agent_id=$DRY")" = "$DRONE_ID" ] &&
+             [ "$(sql "select IFNULL(MAX(units), 0) > 0 from sqInventory where drone=$DRONE_ID and resource=2071")" = 1 ]; }
+if ! wait_quietly 90 salvaged; then
+    sql "select id, body from drone_messages where agent_id=$DRONE_ID order by id desc limit 6" >&2
+    sql "select agent_id, wrecked_at, scrap_left, salvaged_by from agents where agent_id=$DRY" >&2
+    sql "select id, protocol, outcome, aborted from actions where drone=$DRONE_ID order by id desc limit 6" >&2
+    fail "a drone with a Salvager salvaged scrap from the wreck's hull"
+fi
+wait_for 30 "salvage(W) said it worked" replied $DRONE_ID "salvage 0"
+echo "ok: a drone with a Salvager salvaged scrap from the wreck's hull (#929)"
 echo "ok: the plunderer got half the wreck's wolfite"
 
 # Public Forge (#324 step 6): release a script on the website. It is
