@@ -447,7 +447,25 @@ local function resource_name(r) return text(400, r) end                         
 local function unit_mass(r) return first(401, r) end                             -- 401
 -- The 10 best places to mine r (#424): richest, then most left now, then
 -- nearest; place, abundance, units (left there now), distance (thousand km)
-local function best_sites(r) return records(ask(410, r), {"place", "abundance", "units", "distance"}) end -- 410
+local function best_sites(r) return records(ask(410, r), {"place", "abundance", "units", "distance", "yield"}) end -- 410
+-- What a run of mineral r would yield this drone at place p (here if left
+-- out) now: less at a crowded site (#974), never 0 where it's found. Also
+-- the other drones that mined it there in the last game hour
+local function mine_yield(r, p)                                                  -- 411
+  local row = record(ask(411, p or location(), r), {"abundance", "miners", "yield"})
+  if not row then return 0, 0 end
+  return row.yield, row.miners
+end
+-- Of a list of places, where a run of mineral r yields most now (the first
+-- listed of equals), and that yield
+local function best_yield(r, places)
+  local best, most = nil, -1
+  for _, p in ipairs(places) do
+    local y = mine_yield(r, p)
+    if y > most then best, most = p, y end
+  end
+  return best, most
+end
 local function protocol_name(p) return text(500, p) end                           -- 500
 local function protocol_minutes(p) return first(501, p) end                       -- 501
 local function consumes(p) return records(ask(510, p), {"resource", "units"}) end  -- 510
@@ -795,7 +813,7 @@ end
 
 -- Mining, wrecks, family
 local function deposits()                                                         -- 640
-  return records(ask(640), {"resource", "units", "capacity", "refill"})
+  return records(ask(640), {"resource", "units", "capacity", "refill", "miners", "yield"})
 end
 local function wrecks()                                                           -- 660
   local list = records(ask(660), {"drone", "plundered", "condition", "modules", "scrap"})
@@ -1158,6 +1176,8 @@ _G.space = space
 _G.resource_name = resource_name
 _G.unit_mass = unit_mass
 _G.best_sites = best_sites
+_G.mine_yield = mine_yield
+_G.best_yield = best_yield
 _G.protocol_name = protocol_name
 _G.protocol_minutes = protocol_minutes
 _G.consumes = consumes

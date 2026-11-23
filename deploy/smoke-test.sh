@@ -551,10 +551,27 @@ sqlw "insert into events (event_type, action, logged, outcome, drone, resource, 
             IFNULL((select x.new_cargo from events x where x.drone = $DRONE_ID and x.outcome = 1 and x.new_cargo is not null
                     order by x.game_t desc, x.id desc limit 1), 0) + $SALVAGER_MASS,
             IFNULL(MAX(game_t), 0) + 1 from events where drone = $DRONE_ID"
+# Crowded sites (#974): past house_rules.crowd_capacity drones mining a
+# mineral at a place in the last game hour, a run yields abundance x capacity
+# / crowd, at least 1. Nine other drones' runs at the Moon (dated ten game
+# days ahead, so the fast clock can't age them out) and a capacity of 1 make
+# a crowd of about 10, so the next run, the one below, yields 1 of its 5
+sql "update house_rules set crowd_capacity = 1 where id = 1"
+sql "insert into mining_runs (object_id, resource, drone, game_t, weight)
+     select 10, 1130, 990000 + k.n, (select ROUND(game_anchor + (UNIX_TIMESTAMP() - real_anchor) * scale) + 864000
+                                     from game_clock where id = 1), 1000
+     from (select 1 n union all select 2 union all select 3 union all select 4 union all select 5
+           union all select 6 union all select 7 union all select 8 union all select 9) k"
 sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1130"
 more_wolfite() { [ "$(wolfite)" -gt "$WOLFITE" ]; }
 wait_for 90 "the deposit refilled over game time and yields again" more_wolfite
 wait_for 60 "drone finished mining again" replied $DRONE_ID "mined-again 0"
+docker compose logs game-engine | grep -q 'Mining resource \[1130\] at \[10\]: crowd \[9.5\|Mining resource \[1130\] at \[10\]: crowd \[10.0' ||
+    fail "the crowded run didn't count the other drones"
+[ "$(wolfite)" = "$((WOLFITE + 1))" ] || fail "a run at a crowded site yielded $(( $(wolfite) - WOLFITE )), not 1"
+echo "ok: a crowded site yields less a run, and never nothing"
+sql "delete from mining_runs where drone >= 990000"
+sql "update house_rules set crowd_capacity = 10 where id = 1"
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
 echo "ok: no action aborted"

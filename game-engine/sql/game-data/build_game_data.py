@@ -1820,13 +1820,46 @@ queries.append((671, 'My lineage',
                 'released or registered, 1 for its clones, and so on).', 0,
                 "SELECT IFNULL(parent_id, 0), generation FROM agents WHERE agent_id = [drone_id];"))
 
+# Crowded sites (#974): past house_rules.crowd_capacity drones mining a
+# mineral at a place in the last game hour (a startup's drone counts
+# crowd_startup_permille of one), a run yields abundance x capacity / crowd,
+# at least 1. The engine's db_crowd_yield works out the same number; these
+# give it to a drone's code, counting the asking drone as if it mined now.
+CROWD_RULES = "LEFT JOIN house_rules AS h ON h.id = 1"
+
+
+def crowd_sql(place, resource, abundance):
+    """(other drones mining resource at place in the last game hour, what a
+    run there would yield the asking drone now), as SQL expressions"""
+    me_weight = ("IF(IFNULL((SELECT c.startup FROM agents AS ma JOIN companies AS c ON c.company_id = ma.company_id "
+                 "WHERE ma.agent_id = [drone_id]), 0) = 1, IFNULL(h.crowd_startup_permille, 1000), 1000)")
+    recent = (f"FROM mining_runs AS m WHERE m.object_id = {place} AND m.resource = {resource} "
+              "AND m.drone <> [drone_id] AND m.game_t > [game_now] - 3600")
+    crowd = f"({me_weight} + (SELECT IFNULL(SUM(m.weight), 0) {recent}))"
+    miners = f"(SELECT COUNT(*) {recent})"
+    yields = (f"IF(IFNULL({abundance}, 0) <= 0, 0, IF(IFNULL(h.crowd_capacity, 0) <= 0 OR {crowd} <= h.crowd_capacity * 1000, "
+              f"{abundance}, GREATEST(1, FLOOR({abundance} * h.crowd_capacity * 1000 / {crowd}))))")
+    return miners, yields
+
+
+_miners, _yield = crowd_sql('d.object_id', 'd.resource', 'a.multiplier')
 queries.append((640, 'Deposits here',
                 '[R L 640 query]: The mining deposits where the drone is: resource, units left now (2 cells), '
-                'capacity (2 cells), units regained per game day. A mined-out deposit yields nothing until it refills.', 0,
+                'capacity (2 cells), units regained per game day, other drones that mined it here in the last game '
+                'hour, and what a run yields now (less at a crowded site).', 0,
                 "SELECT d.resource, FLOOR(LEAST(d.capacity, IFNULL(s.amount, d.capacity) + d.refill_per_day * "
                 "([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400)) AS d_units, d.capacity AS d_capacity, "
-                "d.refill_per_day FROM deposits d LEFT JOIN deposit_state s ON s.object_id = d.object_id "
-                f"AND s.resource = d.resource WHERE d.object_id = {HERE_} ORDER BY d.resource;"))
+                f"d.refill_per_day, {_miners} AS miners, {_yield} AS yield FROM deposits d "
+                "LEFT JOIN deposit_state s ON s.object_id = d.object_id AND s.resource = d.resource "
+                "LEFT JOIN abundancies a ON a.location = d.object_id AND a.resource = d.resource "
+                f"{CROWD_RULES} WHERE d.object_id = {HERE_} ORDER BY d.resource;"))
+_miners, _yield = crowd_sql('[value_2]', '[value_1]', 'a.multiplier')
+queries.append((411, 'Mining yield at a place',
+                '[P R 411 query]: Mining resource R at place P: its abundance there, other drones that mined it '
+                'there in the last game hour, and what a run would yield this drone now (less at a crowded site).', 2,
+                f"SELECT IFNULL(a.multiplier, 0) AS abundance, {_miners} AS miners, {_yield} AS yield "
+                f"FROM (SELECT 1 AS one) AS x {CROWD_RULES} "
+                "LEFT JOIN abundancies AS a ON a.location = [value_2] AND a.resource = [value_1];"))
 
 # Local information (#324 step 14): a drone sees live market orders only
 # where it is. The solar order lists (601, 611, 612) now list the orders at
@@ -1840,15 +1873,17 @@ local_queries = {
     # left to mine now, then the nearest to the drone
     410: ('List best extraction sites',
           'The 10 best places to mine resource N: place, abundance, units left there now, distance from the drone '
-          '(thousand km). Richest first, then most left, then nearest.', 1,
+          '(thousand km), what a run there would yield it now (less at a crowded site, #974). Best yield first, '
+          'then most left, then nearest.', 1,
           "SELECT a.location AS place, a.multiplier AS abundance, FLOOR(IFNULL(LEAST(d.capacity, IFNULL(s.amount, "
           "d.capacity) + d.refill_per_day * ([game_now] - IFNULL(s.refilled_t, [game_now])) / 86400), 0)) AS d_units, "
-          "IFNULL(ROUND(SQRT(POW(o.x_coord - h.x_coord, 2) + POW(o.y_coord - h.y_coord, 2) + POW(o.z_coord - h.z_coord, 2)) "
-          f"/ 1000), 0) AS d_distance FROM abundancies AS a INNER JOIN objects AS o ON o.object_id = a.location "
-          f"INNER JOIN objects AS h ON h.object_id = {HERE_} "
+          "IFNULL(ROUND(SQRT(POW(o.x_coord - h0.x_coord, 2) + POW(o.y_coord - h0.y_coord, 2) + POW(o.z_coord - h0.z_coord, 2)) "
+          f"/ 1000), 0) AS d_distance, {crowd_sql('a.location', 'a.resource', 'a.multiplier')[1]} AS yield "
+          "FROM abundancies AS a INNER JOIN objects AS o ON o.object_id = a.location "
+          f"INNER JOIN objects AS h0 ON h0.object_id = {HERE_} {CROWD_RULES} "
           "LEFT JOIN deposits AS d ON d.object_id = a.location AND d.resource = a.resource "
           "LEFT JOIN deposit_state AS s ON s.object_id = a.location AND s.resource = a.resource "
-          "WHERE a.resource = [value_1] ORDER BY a.multiplier DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
+          "WHERE a.resource = [value_1] ORDER BY yield DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
     601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
           'wanted maximum, stock it holds free (plus what is on its way in), order handle (#927: pass it to push), planets (1: an order of the planets), mine (1: its own).' + LOCAL_NOTE, 1, orders(5, True)),
     611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '
@@ -2131,7 +2166,7 @@ QUERY_FUNCS = {
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
     '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
-    '640': 'deposits()', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
+    '640': 'deposits()', '411': 'mine_yield(R, P)', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
     '704': 'trip_to(P)', '705': 'trip_between(A, B)', '706': 'house_demand(N)', '707': 'house_supply(N)', '710': 'orbiting(N)', '720': 'drones_at(N)',

@@ -58,4 +58,9 @@ return [
         'label' => 'Outage',
         'text' => 'The world stopped while the database was overloaded and then repaired (#731, #736): no trades and no daily figures from {from} to {to}, so the charts are empty there.',
     ],
+    [
+        'key' => 'crowded-sites', 'kind' => 'rule', 'migration' => '0100_crowded_sites', 'issue' => 974,
+        'label' => 'Crowded sites yield less',
+        'text' => 'Past 10 drones mining a mineral at a place in a game hour, each run there yields less (never nothing; a startup counts as half a drone), so miners\' income at the busiest sites fell and quieter sites paid more.',
+    ],
 ];
