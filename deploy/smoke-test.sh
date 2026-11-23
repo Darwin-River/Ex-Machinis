@@ -352,7 +352,9 @@ function launched()
   local r = mine(wolfite)
   say("mined-dry gained " .. units(wolfite) - k .. " result " .. r)
   hold_until(function() return deposit(wolfite) > 0 end)
-  say("mined-again " .. mine(wolfite))
+  k = units(wolfite)
+  r = mine(wolfite)
+  say("mined-again " .. r .. " gained " .. units(wolfite) - k)
   -- Plunder the wreck the test brought here
   k = units(wolfite)
   r = plunder($DRY)
@@ -579,7 +581,11 @@ crowd_state() {
 }
 for _ in $(seq 1 30); do recorded && break; sleep 1; done
 recorded || { crowd_state; fail "the engine didn't record the drone's run at the crowded site"; }
-[ "$(wolfite)" = "$((WOLFITE + 1))" ] || { crowd_state; fail "a run at a crowded site yielded $(( $(wolfite) - WOLFITE )), not 1"; }
+# The drone's own count of the run: right after it, the drone plunders a wreck
+# holding wolfite, so its hold is no measure of the run
+replied $DRONE_ID "mined-again 0 gained 1" || {
+    crowd_state; echo "the drone said: $(sql "select body from drone_messages where agent_id=$DRONE_ID and body like 'mined-again%'")"
+    fail "a run at a crowded site didn't yield exactly 1"; }
 echo "ok: a crowded site yields less a run, and never nothing"
 sql "delete from mining_runs where drone >= 990000"
 sql "update house_rules set crowd_capacity = 10 where id = 1"
