@@ -185,6 +185,8 @@ class UserController extends Controller
             // Cash-out a share and its dividends over 30 game days, at the top (#699)
             $stats['cash_out'] = $playerShares['buys_at'];
             $stats['dividends30'] = \App\Services\PlayerShares::dividends30((int) $id);
+            // The share of its profit its code pays as dividends (#930)
+            $stats['dividend_percent'] = \App\Services\PlayerShares::dividendPermille((int) $id) / 10;
         }
         return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage',
             'playerShares', 'dealings', 'owner', 'road', 'perf'));

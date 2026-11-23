@@ -82,6 +82,8 @@ class HomeController extends Controller
         if (config('forge.new_rules')) {
             \App\Services\PlayerShares::settleBankPayments();
             \App\Services\PlayerShares::payDividends();
+            // ...and pay out what their code asked to (#930)
+            \App\Services\PlayerShares::settlePayouts();
             \App\Services\PlayerBoards::startDay();
             \App\Services\PlayerShares::dropEndedOrders();
             // A matured company that sells nothing for 60 game days is wound up (#875)

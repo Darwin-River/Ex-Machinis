@@ -306,6 +306,9 @@ function launched()
   local s = 0
   for i = 1, 20000 do s = s + i end
   say("computed " .. s)
+  -- Paying out, written into the code (#930): a quarter of each day's
+  -- profit as dividends, and 1 credit paid out now
+  say("policy " .. set_dividend_share(0.25) .. " " .. pay_out(1))
   -- Sell a unit to the player's other company
   say("sister " .. push(1, wolfite, $SISTER))
   -- Refining needs 18 wolfite (each mining run gives 5 here)
@@ -379,6 +382,14 @@ wait_for 60 "drone ran its steps before the trip" replied $DRONE_ID "sq 49%moon-
 wait_for 30 "script carried on after the trip" replied $DRONE_ID "after-trip 36"
 wait_for 120 "drone mined wolfite on the Moon" has 1130
 wait_for 30 "the mining went through" replied $DRONE_ID "mine 0"
+
+# Paying out (#930): set_dividend_share sets the company's share of its
+# profit; pay_out records a payout for the website to pay
+wait_for 60 "the drone set its dividend share and asked for a payout" replied $DRONE_ID "policy 0 0"
+[ "$(sql "select concat(c.dividend_permille, ' ', (select count(*) from company_payouts p where p.company_id = c.company_id and p.amount = 1))
+         from companies c join agents a on a.company_id = c.company_id where a.agent_id=$DRONE_ID")" = "250 1" ] ||
+    fail "set_dividend_share or pay_out didn't reach the database"
+echo "ok: a company's code sets its dividend share and pays out (#930)"
 
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought

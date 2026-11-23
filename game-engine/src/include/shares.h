@@ -21,6 +21,11 @@ long long dividend_for(long long net, long long units, long long total);
    is shared out (0 or more) and sets `*carry_after`. */
 long long dividend_pool(long long carry, long long profit, long long* carry_after);
 
+/* The share of its profit a company pays as dividends, in thousandths, from
+   what its code gives set_dividend_share (#930): 0 to 1, rounded to the
+   nearest thousandth; below 0 (or not a number) is 0, above 1 is 1000 */
+int dividend_permille_of(double share);
+
 /* The days a profit history is logged for, without paying, when a company is
    first settled (#603): share prices need a profit history from the start */
 #define DIVIDEND_LOG_DAYS 7

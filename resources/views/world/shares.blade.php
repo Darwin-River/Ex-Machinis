@@ -76,6 +76,8 @@
                         @forelse($playerMarket as $i => $m)
                             <tr @if($loop->index >= \App\Http\Controllers\WorldController::FIRST_ON_PHONE) class="share-more" @endif><td><a href="{{ url('companies/' . $m['company']) }}#player-shares">{{ $m['name'] }}</a>
                                     @if(!empty($m['holders'][0]['name']))<br><small class="text-muted">mostly {{ $m['holders'][0]['bank'] ? 'the bank' : $m['holders'][0]['name'] }}</small>@endif
+                                    {{-- The share of its profit its code pays as dividends (#930) --}}
+                                    @isset($m['dividend_percent'])<br><small class="text-muted">pays {{ rtrim(rtrim(number_format($m['dividend_percent'], 1), '0'), '.') }}% of its profit</small>@endisset
                                     {{-- Its share count once it has sold new ones, and an open offering (#780) --}}
                                     @if($m['count'] !== \App\Services\PlayerShares::COUNT)<br><small class="text-muted">{{ $m['count'] }} shares</small>@endif
                                     @if($m['offered'] > 0)<br><small class="health-ok">{{ $m['offered'] }} new {{ \Illuminate\Support\Str::plural('share', $m['offered']) }} on offer at cash-out or the market price</small>@endif

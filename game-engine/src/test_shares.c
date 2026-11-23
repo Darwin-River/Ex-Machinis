@@ -13,6 +13,14 @@ static void check(const char* what, int ok)
 int main(void)
 {
     check("one share of 1,000 credits pays 1", dividend_for(1000, 1, 1000) == 1);
+    /* set_dividend_share (#930): a share of profit, in thousandths, kept in range */
+    check("half pays 500 thousandths", dividend_permille_of(0.5) == 500);
+    check("a third rounds to 333", dividend_permille_of(1.0 / 3) == 333);
+    check("0.0005 rounds up to 1", dividend_permille_of(0.0005) == 1);
+    check("nothing is 0", dividend_permille_of(0) == 0);
+    check("below 0 is 0", dividend_permille_of(-2) == 0);
+    check("above 1 is all of it", dividend_permille_of(7) == 1000);
+    check("not a number is 0", dividend_permille_of(0.0 / 0.0) == 0);
     check("all 1,000 shares pay everything", dividend_for(1234, 1000, 1000) == 1234);
     check("half the shares pay half", dividend_for(1000, 500, 1000) == 500);
     check("rounded down: one share of 999 pays nothing", dividend_for(999, 1, 1000) == 0);

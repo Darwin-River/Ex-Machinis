@@ -90,6 +90,9 @@
                         <a class="stat-link" href="#player-shares">the bank's prices</a></div>
                     <div class="stat" id="stat-dividends"><div class="stat-label">Dividends a share, 30 days</div>
                         <div class="stat-value">{{ number_format($stats['dividends30']) }}</div></div>
+                    <div class="stat" id="stat-dividend-share"><div class="stat-label">Pays of its profit</div>
+                        <div class="stat-value">{{ rtrim(rtrim(number_format($stats['dividend_percent'], 1), '0'), '.') }}%</div>
+                        <small>set by its code, plus any payouts</small></div>
                 @endif
                 <div class="stat"><div class="stat-label">Rank at its age</div>
                     <div class="stat-value" id="peer-rank">@if($rank){{ $rank['rank'] }}<small> of {{ $rank['of'] }}{{ ($rank['among'] ?? 'all') === 'startups' ? ' startups' : '' }}</small>@else — @endif</div>

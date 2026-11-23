@@ -1085,6 +1085,78 @@ ErrorCode_t db_set_agent_status(DbConnection_t* connection, int agent_id, const 
 
 /** ****************************************************************************
 
+    @brief          Sets the share of its profit the drone's company pays as
+                    dividends, in thousandths (set_dividend_share, #930):
+                    companies.dividend_permille; the website pays by it
+
+*******************************************************************************/
+ErrorCode_t db_set_dividend_permille(DbConnection_t* connection, int agent_id, int permille)
+{
+    ErrorCode_t result = db_reconnect(connection);
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "UPDATE companies c JOIN agents a ON a.company_id = c.company_id SET c.dividend_permille = %d "
+        "WHERE a.agent_id = %d", permille, agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        result = ENGINE_DB_QUERY_ERROR;
+    }
+    return result;
+}
+
+/** ****************************************************************************
+
+    @brief          Asks for spare credits to be paid out to the drone's
+                    company's shareholders (pay_out, #930). The website's
+                    tick pays it (PlayerShares::settlePayouts).
+
+    @return         0 when asked; -21 for a startup, -5 for less than 1, -4
+                    when the company hasn't that much beyond the payouts it
+                    has already asked for; -9 on a database error
+
+*******************************************************************************/
+int db_request_payout(DbConnection_t* connection, int agent_id, long long amount, long long game_t)
+{
+    if(amount < 1)
+        return OUTCOME_RESOURCES_LOWER_LIMIT;
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT c.company_id, c.startup, c.credits, "
+        "(SELECT IFNULL(SUM(p.amount), 0) FROM company_payouts p WHERE p.company_id = c.company_id AND p.paid_t IS NULL) "
+        "FROM companies c JOIN agents a ON a.company_id = c.company_id WHERE a.agent_id = %d AND c.eliminated_at IS NULL",
+        agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    if(!row) {
+        if(res) mysql_free_result(res);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    int company = atoi(row[0]);
+    int startup = row[1] ? atoi(row[1]) : 0;
+    long long credits = row[2] ? atoll(row[2]) : 0, pending = row[3] ? atoll(row[3]) : 0;
+    mysql_free_result(res);
+    if(startup)
+        return OUTCOME_STARTUP_NO_PAYOUT;
+    if(credits - pending < amount)
+        return OUTCOME_NO_CREDITS;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO company_payouts (company_id, drone, amount, requested_t) VALUES (%d, %d, %lld, %lld)",
+        company, agent_id, amount, game_t);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    return 0;
+}
+
+/** ****************************************************************************
+
     @brief          Appends to the output a paused script has produced so far
                     (agents.OUTPUT holds it until the script finishes)
 

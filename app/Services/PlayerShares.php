@@ -981,6 +981,7 @@ class PlayerShares
         $bank = self::bankHolds($ids);
         $holders = self::holdersMany($ids, $bank);
         $counts = self::counts($ids);
+        $policy = self::dividendPermilles($ids);   // the share of profit its code pays (#930)
         // Open offerings of new shares (#780): units left
         $offered = $ids && \Illuminate\Support\Facades\Schema::hasTable('player_share_offerings')
             ? DB::table('player_share_offerings')->whereIn('company_id', $ids)->whereNull('closed_t')->where('units_left', '>', 0)
@@ -988,6 +989,7 @@ class PlayerShares
         return $companies->map(fn ($c) => ['company' => (int) $c->company_id, 'name' => $c->name]
             + self::quote($cash[(int) $c->company_id]['per_share'], $premium[(int) $c->company_id], $bank[(int) $c->company_id])
             + ['dividends30' => $dividends[(int) $c->company_id], 'count' => $counts[(int) $c->company_id],
+                'dividend_percent' => $policy[(int) $c->company_id] / 10,
                 'offered' => (int) ($offered[(int) $c->company_id] ?? 0), 'holders' => $holders[(int) $c->company_id]])->all();
     }
 
@@ -1167,15 +1169,17 @@ class PlayerShares
         $paid = 0;
         $companies = DB::table('companies')->where('startup', 0)->whereNotNull('owner_id')->whereNotNull('matured_t')
             ->whereNull('eliminated_at')->get(['company_id', 'matured_t', 'player_dividend_day']);
+        $own = self::dividendPermilles($companies->pluck('company_id')->all());   // set by each one's code (#930)
         foreach ($companies as $c) {
             $from = $c->player_dividend_day !== null ? (int) $c->player_dividend_day
                 : intdiv((int) $c->matured_t - $epoch, 86400);
             $days = DB::table('company_profits')->where('company', $c->company_id)->where('day', '>', $from)
                 ->orderBy('day')->get(['day', 'profit', 'carry_before']);
+            $share = $own[(int) $c->company_id] ?? $permille;
             foreach ($days as $d) {
-                DB::transaction(function () use ($c, $d, $permille) {
+                DB::transaction(function () use ($c, $d, $share) {
                     $pool = max(0, min(0, (int) $d->carry_before) + (int) $d->profit);
-                    $due = intdiv($pool * $permille, 1000);
+                    $due = intdiv($pool * $share, 1000);
                     $credits = (int) DB::table('companies')->where('company_id', $c->company_id)->lockForUpdate()->value('credits');
                     $due = min($due, max(0, $credits));
                     $holders = DB::table('player_shares')->where('company_id', $c->company_id)->where('units', '>', 0)
@@ -1207,6 +1211,78 @@ class PlayerShares
             }
         }
         return $paid;
+    }
+
+    /**
+     * The share of profit each company pays as dividends, in thousandths, as
+     * its code set it (set_dividend_share, #930); a company whose code never
+     * set one pays forge.dividend_permille
+     */
+    public static function dividendPermilles(array $companies): array
+    {
+        $out = array_fill_keys(array_map('intval', $companies), (int) config('forge.dividend_permille'));
+        if ($companies && \Illuminate\Support\Facades\Schema::hasColumn('companies', 'dividend_permille')) {
+            foreach (DB::table('companies')->whereIn('company_id', $companies)->whereNotNull('dividend_permille')
+                         ->pluck('dividend_permille', 'company_id') as $id => $p) {
+                $out[(int) $id] = max(0, min(1000, (int) $p));
+            }
+        }
+        return $out;
+    }
+
+    public static function dividendPermille(int $company): int
+    {
+        return self::dividendPermilles([$company])[$company];
+    }
+
+    /**
+     * Pays out what companies' code asked to pay out (pay_out, #930): each to
+     * the shareholders by their shares, as a dividend is paid, up to what the
+     * company holds then; the bank's part leaves the game. A company that has
+     * ended pays nothing. Returns how many payouts it settled.
+     */
+    public static function settlePayouts(): int
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('company_payouts')) {
+            return 0;
+        }
+        $epoch = (int) DB::table('game_clock')->where('id', 1)->value('epoch');
+        $due = DB::table('company_payouts')->whereNull('paid_t')->orderBy('id')->limit(200)->get();
+        foreach ($due as $p) {
+            DB::transaction(function () use ($p, $epoch) {
+                $c = DB::table('companies')->where('company_id', $p->company_id)->lockForUpdate()
+                    ->first(['credits', 'eliminated_at', 'startup']);
+                $now = World::gameNow();
+                $amount = ($c && $c->eliminated_at === null && !$c->startup) ? min((int) $p->amount, max(0, (int) $c->credits)) : 0;
+                $holders = DB::table('player_shares')->where('company_id', $p->company_id)->where('units', '>', 0)
+                    ->get(['user_id', 'units'])->map(fn ($h) => [(int) $h->user_id, (int) $h->units])->all();
+                $bank = (int) (DB::table('bank_shares')->where('company_id', $p->company_id)->value('units') ?? 0);
+                if ($bank > 0) {
+                    $holders[] = [null, $bank];
+                }
+                $count = self::count((int) $p->company_id);
+                $total = 0;
+                foreach ($amount > 0 ? $holders : [] as [$user, $units]) {
+                    $part = intdiv($amount * $units, $count);
+                    if ($part <= 0) {
+                        continue;
+                    }
+                    if ($user !== null) {
+                        DB::table('users')->where('user_id', $user)->update(['credits' => DB::raw('credits + ' . $part)]);
+                    } else {
+                        CreditFlows::record('payout_to_bank', -$part, (int) $p->company_id);   // #937
+                    }
+                    DB::table('player_dividends')->insert(['company_id' => $p->company_id, 'user_id' => $user,
+                        'day' => intdiv($now - $epoch, 86400), 'units' => $units, 'amount' => $part, 'payout' => 1]);
+                    $total += $part;
+                }
+                if ($total > 0) {
+                    DB::table('companies')->where('company_id', $p->company_id)->update(['credits' => DB::raw('credits - ' . $total)]);
+                }
+                DB::table('company_payouts')->where('id', $p->id)->update(['paid_t' => $now, 'paid' => $total]);
+            });
+        }
+        return $due->count();
     }
 
     /**
