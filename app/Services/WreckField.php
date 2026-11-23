@@ -33,7 +33,7 @@ class WreckField
         $rows = DB::table('agents AS a')
             ->join('companies AS c', 'c.company_id', '=', 'a.company_id')
             ->leftJoin('objects AS o', 'o.object_id', '=', 'a.object_id')
-            ->whereNotNull('a.wrecked_at')->where('c.house', 0)
+            ->whereNotNull('a.wrecked_at')->where('c.house', 0)->where('c.startup', 0)   // a startup's wrecks can't be salvaged
             ->where(fn ($q) => $q->whereNull('a.wreck_cause')->orWhereNotIn('a.wreck_cause', ['wound_up', 'reset']))
             ->where(fn ($q) => $q->whereNull('a.scrap_left')->orWhere('a.scrap_left', '>', 0))
             ->orderByDesc('a.wrecked_at')->limit(max(1, $limit))
