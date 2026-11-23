@@ -66,13 +66,23 @@ class Model:
         self.fuel_price = g.FUEL_PRICE
         self.names = {int(k): v['name'] for k, v in g.resources.items()}
         self.mass = {int(k): v['mass'] for k, v in g.resources.items()}
-        self.ask, self.bid, self.bid_at = {}, {}, {}
+        # The ladder is priced at the inner exchanges (Earth, the Moon and
+        # Mars), where a company works; a frontier exchange (#973) is days
+        # away, and this model has no trips in it. bid_anywhere is every
+        # exchange's best bid, for the far haul (PO-14)
+        near = set(g.NEAR_BODIES) | set(g.bodies.get('Station', []))
+        inner = {st[0] for st in g.STATIONS if st[2] in near}
+        self.ask, self.bid, self.bid_at, self.bid_anywhere = {}, {}, {}, {}
         for st, rid, side, price, _, _ in g.STATION_GOODS:
+            if side == g.BUYS:
+                self.bid_anywhere[rid] = max(price, self.bid_anywhere.get(rid, price))
+                self.bid_at.setdefault(st, {})[rid] = price
+            if st not in inner:
+                continue
             if side == g.SELLS:
                 self.ask[rid] = min(price, self.ask.get(rid, price))
             else:
                 self.bid[rid] = max(price, self.bid.get(rid, price))
-                self.bid_at.setdefault(st, {})[rid] = price
         self.makers = {}   # resource -> (protocol, recipe), single-output recipes only
         for pid, rec in g.recipes.items():
             if len(rec['outputs']) == 1 and g.production_stage(pid):
@@ -267,7 +277,7 @@ def figures(g):
     trip_fuel = g.travel_fuel(JUPITER_KM) if hasattr(g, 'travel_fuel') else g.fuel_cost('5001')
     best = None
     for rid, _, mult in g.far_minerals:
-        r = m.mine_and_refine(rid, mult, m.bid)
+        r = m.mine_and_refine(rid, mult, m.bid_anywhere)
         if not r:
             continue
         batches = hold // r[4]

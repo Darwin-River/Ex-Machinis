@@ -1180,7 +1180,20 @@ STATIONS = [
     (1, 'Earth Exchange', 3, 10000, 10000),
     (2, 'Moon Depot', 10, 10000, 10000),
     (3, 'Mars Exchange', 4, 15000, 15000),
+    (4, 'Ceres Station', 191, 10000, 10000),
 ]
+# The frontier exchange (#973, a tuning change per DV-03 for PO-14 and PO-15):
+# every other exchange is inside Mars's orbit, so every sale ended near Earth
+# and a hauler going out had nothing to carry. Ceres Station, in the asteroid
+# belt (2.7 to 3.9 game days from Earth, on the way to Jupiter's far homes),
+# buys and sells every product, pays more for refined goods, parts and
+# systems (PLACE_FACTOR), sells fuel dear and little of it (FRONTIER_FUEL),
+# sells no hulls or kits, and swings hardest (MARKET_MOODS). It buys no fuel:
+# a House bid there above the inner exchanges' ask would be a loop through
+# the House alone (PO-09); fuel at Ceres is for players to supply
+CERES_STATION = 4
+STATION_IDS = [st[0] for st in STATIONS]
+FRONTIER_FUEL = (9, 1000)   # its ask, units a day
 BUYS, SELLS = 1, 2
 # (station, resource, side, price, daily units, from game day): stations buy
 # refined goods from day 0, parts from day 3 and systems from day 7, so their
@@ -1292,6 +1305,8 @@ for rid, price, supply in ((FUEL, FUEL_PRICE, 2000), (5001, 400, 100), (WORM, 10
 # there because every miner shared its 2,000
 for st, supply in ((2, 6000), (3, 6000)):
     STATION_GOODS.append((st, FUEL, SELLS, FUEL_PRICE, supply, 0))
+# The frontier sells fuel dear and little of it (#973)
+STATION_GOODS.append((CERES_STATION, FUEL, SELLS, FRONTIER_FUEL[0], FRONTIER_FUEL[1], 0))
 # The House sells raw goods too, dear (#380): ores, metals, organics and
 # inorganics at half as much again as it pays for them at that station (an
 # ore at half as much again as what it refines to, less the fuel: so buying
@@ -1348,7 +1363,7 @@ def ore_value(ore):
             out = sum(RAW_VALUE.get(r, 0) * q for r, q in rec['outputs'].items())
             return max(1, round((out - fuel_cost(pid) * FUEL_PRICE) / rec['inputs'][str(ore)]))
     return None
-for st in (1, 2, 3):
+for st in STATION_IDS:
     bought = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
     for rid in (2011, 2012, 2013, 2031, 2032, 2033, 2041, 2042, 2043):
         if rid in bought:
@@ -1383,11 +1398,13 @@ cheapest_sale = {}
 for s_, rid, side, price, _, _ in STATION_GOODS:
     if side == SELLS:
         cheapest_sale[rid] = min(price, cheapest_sale.get(rid, price))
-for st in (1, 2, 3):
+for st in STATION_IDS:
     listed = {(rid, side): price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st}
     for rid in sorted(int(r) for r in resources):
         if rid in HOUSE_ONLY:
             continue
+        if st == CERES_STATION and rid in (MINING_KIT, FACTORY_KIT, 6001):
+            continue   # the frontier sells no hulls or kits (#973)
         value = every_product_value(rid)
         sells = listed.get((rid, SELLS))
         if rid in cheapest_sale:
@@ -1406,7 +1423,7 @@ for st in (1, 2, 3):
             STATION_GOODS.append((st, rid, SELLS, sell, small_daily(value), 0))
 # Salvage (#929): every exchange buys scrap from wrecks' hulls, at 12 a unit
 # before the buying share below (it sells none)
-for st in (1, 2, 3):
+for st in STATION_IDS:
     STATION_GOODS.append((st, SCRAP, BUYS, 12, 80, 0))
 # The House doesn't compete with players (#380): every exchange buys at
 # three quarters of a good's value and sells at half as much again (set
@@ -1432,6 +1449,7 @@ PLACE_FACTOR = {   # station: {tier (a resource's first digit): factor}
     1: {1: 1.10, 2: 1.20, 3: 1.00, 4: 0.90, 5: 1.00},   # Earth Exchange
     2: {1: 0.85, 2: 0.85, 3: 1.10, 4: 1.20, 5: 1.10},   # Moon Depot
     3: {1: 1.00, 2: 1.00, 3: 1.25, 4: 1.10, 5: 1.15},   # Mars Exchange
+    4: {1: 1.00, 2: 1.35, 3: 1.40, 4: 1.15, 5: 1.10},   # Ceres Station (#973): as high as the free-loop guard allows, less a notch
 }
 # What an exchange pays for ores and refined goods where it differs from
 # PLACE_FACTOR (#963, a tuning change per DV-03): the Moon Depot, beside the
@@ -1462,7 +1480,7 @@ KIT_PARTS_SHARE = 0.8
 _kit_price = min(price for _, rid, side, price, _, _ in STATION_GOODS if rid == MINING_KIT and side == SELLS)
 _kit_price = min([_kit_price] + [price for _, rid, side, price, _, _ in STATION_GOODS if rid == FACTORY_KIT and side == SELLS])
 _bid_cut = {}   # (station, resource): factor
-for st in (1, 2, 3):
+for st in STATION_IDS:
     bids = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
     for kit, (_, _, parts) in KITS.items():
         total = sum(bids.get(part, 0) for part in parts)
@@ -1472,7 +1490,7 @@ for st in (1, 2, 3):
                 _bid_cut[(st, part)] = min(factor, _bid_cut.get((st, part), 1.0))
 STATION_GOODS = [(st, rid, side, max(1, int(price * _bid_cut.get((st, rid), 1.0))) if side == BUYS else price, daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
-for st in (1, 2, 3):
+for st in STATION_IDS:
     bids = {rid: price for s_, rid, side, price, _, _ in STATION_GOODS if s_ == st and side == BUYS}
     for kit, (_, _, parts) in KITS.items():
         assert sum(bids.get(part, 0) for part in parts) <= _kit_price, f'station {st}: kit {kit} parts bid above its price'
@@ -2359,7 +2377,7 @@ def demand_budget(st):
 # waves. The Mars Exchange is a colony: middling waves and the sharpest
 # booms and slumps. The views house_market_raw and house_market work out
 # the prices now; App\Services\HouseMarket posts the House's orders.
-MARKET_MOODS = {1: (80, 20, 150), 2: (200, 7, 300), 3: (140, 12, 350)}
+MARKET_MOODS = {1: (80, 20, 150), 2: (200, 7, 300), 3: (140, 12, 350), 4: (250, 5, 400)}   # 4: the frontier, #973
 STATIONS = [(sid, name, obj, max(cap, demand_budget(sid)), max(refill, demand_budget(sid))) + MARKET_MOODS[sid]
             for sid, name, obj, cap, refill in STATIONS]
 # The House doesn't sell what is found only far away (#922): Metals (A3), the
