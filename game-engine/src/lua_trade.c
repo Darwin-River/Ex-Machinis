@@ -7,12 +7,15 @@
  * writes them: the share market and the account now, and what the script
  * kept last time). The script defines trade(market); it is called once. It
  * acts through buy, sell, buy_pegged, sell_pegged, cancel, bank_buy,
- * bank_sell and log, and keeps what it likes in the table `memory`.
+ * bank_sell, back_loan (#928) and log, and keeps what it likes in the table
+ * `memory`. loan_requests() and my_loans() read the market's loan requests
+ * and the account's loans.
  *
  * Standard output, one line each, fields separated by tabs:
  *   buy <company> <units> <price>          sell <company> <units> <price>
  *   buy_pegged <company> <units> <peg> <percent>   (sell_pegged the same)
  *   cancel <order>    bank_buy <company> <units>    bank_sell <company> <units>
+ *   back_loan <request> <credits>
  *   log <text>
  *   memory <a Lua table constructor>       (last, when the run ended well)
  *   error <message>                        (and exit status 1)
@@ -143,6 +146,9 @@ static const char *PRELUDE =
 "  cancel = function(o) return act('cancel', whole(o, 'the order')) end,\n"
 "  bank_buy = function(c, n) return act('bank_buy', whole(c, 'the company'), whole(n, 'the units')) end,\n"
 "  bank_sell = function(c, n) return act('bank_sell', whole(c, 'the company'), whole(n, 'the units')) end,\n"
+"  back_loan = function(r, n) return act('back_loan', whole(r, 'the request'), whole(n, 'the credits')) end,\n"
+"  loan_requests = function() return market.loan_requests or {} end,\n"
+"  my_loans = function() return (market.me or {}).loans or {} end,\n"
 "  log = function(...)\n"
 "    if logs >= MAX_LOG then return end\n"
 "    logs = logs + 1\n"

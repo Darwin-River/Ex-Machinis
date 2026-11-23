@@ -16,8 +16,9 @@ class GettingStartedTest extends TestCase
         $this->get('/manual')
             ->assertOk()
             ->assertSee('<title>Manual - Ex-Machinis</title>', false)
+            ->assertSee('id="chapter-3-mining-refining-and-making"', false)
+            ->assertSee('href="#chapter-3-mining-refining-and-making"', false)
             ->assertSee('id="chapter-4-issuing-commands"', false)
-            ->assertSee('href="#chapter-4-issuing-commands"', false)
             ->assertSee('Equipping your drone')
             ->assertSee('function launched()', false)
             ->assertDontSee('Keep this manual current');
@@ -27,11 +28,51 @@ class GettingStartedTest extends TestCase
     public function testTheManualOpensWithTheGameNotAChangelog()
     {
         $html = $this->get('/manual')->assertOk()->getContent();
-        $changes = strpos($html, 'id="appendix-b-changes-since-the-september-2020-edition"');
+        $changes = strpos($html, 'id="appendix-d-changes-since-the-september-2020-edition"');
         $this->assertNotFalse($changes, 'the changes are an appendix');
+        $this->assertNotFalse(strpos($html, 'id="appendix-b-changes-since-the-september-2020-edition"'), 'its old ID still lands');
         $this->assertGreaterThan(strpos($html, 'id="appendix-a-when-your-script-fails"'), $changes, 'after Appendix A');
-        $this->assertLessThan(strpos($html, 'id="chapter-1-getting-started"'), strpos($html, 'Your first startup'),
+        $this->assertLessThan(strpos($html, 'id="chapter-1-getting-started-with-the-miner"'), strpos($html, 'Your first startup'),
             'the manual points newcomers to the guide first');
+    }
+
+    /**
+     * #932: the manual is staged. Five parts, each chapter opening with what
+     * it is for and ending with an exercise and a mastery check, the
+     * reference at the back, and every old chapter's ID still landing
+     */
+    public function testTheManualIsStaged()
+    {
+        $html = $this->get('/manual')->assertOk()->getContent();
+        $at = fn (string $id) => strpos($html, 'id="' . $id . '"');
+        $parts = ['part-i-your-first-drone', 'part-ii-markets', 'part-iii-growing', 'part-iv-going-public', 'part-v-finance',
+            'appendix-a-when-your-script-fails', 'appendix-b-the-lua-reference', 'appendix-c-glossary',
+            'appendix-d-changes-since-the-september-2020-edition'];
+        $last = 0;
+        foreach ($parts as $id) {
+            $this->assertNotFalse($at($id), "$id is there");
+            $this->assertGreaterThan($last, $at($id), "$id comes in order");
+            $this->assertStringContainsString('href="#' . $id . '"', $html, "the contents link to $id");
+            $last = $at($id);
+        }
+        // The simplest first: mining before the order book, the order book before shares, shares before loans
+        $this->assertLessThan($at('chapter-7-the-order-book-at-a-place'), $at('extracting-minerals'));
+        $this->assertLessThan($at('trading-shares-with-other-players'), $at('chapter-7-the-order-book-at-a-place'));
+        $this->assertLessThan($at('loans'), $at('trading-shares-with-other-players'));
+        // Every chapter says what it is for and ends with an exercise and a mastery check
+        preg_match_all('/<h2 id="chapter-\d+-/', $html, $chapters);
+        $this->assertCount(23, $chapters[0]);
+        $this->assertSame(23, substr_count($html, '<em>In this chapter:</em>'));
+        $this->assertSame(23, substr_count($html, '<strong>Exercise.</strong>'));
+        $this->assertSame(23, substr_count($html, "<strong>You've mastered this when</strong>"));
+        // Old links into the manual still land
+        foreach (['chapter-1-getting-started', 'chapter-2-speaking-lua', 'chapter-3-working-with-resources', 'chapter-4-issuing-commands',
+                     'chapter-5-building-a-vocabulary', 'chapter-6-going-to-market', 'chapter-7-maturing-and-shares',
+                     'chapter-8-remembering-things', 'chapter-9-asking-questions', 'chapter-10-making-decisions',
+                     'chapter-10-writing-your-drone-in-lua', 'releasing-a-startup', 'trading-script', 'shares-and-the-stock-exchange',
+                     'raising-credits-with-new-shares', 'unpacking-your-kit', 'running-low-on-fuel', 'owned-outright'] as $old) {
+            $this->assertNotFalse($at($old), "#$old still lands");
+        }
     }
 
     public function testGettingStartedIsTheFirstStartupGuide()

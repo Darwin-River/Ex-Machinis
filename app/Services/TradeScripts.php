@@ -214,6 +214,11 @@ class TradeScripts
             case 'bank_sell':
                 $r = PlayerShares::sellToBank($user, $c, (int) ($f[2] ?? 0));
                 return ($r['ok'] ?? false) ? "sell {$f[2]} of $name to the bank: done" : "sell {$f[2]} of $name to the bank: refused, " . lcfirst(rtrim((string) $r['error'], '.'));
+            case 'back_loan':
+                // Lending (#928): through the same rules as the Loans page
+                $r = Loans::back($user, $c, (int) ($f[2] ?? 0));
+                return ($r['ok'] ?? false) ? "lend {$f[2]} on loan request $c: done (owed {$r['owed']} on {$r['due']})"
+                    : "lend {$f[2]} on loan request $c: refused, " . lcfirst(rtrim((string) $r['error'], '.'));
             case 'bank_buy':
                 $r = PlayerShares::buyFromBank($user, $c, (int) ($f[2] ?? 0));
                 return ($r['ok'] ?? false) ? "buy {$f[2]} of $name from the bank: done (at {$r['price']})" : "buy {$f[2]} of $name from the bank: refused, " . lcfirst(rtrim((string) $r['error'], '.'));
@@ -252,10 +257,17 @@ class TradeScripts
         foreach ($mine['holdings'] as $h) {
             $holdings[(int) $h['company_id']] = (int) $h['units'];
         }
+        // Loans (#928): the open requests, and the account's own loans
+        $loans = Loans::ofUser((int) $user->user_id);
         return [
             'now' => World::gameNow(), 'day' => MarketHistory::today(),
             'companies' => $companies,
+            'loan_requests' => array_map(fn ($r) => array_intersect_key($r, array_flip(['id', 'company', 'name', 'amount', 'left',
+                'rate', 'per_year', 'term_days', 'due_in'])), Loans::requests()),
+            'lend_min_credits' => Loans::minCredits(),
             'me' => ['name' => $user->login, 'credits' => (int) ($account->credits ?? 0), 'share_credits' => (int) ($account->share_credits ?? 0),
+                'loans' => array_map(fn ($l) => array_intersect_key($l, array_flip(['id', 'company', 'name', 'principal', 'rate', 'owed',
+                    'repaid', 'closed', 'defaulted'])), $loans['loans']),
                 'holdings' => $holdings,
                 'orders' => array_map(fn ($o) => ['id' => $o['id'], 'company' => $o['company_id'], 'side' => $o['side'], 'units' => $o['units'],
                     'price' => $o['price'], 'peg' => $o['peg'] ?? null, 'offset_percent' => $o['offset_percent'] ?? null,

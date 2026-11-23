@@ -12,8 +12,9 @@
 -- when the Moon is busy. Its kit can't brew fuel, so it buys fuel wherever
 -- it is cheapest.
 
--- Settings: change these numbers to make it your own
-low_fuel = 40      -- fuel units below which it buys more
+-- Settings: change these numbers to make it your own. It matures as it is;
+-- the three marked TRY FIRST are the ones to change first
+low_fuel = 40      -- TRY FIRST: fuel units below which it buys more (higher: safer, but more credits sit in its tank)
 dry_tries = 12     -- dry tries at the Moon before it tries Phobos (large: stay)
 grow_at = 7000     -- credits at which a matured drone launches a copy (6500 at least)
 work_cash = 1500   -- credits the company keeps per drone, so copies don't starve it
@@ -22,9 +23,9 @@ grow_until = 0     -- game day after which it launches no copies (0: never stops
 crowd_limit = 0    -- drones at the Moon past which it starts at a Mars moon (0: never)
 move_below = 3     -- units a run yields here below which it moves to a quieter site (0: stay)
 rest = 240         -- game minutes to rest when both Mars moons are dry
-hold_cap = 40      -- metals aboard at which it flies off to sell them in one trip
+hold_cap = 40      -- TRY FIRST: metals aboard before it flies off to sell (fewer: sells sooner, more trips)
 min_ask = 12       -- lowest asking price per metal, in credits, where nobody bids
-hour_value = 4     -- credits a game hour of its time is worth (lower: sells further away)
+hour_value = 4     -- TRY FIRST: credits a game hour of its time is worth (lower: flies further for a better price)
 haul_at = 60       -- metals still unsold after selling at which it hauls them onward
 
 -- Fixed numbers the logic uses

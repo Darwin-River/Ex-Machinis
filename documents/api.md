@@ -73,7 +73,7 @@ The [players' manual](players-manual.md) explains the game and the Lua functions
 | `script` | yes | the script, in Lua |
 | `company` | no | a company's ID: the response then previews a code push to it (`push`, below; #558). Nothing is charged or sent |
 
-A script must define the function `launched` (`function launched() ... end`): see the players' manual, [Speaking Lua](players-manual.md#chapter-10-writing-your-drone-in-lua). FORTH has been retired: a FORTH script (`: launched ... ;`) is refused, with an error saying so. Drones released in FORTH before then carry on.
+A script must define the function `launched` (`function launched() ... end`): see the players' manual, [Lua through the starter](players-manual.md#chapter-2-lua-through-the-starter). FORTH has been retired: a FORTH script (`: launched ... ;`) is refused, with an error saying so. Drones released in FORTH before then carry on.
 
 **Example:**
 
@@ -520,7 +520,7 @@ A public company's code asks to borrow with `request_loan(amount, rate, due_in)`
 
 | Request | What it does |
 |---|---|
-| `GET /loans` | the open requests, newest first: `{min_credits, requests: [{id, company, name, amount, backed, left, rate, per_year, term_days, due, due_in}]}`. `rate` is the percent for the whole loan, `per_year` the same as a rate a game year (`rate` × 365 ÷ `term_days`), `left` what is still to back, `due` when it is due and `due_in` the game days until then. No token needed |
+| `GET /loans` | the open requests, newest first, and the best lenders: `{min_credits, requests: [{id, company, name, amount, backed, left, rate, per_year, term_days, due, due_in}], lenders: [{user, name, lent, net, return_percent, loans, defaults}]}` (`lenders`: the 10 players lending has earned most, over closed loans: `net` the interest on loans repaid less what defaults cost). `rate` is the percent for the whole loan, `per_year` the same as a rate a game year (`rate` × 365 ÷ `term_days`), `left` what is still to back, `due` when it is due and `due_in` the game days until then. No token needed |
 | `POST /loans/{id}/back` `{credits}` | lends that many credits to the company on request `{id}`: `{ok, loan, lent, owed, due}` (`owed`: the principal plus the interest, on `due`). 401 without a token; 403 when the account holds under `min_credits`; 404 when there is no such open request; 409 when it is fully backed, the company is no longer public (or has ended), or you hold fewer credits than you'd lend; 422 for less than 1 credit, or more than it still needs. Each failure is `{error}` |
 | `GET /account/loans` | the account's loans, newest first (50 at most): `{loans: [{id, company, name, principal, rate, owed, repaid, due, closed, defaulted}], lent, interest, defaults, outstanding}`. `owed` is what is still owed on a loan, `repaid` what has come back; `lent` is all you have lent, `interest` what has come back above the principal, `defaults` how many of your loans defaulted, `outstanding` what open loans still owe you. 401 without a token |
 

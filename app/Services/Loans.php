@@ -112,6 +112,27 @@ class Loans
             'outstanding' => (int) $rows->whereNull('closed_t')->sum(fn ($l) => (int) $l->owed - (int) $l->repaid)];
     }
 
+    /**
+     * The lenders' board (#928): players by what lending has earned them,
+     * interest on loans repaid less what defaults cost, over the loans that
+     * have closed: {user, name, lent, net, return_percent, loans, defaults}
+     */
+    public static function leaderboard(int $limit = 10): array
+    {
+        if (!self::available()) {
+            return [];
+        }
+        return DB::table('loans AS l')->join('users AS u', 'u.user_id', '=', 'l.user_id')->whereNotNull('l.closed_t')
+            ->groupBy('l.user_id', 'u.login')
+            ->select('l.user_id', 'u.login', DB::raw('SUM(l.principal) AS lent'), DB::raw('SUM(l.repaid - l.principal) AS net'),
+                DB::raw('COUNT(*) AS n'), DB::raw('SUM(l.defaulted_t IS NOT NULL) AS defaults'))
+            ->orderByDesc('net')->limit($limit)->get()->map(fn ($r) => [
+                'user' => (int) $r->user_id, 'name' => $r->login, 'lent' => (int) $r->lent, 'net' => (int) $r->net,
+                'return_percent' => (int) $r->lent > 0 ? round(100 * (int) $r->net / (int) $r->lent, 1) : null,
+                'loans' => (int) $r->n, 'defaults' => (int) $r->defaults,
+            ])->all();
+    }
+
     /** Its founder and its 5 biggest shareholders: whose loans are marked as insider loans */
     public static function insiders(int $company): array
     {

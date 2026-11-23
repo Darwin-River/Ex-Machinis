@@ -189,6 +189,38 @@ class LoansTest extends TestCase
         $this->assertSame(1, (int) Loans::ofUser((int) $ruth->user_id)['defaults']);
     }
 
+    public function testATradingScriptLendsAndTheBestLendersAreRanked()
+    {
+        if (!\App\Services\TradeScripts::available()) {
+            $this->markTestSkipped('lua-trade is not built');
+        }
+        $owner = $this->player('Script Borrow Owner');
+        $lender = $this->player('Script Lender', 20000);
+        $id = $this->publicCompany($owner, 'Scripted Borrower');
+        $req = $this->request($id, 3000, 600, 30);
+        $code = <<<LUA
+function trade(market)
+  for _, r in ipairs(loan_requests()) do
+    if r.id == $req then back_loan(r.id, 1000) end
+  end
+  log("loans", #my_loans(), "min", market.lend_min_credits)
+end
+LUA;
+        $this->assertTrue(\App\Services\TradeScripts::save($lender, $code, true)['ok']);
+        $out = implode("\n", \App\Services\TradeScripts::run($lender));
+        $this->assertStringContainsString("lend 1000 on loan request $req: done", $out);
+        $this->assertSame(1000, (int) DB::table('loans')->where('user_id', $lender->user_id)->value('principal'));
+        $this->assertStringContainsString('says: loans 1 min 5000', implode("\n", \App\Services\TradeScripts::run($lender)));
+
+        // (its second run lent 1,000 more: the request was still open)
+        // Repaid with interest: the lender tops the board
+        DB::table('loans')->where('company_id', $id)->update(['due_t' => World::gameNow() - 1]);
+        Loans::settle();
+        $top = Loans::leaderboard()[0];
+        $this->assertSame(['Script Lender', 2000, 120, 6.0], [$top['name'], $top['lent'], $top['net'], $top['return_percent']]);
+        $this->get('/market/loans')->assertOk()->assertSee('id="lender-board"', false)->assertSee('Script Lender');
+    }
+
     public function testTheBoardAndTheApi()
     {
         $owner = $this->player('Board Owner');

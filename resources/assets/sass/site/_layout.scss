@@ -15,6 +15,8 @@
   .nav-actions { align-items: center; }
   .dropdown-menu { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); }
   .dropdown-divider { border-top-color: $line; }   // between a menu's groups (#843)
+  // The Play menu's steps on the path (#987)
+  .dropdown-header { color: #4cc9f0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding-top: 0.6rem; }
 
   @include media-breakpoint-down(md) {
     .navbar-collapse { padding: 0.5rem 0 1rem; }

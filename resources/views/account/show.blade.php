@@ -33,6 +33,8 @@
             @if(!session('digest'))
                 @include('partials.since-looked')
             @endif
+            {{-- Where you are on the path, and the next step (#987) --}}
+            @include('partials.pipeline')
             <h2 class="h4">{{ $account['name'] }}</h2>
             @if(!$account['verified'])
                 <div class="alert alert-warning" style="white-space: normal">
