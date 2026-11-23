@@ -734,6 +734,11 @@ Bool_t event_is_market_transaction(Action_t* action, Event_t *event, User_t* use
         action->drone_id,
         event->drone_id);
 
+    // A delivery on a contract (#928) moves goods but is no trade: the
+    // contract's escrow pays when it is settled
+    if(action->protocol_id == DELIVER_PROTOCOL_ID)
+        return ENGINE_FALSE;
+
     // Check if the drone that generated the action is different from the affected one
     // and both belong to different companies
     if(action->drone_id != event->drone_id) {
@@ -1495,7 +1500,9 @@ static Bool_t event_get_transfer_partner(Event_t *event, Event_t *partner)
     if(event_get_action(event->action_id, &action) != ENGINE_OK || action.aborted)
         return ENGINE_FALSE;
 
-    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID)
+    // (a delivery on a contract is a transfer too, #928)
+    if(action.protocol_id != PUSH_PROTOCOL_ID && action.protocol_id != PULL_PROTOCOL_ID &&
+       action.protocol_id != DELIVER_PROTOCOL_ID)
         return ENGINE_FALSE;
 
     if(db_get_pending_action_event(event->action_id, INCREMENT_INVENTORY_EVENT_TYPE,
@@ -1582,6 +1589,8 @@ static ErrorCode_t event_process_transfer(Event_t *event, Event_t *partner)
         // What was bought: the untouched copy, as the applied event now holds
         // the buyer's whole stock (#663)
         db_startup_record_buy(startup_buyer, &second, from_object);
+        // A delivery on a contract counts against it (#928)
+        db_contract_delivered(event->action_id, first.event_type == INCREMENT_INVENTORY_EVENT_TYPE ? &first : &second);
         return ENGINE_OK;
     }
 

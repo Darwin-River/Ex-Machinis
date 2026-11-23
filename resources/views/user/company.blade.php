@@ -582,6 +582,26 @@
                 @endif
             @endif
 
+            {{-- Contracts (#928): what it posted or took, without naming the other side --}}
+            @php($companyContracts = \App\Services\Contracts::ofCompany((int) $user->user_id))
+            @if(count($companyContracts))
+                @php($contractRecord = \App\Services\Contracts::record((int) $user->user_id))
+                <h2 id="contracts">Contracts</h2>
+                <p>As a seller it has kept {{ $contractRecord[0] }} and broken {{ $contractRecord[1] }}.</p>
+                <div class="table-custom-responsive">
+                    <table class="table-ticket" id="company-contracts">
+                        <tr><th></th><th>Good</th><th class="num">Units</th><th class="num">Delivered</th><th class="num">Price</th>
+                            <th class="num">Deposit</th><th>Due</th><th></th></tr>
+                        @foreach($companyContracts as $k)
+                            <tr><td>{{ $k['side'] === 'posted' ? 'Wants' : 'Delivers' }}</td><td>{{ $k['name'] }}</td>
+                                <td class="num">{{ number_format($k['units']) }}</td><td class="num">{{ number_format($k['delivered']) }}</td>
+                                <td class="num">{{ number_format($k['price']) }}</td><td class="num">{{ number_format($k['deposit']) }}</td>
+                                <td>{{ $k['due'] }}</td><td>{{ $k['outcome'] ?? ($k['taken'] ? 'taken' : 'open') }}</td></tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
+
             {{-- Its code and its revisions (#594): every drone of the company runs it --}}
             <div class="row row-30">
                 <div class="col">

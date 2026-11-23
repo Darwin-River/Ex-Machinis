@@ -144,7 +144,10 @@ class WindUp
             $now = World::gameNow();
             $count = max(1, PlayerShares::count($company));
             $credits = max(0, (int) $c->credits - (int) ($c->compute_debt ?? 0));
-            // Its lenders are paid first (#928)
+            // Its contracts settle now, as if due, and its lenders are paid first (#928)
+            Contracts::onEnding($company);
+            $credits = max(0, (int) DB::table('companies')->where('company_id', $company)->value('credits')
+                - (int) ($c->compute_debt ?? 0));
             $credits -= Loans::onEnding($company, $credits);
             $perShare = intdiv($credits, $count);
             // Each player's shares, paid out of the company's credits (#937: a

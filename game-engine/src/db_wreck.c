@@ -306,6 +306,24 @@ ErrorCode_t db_salvage(Event_t* event)
     return result;
 }
 
+void db_contract_delivered(int action_id, Event_t* increment)
+{
+    if(!increment || action_id <= 0)
+        return;
+    if(wr_value(0, "SELECT protocol FROM actions WHERE id = %d", action_id) != DELIVER_PROTOCOL_ID)
+        return;
+    long long units = llabs((long long)increment->new_quantity);
+    long long contract = wr_value(0,
+        "SELECT c.id FROM contracts c JOIN actions a ON a.id = %d JOIN agents s ON s.agent_id = a.drone "
+        "WHERE c.seller_company = s.company_id AND c.buyer_drone = %d AND c.resource = %d AND c.settled_t IS NULL "
+        "AND c.delivered < c.units ORDER BY c.pending_drone = a.drone DESC, c.id LIMIT 1",
+        action_id, increment->drone_id, increment->resource_id);
+    if(contract <= 0 || units <= 0)
+        return;
+    wr_exec("UPDATE contracts SET delivered = LEAST(units, delivered + %lld) WHERE id = %lld", units, contract);
+    ee_engine_trace(TRACE_LEVEL_ALWAYS, "Action [%d] delivered [%lld] units on contract [%lld]", action_id, units, contract);
+}
+
 int db_sales_tax_permille(void)
 {
     return (int)wr_value(0, "SELECT sales_tax_permille FROM house_rules WHERE id = 1");

@@ -95,6 +95,8 @@ class HomeController extends Controller
         \App\Services\Closures::settle();
         // Loans (#928): the code's cancels and repayments, and loans due
         \App\Services\Loans::settle();
+        // Contracts (#928): cancels, and contracts due or fully delivered
+        \App\Services\Contracts::settle();
         return response('ok');
     }
 
