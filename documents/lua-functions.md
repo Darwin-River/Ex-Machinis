@@ -18,7 +18,7 @@ Every function below is built in (`game-engine/src/lua_library.lua`). Actions re
 
 | Purpose | Functions |
 |---|---|
-| Places | `earth`, `moon`, `mars`, `phobos`, `deimos` |
+| Places | `earth`, `moon`, `mars`, `phobos`, `deimos`, `ceres` (Ceres Station, the frontier exchange) |
 | Resources | `fuel`, `magmite`, `kunspar`, `yalspar`, `vladnium`, `wolfite`; `metals_a1` to `metals_a3`, `alloys_a1` to `alloys_a3`, `organics_a1`, `organics_a2`, `inorganics_a1`, `inorganics_a2`, `rods`; `mining_kit`, `factory_kit`, `cruiser_kit`, `engine_module` (any other resource by its number) |
 | Moving | `travel(place)`, `go(place)` (stays put if already there; returns -2 at once, burning no fuel, with no Engine aboard, #743), `trip(place)` (game hours to fly there; -1 if unknown), `trip_to(place)` and `trip_between(a, b)` (`{distance, seconds, hours}`; distance in thousands of km) |
 | Places | `place_name(place)`, `place_type(place)`, `orbits(place)`, `orbiting(place)`, `position(place)` (`{x, y, z}`), `drones_at(place)`, `crowd(place)`, `wrecks_at(place)`, `minerals(place)` and `best_sites(mineral)` (`{resource, abundance}`, and the 10 best places `{place, abundance, units, distance, yield}`: best yield now first, then most left, then nearest), `deposits()` (`{resource, units, capacity, refill, miners, yield}`, here), `mine_yield(mineral, place)` (what a run would yield now, less at a crowded site, and the other drones that mined it there in the last game hour; here if no place) and `best_yield(mineral, places)` (the place of a list where a run yields most, and that yield) |
