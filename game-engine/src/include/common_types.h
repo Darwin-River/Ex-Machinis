@@ -608,6 +608,8 @@ typedef enum
 	OUTCOME_FLEET_CAP = -20,     // the company has as many working drones as it may (house_rules.fleet_cap, #682)
 	OUTCOME_STARTUP_NO_PAYOUT = -21, // a startup pays nothing out to shareholders (pay_out, #930)
 	OUTCOME_NOT_OWN_DRONE = -22, // push/pull by drone ID only to the company's own drones; another's order by its handle (#927)
+	OUTCOME_NOT_PUBLIC = -23,    // only a public company (more than one holder: its code locked) asks for loans (#928)
+	OUTCOME_OBLIGATIONS = -24,   // close_company: it still owes its lenders (#928)
 
 } Outcome_t;
 

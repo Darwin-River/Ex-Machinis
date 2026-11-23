@@ -553,6 +553,35 @@
                 </details>
             @endif
 
+            {{-- Loans (#928): what its code asked to borrow, and who lent (insider loans marked) --}}
+            @php($loanRequests = \App\Services\Loans::requests((int) $user->user_id))
+            @php($companyLoans = \App\Services\Loans::ofCompany((int) $user->user_id))
+            @if(count($loanRequests) || count($companyLoans))
+                <h2 id="loans">Loans</h2>
+                @if(\App\Services\Loans::inDefault((int) $user->user_id))
+                    <div class="health-banner" id="loan-default"><strong>In default:</strong> a loan came due and it couldn't repay in full.
+                        Every credit it receives goes to its lenders until they are paid, and its dividends stop meanwhile.</div>
+                @endif
+                @foreach($loanRequests as $r)
+                    <p class="loan-request">Its code asks to borrow <b>{{ number_format($r['amount']) }}</b> at {{ $r['rate'] }}%
+                        ({{ $r['per_year'] }}% a game year), due {{ $r['due'] }}: {{ number_format($r['left']) }} still to back.
+                        <a href="{{ url('market/loans') }}">Lend</a></p>
+                @endforeach
+                @if(count($companyLoans))
+                    <div class="table-custom-responsive">
+                        <table class="table-ticket" id="company-loans">
+                            <tr><th>Lender</th><th class="num">Lent</th><th class="num">Rate</th><th class="num">Owed</th><th>Due</th><th></th></tr>
+                            @foreach($companyLoans as $l)
+                                <tr><td>{{ $l['lender_name'] }}@if($l['insider']) <span class="badge" title="Its founder or one of its 5 biggest shareholders">insider</span>@endif</td>
+                                    <td class="num">{{ number_format($l['principal']) }}</td><td class="num">{{ $l['rate'] }}%</td>
+                                    <td class="num">{{ number_format($l['owed']) }}</td><td>{{ $l['due'] }}</td>
+                                    <td>{{ $l['closed'] ? 'repaid' : ($l['defaulted'] ? 'in default' : 'open') }}</td></tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endif
+            @endif
+
             {{-- Its code and its revisions (#594): every drone of the company runs it --}}
             <div class="row row-30">
                 <div class="col">

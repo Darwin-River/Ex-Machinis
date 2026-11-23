@@ -326,6 +326,8 @@ function launched()
   -- Paying out, written into the code (#930): a quarter of each day's
   -- profit as dividends, and 1 credit paid out now
   say("policy " .. set_dividend_share(0.25) .. " " .. pay_out(1))
+  -- Loans (#928): only a public company (more than one holder) asks to borrow
+  say("loan " .. request_loan(100, 5, 10))
   -- Sell a unit to the player's other company
   -- (another company's drone by its ID is refused: -22; its order by its handle goes through, #927)
   say("not-own " .. push(1, wolfite, $SISTER))
@@ -412,6 +414,7 @@ wait_for 60 "the drone set its dividend share and asked for a payout" replied $D
          from companies c join agents a on a.company_id = c.company_id where a.agent_id=$DRONE_ID")" = "250 1" ] ||
     fail "set_dividend_share or pay_out didn't reach the database"
 echo "ok: a company's code sets its dividend share and pays out (#930)"
+wait_for 30 "request_loan refuses a company that isn't public (-23: #928)" replied $DRONE_ID "loan -23"
 
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought

@@ -36,6 +36,8 @@ return [
     'new_rules' => (bool) env('FORGE_NEW_RULES', false),
     // A new player account's credits that can only buy shares (#636)
     'player_share_credits' => (int) env('FORGE_PLAYER_SHARE_CREDITS', 5000),
+    // Credits a player needs to back new loans (#928)
+    'lend_min_credits' => (int) env('FORGE_LEND_MIN_CREDITS', 5000),
     // For a trial without a mail service (#642): new accounts count as
     // verified at once and get their share credits. Turn it off, with mail
     // set up (hosting.md), before the game opens for real

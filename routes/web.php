@@ -79,6 +79,8 @@ Route::get('/market', 'WorldController@market');
 Route::get('/market/house', 'WorldController@house');
 Route::get('/market/history', 'WorldController@history');
 Route::get('/market/shares', 'WorldController@shares');
+// Loans (#928): public companies' loan requests, and backing them
+Route::get('/market/loans', 'LoanController@index');
 // The Trading desk (#779): watch list, a company's book as a ladder, an order ticket, your shares and your trading script
 Route::get('/market/trade', 'PlayerShareController@desk');
 // The order ticket's quote, for the page's script (#845): a visitor sees it too
@@ -131,6 +133,8 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/account/alerts/{id}/remove', 'AccountController@removeAlert')->whereNumber('id');
     Route::get('/notices/unsubscribe/{id}', 'AccountController@unsubscribe')->whereNumber('id')
         ->middleware('signed:relative')->name('notices.unsubscribe');
+    // Loans (#928)
+    Route::post('/loans/{id}/back', 'LoanController@back')->whereNumber('id');
     // Startups (#637)
     Route::post('/startups/claim', 'StartupController@claim');
     Route::post('/startups/{id}/push', 'StartupController@reprogram')->whereNumber('id');

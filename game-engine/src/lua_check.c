@@ -80,7 +80,8 @@ static lua_State *drone_like(const char *library)
     luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
     luaL_requiref(L, LUA_UTF8LIBNAME, luaopen_utf8, 1);
     lua_pop(L, 5);
-    const char *prims[] = { "print", "report", "perform", "query", "set_status", "set_dividend_share", "pay_out", "close_company", NULL };
+    const char *prims[] = { "print", "report", "perform", "query", "set_status", "set_dividend_share", "pay_out", "close_company",
+                            "request_loan", "cancel_request", "repay", NULL };
     for(int i = 0; prims[i]; i++) {
         lua_pushcfunction(L, noop);
         lua_setglobal(L, prims[i]);

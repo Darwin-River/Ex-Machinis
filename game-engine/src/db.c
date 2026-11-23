@@ -1155,6 +1155,85 @@ int db_request_payout(DbConnection_t* connection, int agent_id, long long amount
     return 0;
 }
 
+/* A row's first column as a number (dflt when none or on error) */
+static long long db_loan_value(DbConnection_t* connection, long long dflt, const char* query_text)
+{
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return dflt;
+    }
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    long long v = row && row[0] ? atoll(row[0]) : dflt;
+    if(res) mysql_free_result(res);
+    return v;
+}
+
+/** ****************************************************************************
+
+    @brief          request_loan(amount, rate, due_in) (#928): a public company
+                    (matured, its shares held by more than one holder, so its
+                    code is locked) asks to borrow amount at rate (simple
+                    interest for the whole loan, in hundredths of a percent)
+                    until due_in game days from now.
+
+    @return         the request's id, or a negative outcome code
+
+*******************************************************************************/
+long long db_request_loan(DbConnection_t* connection, int agent_id, long long amount, int rate_bp, long long due_in,
+                          long long game_t)
+{
+    if(amount < 1 || rate_bp < 0 || due_in < 1)
+        return OUTCOME_RESOURCES_LOWER_LIMIT;
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    // Public: matured, still trading, and not one holder of all its shares
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT IF(c.startup = 0 AND c.matured_t IS NOT NULL AND c.eliminated_at IS NULL AND IFNULL(c.house, 0) = 0 "
+        "AND c.owner_id IS NOT NULL AND (IFNULL((SELECT b.units FROM bank_shares b WHERE b.company_id = c.company_id), 0) > 0 "
+        "OR (SELECT COUNT(*) FROM player_shares p WHERE p.company_id = c.company_id AND p.units > 0) > 1), c.company_id, 0) "
+        "FROM companies c JOIN agents a ON a.company_id = c.company_id WHERE a.agent_id = %d", agent_id);
+    long long company = db_loan_value(connection, -1, query_text);
+    if(company < 0)
+        return OUTCOME_ACTION_ABORTED;
+    if(company == 0)
+        return OUTCOME_NOT_PUBLIC;
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO loan_requests (company_id, drone, amount, rate_bp, requested_t, due_t) "
+        "VALUES (%lld, %d, %lld, %d, %lld, %lld)", company, agent_id, amount, rate_bp, game_t, game_t + due_in * 86400);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    return (long long)mysql_insert_id(connection->hndl);
+}
+
+/** ****************************************************************************
+
+    @brief          cancel_request(id) and repay(id) (#928): recorded for the
+                    website's tick, which withdraws the request's unbacked part,
+                    or repays its loans early with the interest due so far.
+
+    @return         0, or OUTCOME_ACTION_ABORTED (no such request of its company)
+
+*******************************************************************************/
+int db_loan_action(DbConnection_t* connection, int agent_id, const char* kind, long long request_id, long long game_t)
+{
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO loan_actions (company_id, drone, kind, request_id, requested_t) "
+        "SELECT r.company_id, %d, '%s', r.id, %lld FROM loan_requests r JOIN agents a ON a.company_id = r.company_id "
+        "WHERE a.agent_id = %d AND r.id = %lld", agent_id, kind, game_t, agent_id, request_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    return mysql_affected_rows(connection->hndl) > 0 ? 0 : OUTCOME_ACTION_ABORTED;
+}
+
 /** ****************************************************************************
 
     @brief          Anonymous trading (#927): the drone a push or pull goes to.
@@ -1214,6 +1293,12 @@ int db_request_close(DbConnection_t* connection, int agent_id, long long game_t)
     if(db_reconnect(connection) != ENGINE_OK)
         return OUTCOME_ACTION_ABORTED;
     char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    // A company that owes its lenders can't close (#928): it repays first
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM loans l JOIN agents a ON a.company_id = l.company_id "
+        "WHERE a.agent_id = %d AND l.closed_t IS NULL", agent_id);
+    if(db_loan_value(connection, 0, query_text) > 0)
+        return OUTCOME_OBLIGATIONS;
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "INSERT INTO company_closures (company_id, drone, requested_t) "
         "SELECT c.company_id, %d, %lld FROM companies c JOIN agents a ON a.company_id = c.company_id "
