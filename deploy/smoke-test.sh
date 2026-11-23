@@ -163,6 +163,11 @@ wait_for 60 "the Moon has a House station drone" has_station 10
 wait_for 60 "Earth has a House station drone" has_station 3
 MOON_STATION=$(station_at 10)
 EARTH_STATION=$(station_at 3)
+# Anonymous trading (#927): drones name another company's order by its
+# handle, never its drone. handle <drone> <resource> <side: 4 sell, 5 buy>
+# works one out as the order books do (the test knows the drones; a drone
+# doesn't)
+handle() { sql "select 1000000000 + CONV(SUBSTRING(SHA2(CONCAT((select secret from order_handle_key where id = 1), ':', $1, ':', $2, ':', $3), 256), 1, 7), 16, 10)"; }
 
 # Thinking costs processor tax, not fuel (#544): a drone that only computes,
 # left 1 unit of fuel, keeps it and works on, and its company is billed in
@@ -252,6 +257,7 @@ sql "insert into companies (user_id, name, credits) values ($PLAYER_ID, 'Sister 
 SISTER_CO=$(sql "select max(company_id) from companies where user_id=$PLAYER_ID")
 sql "insert into agents (user_id, company_id, name, object_id, hull_type) values ($PLAYER_ID, $SISTER_CO, 'sister1', 10, 1)"
 SISTER=$(sql "select agent_id from agents where name='sister1'")
+SISTER_BUY=$(handle "$SISTER" 1130 5)
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, game_t)
      select 5, 0, 1, 1, $SISTER, 1130, 0, 0, 50, 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $SISTER"
 
@@ -274,12 +280,13 @@ end
 
 local function sq(n) return n * n end
 
--- Whether a drone has a buy order for a resource here
-local function bids(drone, resource)
+-- The planets' buy order for a resource here: its handle, or nil (#927:
+-- the order books name orders by handle, and mark the planets')
+local function planets_bid(resource)
   for _, o in ipairs(ask(600, resource)) do
-    if o[4] == drone then return true end
+    if o[5] == 1 then return o[4] end
   end
-  return false
+  return nil
 end
 
 -- The broadcast the released drone sends from Earth, once it is known here
@@ -320,7 +327,9 @@ function launched()
   -- profit as dividends, and 1 credit paid out now
   say("policy " .. set_dividend_share(0.25) .. " " .. pay_out(1))
   -- Sell a unit to the player's other company
-  say("sister " .. push(1, wolfite, $SISTER))
+  -- (another company's drone by its ID is refused: -22; its order by its handle goes through, #927)
+  say("not-own " .. push(1, wolfite, $SISTER))
+  say("sister " .. push(1, wolfite, $SISTER_BUY))
   -- Refining needs 18 wolfite (each mining run gives 5 here)
   for _ = 1, 4 do mine(wolfite) end
   say("refine " .. refine(wolfite))
@@ -332,8 +341,8 @@ function launched()
   hold_until(function() return credits() >= 70000 end)
   say("doubles " .. credits() .. " " .. 300 * 300)
   -- Sell a unit of metal to the Moon Depot's station drone
-  hold_until(function() return bids($MOON_STATION, metals_a1) end)
-  say("station " .. push(1, metals_a1, $MOON_STATION))
+  hold_until(function() return planets_bid(metals_a1) ~= nil end)
+  say("station " .. push(1, metals_a1, planets_bid(metals_a1)))
   -- Mine the deposit the test emptied; mine again once it refills
   local k = units(wolfite)
   local r = mine(wolfite)
@@ -404,6 +413,7 @@ echo "ok: a company's code sets its dividend share and pays out (#930)"
 sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 30 "the sale to the other company worked" replied $DRONE_ID "sister 0"
+wait_for 30 "a push to another company's drone by its ID is refused (-22: #927)" replied $DRONE_ID "not-own -22"
 
 # Refining needs 18 wolfite and the Mining Kit's Refinery (A1); each perform
 # waits for its action
@@ -656,13 +666,13 @@ local function say(text)
   report()
 end
 
--- Units of a resource the Earth Exchange's station drone offers (0 until
--- it posts its sell order)
+-- Units of a resource the planets (the Earth Exchange's station drone)
+-- offer here, and their order's handle (0 until it posts its sell order)
 local function station_offer(resource)
   for _, o in ipairs(ask(610, resource)) do
-    if o[4] == $EARTH_STATION then return math.max(o[3] - o[2], 0) end
+    if o[5] == 1 then return math.max(o[3] - o[2], 0), o[4] end
   end
-  return 0
+  return 0, 0
 end
 
 function launched()
@@ -674,14 +684,14 @@ function launched()
   say("broadcast " .. broadcast("smoke-hello"))
   -- Buy 10 fuel from the Earth Exchange's station drone
   while station_offer(fuel) < 10 do wait(60) end
-  say("fuel " .. pull(10, fuel, $EARTH_STATION))
+  say("fuel " .. pull(10, fuel, select(2, station_offer(fuel))))
   -- Ask it for one more unit of a good than it offers: refused (-5), and
   -- the fuel the try burned comes back
   for _, good in ipairs({inorganics_a1, organics_a1, metals_a1, metals_a2, alloys_a1}) do
-    local n = station_offer(good)
+    local n, h = station_offer(good)
     if n > 0 then
       local before = units(fuel)
-      local r = pull(n + 1, good, $EARTH_STATION)
+      local r = pull(n + 1, good, h)
       say("too-much " .. r .. " fuel " .. before .. " " .. units(fuel) .. " got " .. units(good))
       break
     end
@@ -698,6 +708,7 @@ LUA
 )
 release "Smoke Forge" "$FORGE_SCRIPT" factory
 FORGE_DRONE=$(company_drone "Smoke Forge")
+FORGE_SELL=$(handle "$FORGE_DRONE" 2061 4)   # its fuel sell order, as other drones name it (#927)
 [ -n "$FORGE_DRONE" ] || fail "release did not create a company and drone"
 # Credits instead of a kit (#506): this one asked for the Factory Kit, and
 # got 3,000 credits and no kit
@@ -802,16 +813,16 @@ wait_for 30 "a waiting drone still sells (the buyer pulls from it)" sold_waiting
 forge_waits || fail "the seller stopped waiting before its wait was up"
 [ "$(sql "select instructions from agents where agent_id=$FORGE_DRONE")" = "$BEFORE" ] || fail "a waiting drone ran instructions"
 echo "ok: a waiting drone runs no instructions"
-wait_for 60 "drone finished buying" replied $DRONE_ID "bought 0 from $FORGE_DRONE"
+wait_for 60 "drone finished buying (from the order's handle, not its drone: #927)" replied $DRONE_ID "bought 0 from $FORGE_SELL"
 # Back on the Moon, the first drone can't see Earth's live orders (query
 # 611 used to list orders anywhere); the seller, at Earth, saw its own
 sql "update agents set object_id = 10 where agent_id = $DRONE_ID"
 # (the Moon Depot's station drone sells fuel there: the seller's order at 1
 # a unit would be the cheapest, so the first row, if the drone saw it)
-blind_far() { replied $DRONE_ID "far:%:end" && ! replied $DRONE_ID "far:$FORGE_DRONE:end"; }
+blind_far() { replied $DRONE_ID "far:%:end" && ! replied $DRONE_ID "far:$FORGE_SELL:end"; }
 wait_for 60 "a drone on the Moon can't see Earth's live orders" blind_far
 wait_for 60 "drone finished its launched function" finished $DRONE_ID
-wait_for 60 "the seller saw its order at Earth and its wait ended" replied $FORGE_DRONE "sell-and-wait 0 $FORGE_DRONE 0"
+wait_for 60 "the seller saw its order at Earth and its wait ended" replied $FORGE_DRONE "sell-and-wait 0 $FORGE_SELL 0"
 wait_for 30 "the seller's launched function has finished" replied $FORGE_DRONE "has finished"
 
 # A released drone's code is on its company's page (#594), with a Copy

@@ -444,6 +444,21 @@ static int l_perform(lua_State* L)
         }
     }
 
+    /* Anonymous trading (#927): a push or pull goes to an order by its
+       handle, or to a drone of the company's own by its ID */
+    if((protocol_id == PUSH_PROTOCOL_ID || protocol_id == PULL_PROTOCOL_ID) && nstrings == 0 && depth >= 3)
+    {
+        vm_meter_charge(engine_get_query_instructions());
+        int to = db_trade_target(engine_get_db_connection(), engine_get_current_drone_id(), cells[depth - 1],
+                                 cells[depth - 2], protocol_id == PULL_PROTOCOL_ID ? SELL_EVENT_TYPE : BUY_EVENT_TYPE);
+        if(to < 0)
+        {
+            lua_pushinteger(L, to);
+            return 1;
+        }
+        cells[depth - 1] = to;
+    }
+
     VmExtension_t ext;
     memset(&ext, 0, sizeof(ext));
     ext.cells = cells;

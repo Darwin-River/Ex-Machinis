@@ -257,6 +257,12 @@ int db_request_payout(DbConnection_t* connection, int agent_id, long long amount
 /* close_company() (#925): records that the drone's company asks to end;
    the website's tick ends it. 0, or OUTCOME_ACTION_ABORTED */
 int db_request_close(DbConnection_t* connection, int agent_id, long long game_t);
+/* Anonymous trading (#927): the drone a push or pull goes to. An order
+   handle (>= ORDER_HANDLE_BASE) is turned into its order's drone where the
+   acting drone is (OUTCOME_NO_MARKET_ORDER when no such order is there); a
+   drone ID must be one of the acting drone's company (OUTCOME_NOT_OWN_DRONE).
+   side: SELL_ORDER (a pull) or BUY_ORDER (a push) event type */
+int db_trade_target(DbConnection_t* connection, int agent_id, int target, int resource, int side);
 
 /** Returns (malloc'd, "" when none) and clears a paused script's collected output. */
 char* db_take_agent_output(DbConnection_t* connection, int agent_id);

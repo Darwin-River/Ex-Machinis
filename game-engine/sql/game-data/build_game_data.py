@@ -884,6 +884,22 @@ def flying(drone):
 HERE_ = "(SELECT object_id FROM agents WHERE agent_id = [drone_id])"
 
 
+# Anonymous trading (#927): an order is named to drones by its handle, never
+# its drone: a keyed hash of the drone, resource and side (the key,
+# order_handle_key, is read only by the game's own SQL), above 1,000,000,000
+# so it is never a drone ID. The game engine turns a handle back into the
+# order's drone where the acting drone is (db_trade_target)
+def handle(drone, resource, side):
+    return ("(1000000000 + CONV(SUBSTRING(SHA2(CONCAT((SELECT k.secret FROM order_handle_key AS k WHERE k.id = 1), ':', "
+            f"{drone}, ':', {resource}, ':', {side}), 256), 1, 7), 16, 10))")
+
+
+# Is the drone one of the planets' (the House's station drones)?
+def planets(drone):
+    return (f"IFNULL((SELECT c.house FROM agents AS pa INNER JOIN companies AS c ON c.company_id = pa.company_id "
+            f"WHERE pa.agent_id = {drone}), 0)")
+
+
 def orders(event_type, local, resource='[value_1]', extra=''):
     # Sell orders (4) are open while stock is above the kept minimum; buy
     # orders (5) while stock is below the wanted maximum. latest_orders
@@ -916,12 +932,16 @@ def orders(event_type, local, resource='[value_1]', extra=''):
     # latest_orders.units counts installed and locked units too, and none of
     # what is on the way: round 55's books listed units that had just been
     # pulled, and the next buyers' pulls were refused (29,484 times)
-    return (f"SELECT d_price, quantity, units, drone FROM (SELECT o.price AS d_price, o.quantity, "
-            f"{movable('o.drone', 'o.resource', event_type)} AS units, o.drone "
+    # The order's handle in place of its drone, whether it is the planets',
+    # and whether it is the asking drone's own (#927)
+    return (f"SELECT d_price, quantity, units, {handle('drone', 'resource', event_type)} AS drone, planets, mine "
+            f"FROM (SELECT o.price AS d_price, o.quantity, "
+            f"{movable('o.drone', 'o.resource', event_type)} AS units, o.drone, o.resource, "
+            f"{planets('o.drone')} AS planets, IF(o.drone = [drone_id], 1, 0) AS mine "
             f"FROM latest_orders AS o FORCE INDEX ({index}) "
             f"WHERE o.resource = {resource} AND o.event_type = {event_type} AND {where}{here}{extra}) AS b "
             f"WHERE {'units > quantity' if event_type == 4 else 'units < quantity'} "
-            f"ORDER BY d_price {order}, drone;")
+            f"ORDER BY d_price {order}, b.drone;")
 
 
 def movable(drone, resource, event_type):
@@ -969,7 +989,12 @@ QUERY_SQL = {
     '802': (0, "SELECT id FROM events WHERE outcome = 1 ORDER BY game_t DESC, id DESC;"),
     '811': (1, "SELECT t.name FROM events AS e INNER JOIN event_types AS t ON t.id = e.event_type "
                "WHERE e.outcome = 1 AND e.id = [value_1];"),
-    '820': (1, "SELECT a.drone FROM events AS e INNER JOIN actions AS a ON a.id = e.action "
+    # Anonymous trading (#927): another company's drone that acted on a
+    # drone of a third reads as 0, so a trade doesn't say who was behind
+    # an order
+    '820': (1, "SELECT IF(a.drone = e.drone OR (SELECT company_id FROM agents WHERE agent_id = a.drone) = "
+               "(SELECT company_id FROM agents WHERE agent_id = [drone_id]), a.drone, 0) FROM events AS e "
+               "INNER JOIN actions AS a ON a.id = e.action "
                "WHERE e.outcome = 1 AND e.id = [value_1];"),
     '821': (1, "SELECT a.protocol FROM events AS e INNER JOIN actions AS a ON a.id = e.action "
                "WHERE e.outcome = 1 AND e.id = [value_1];"),
@@ -984,15 +1009,15 @@ QUERY_DESC = {  # for queries without a description in either spreadsheet
     '204': "Returns the total cargo mass in kg of spacecraft N.",
     '210': "Lists the resources and quantities in the cargo hold of spacecraft N.",
     '212': "Returns how many units of resource N are in the requesting spacecraft's cargo hold.",
-    '600': "Lists buy orders for resource N at the requesting spacecraft's location: price, wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.",
-    '601': "Lists buy orders for resource N anywhere in the solar system: price, wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.",
-    '610': "Lists sell orders for resource N at the requesting spacecraft's location: price, kept minimum, stock it holds free (less what is on its way out), spacecraft ID.",
-    '611': "Lists sell orders for resource N anywhere in the solar system: price, kept minimum, stock it holds free (less what is on its way out), spacecraft ID.",
+    '600': "Lists buy orders for resource N at the requesting spacecraft's location: price, wanted maximum, stock it holds free (plus what is on its way in), order handle (#927), planets (1: an order of the planets), mine (1: its own).",
+    '601': "Lists buy orders for resource N anywhere in the solar system: price, wanted maximum, stock it holds free (plus what is on its way in), order handle (#927), planets (1: an order of the planets), mine (1: its own).",
+    '610': "Lists sell orders for resource N at the requesting spacecraft's location: price, kept minimum, stock it holds free (less what is on its way out), order handle (#927), planets (1: an order of the planets), mine (1: its own).",
+    '611': "Lists sell orders for resource N anywhere in the solar system: price, kept minimum, stock it holds free (less what is on its way out), order handle (#927), planets (1: an order of the planets), mine (1: its own).",
     '800': "Lists the most recent events that affected spacecraft N.",
     '801': "Lists the most recent events at the requesting spacecraft's location.",
     '802': "Lists the most recent events anywhere in the solar system.",
     '811': "Returns the name of the type of event N.",
-    '820': "Returns the ID of the spacecraft whose action caused event N.",
+    '820': "Returns the ID of the spacecraft whose action caused event N (0 when another company's drone acted on a third's: #927).",
     '821': "Returns the ID of the protocol whose action caused event N.",
     '832': "Returns the ID of the resource affected by event N.",
     '840': "Returns the new quantity set by event N.",
@@ -1115,7 +1140,7 @@ queries.append((621, 'Solar market volume',
 # (its high cell is parameter 1, its low cell parameter 2); N is parameter 3
 queries.append((612, 'Solar sell orders up to a price',
                 '[N P R L 612 query]: Sell orders for resource N anywhere in the solar system at a price of at most P '
-                '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, free stock (less what is on its way out), drone.', 3,
+                '(a double, e.g. 7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, free stock (less what is on its way out), order handle (#927), planets, mine.', 3,
                 orders(4, False, resource='[value_3]', extra=' AND o.price <= [dvalue_1]')))
 
 # House drop stations (#324 step 10), placeholders to tune in step 20.
@@ -1673,10 +1698,9 @@ queries.append((707, 'House supply',
 # the station drone (a startup's buy_here, sell_here, best_offer and
 # best_bid deal only with these)
 queries.append((708, 'House only',
-                'Whether this drone\'s company is a startup (1: it trades only with the House), and each House station '
-                'drone where it is, one row each.', 0,
-                "SELECT c.startup, s.agent_id FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
-                "LEFT JOIN agents AS s ON s.object_id = me.object_id AND s.station_id IS NOT NULL AND s.wrecked_at IS NULL "
+                'Whether this drone\'s company is a startup (1: it trades only with the planets, whose orders the order '
+                'books mark: #927).', 0,
+                "SELECT c.startup FROM agents AS me INNER JOIN companies AS c ON c.company_id = me.company_id "
                 "WHERE me.agent_id = [drone_id];"))
 # #682: a company may have at most house_rules.fleet_cap working drones (0:
 # no cap; the House's companies are never capped). A launch past it is
@@ -1786,12 +1810,12 @@ local_queries = {
           "LEFT JOIN deposit_state AS s ON s.object_id = a.location AND s.resource = a.resource "
           "WHERE a.resource = [value_1] ORDER BY a.multiplier DESC, d_units DESC, d_distance, a.location LIMIT 10;"),
     601: ('List buy orders here', '[N R L 601 query]: Lists buy orders for resource N where the drone is (like 600): price, '
-          'wanted maximum, stock it holds free (plus what is on its way in), spacecraft ID.' + LOCAL_NOTE, 1, orders(5, True)),
+          'wanted maximum, stock it holds free (plus what is on its way in), order handle (#927: pass it to push), planets (1: an order of the planets), mine (1: its own).' + LOCAL_NOTE, 1, orders(5, True)),
     611: ('List sell orders here', '[N R L 611 query]: Lists sell orders for resource N where the drone is (like 610): price, '
-          'kept minimum, stock it holds free (less what is on its way out), spacecraft ID.' + LOCAL_NOTE, 1, orders(4, True)),
+          'kept minimum, stock it holds free (less what is on its way out), order handle (#927: pass it to pull), planets (1: an order of the planets), mine (1: its own).' + LOCAL_NOTE, 1, orders(4, True)),
     612: ('Sell orders here up to a price',
           '[N P R L 612 query]: Sell orders for resource N where the drone is at a price of at most P (a double, e.g. '
-          '7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, free stock (less what is on its way out), drone.', 3,
+          '7 10000 um* for 70,000), cheapest first: price (2 cells), kept minimum, free stock (less what is on its way out), order handle (#927), planets, mine.', 3,
           orders(4, True, resource='[value_3]', extra=' AND o.price <= [dvalue_1]')),
     621: ('Solar market volume, an hour old',
           '[N H R L 621 query]: Units of resource N traded anywhere in the solar system in the H game hours up to one '
@@ -1893,7 +1917,8 @@ def holding_asof(drone, resource, t):
 # ago: what the board would have shown an hour ago, near enough. An order
 # changed within the hour elsewhere is left out until it is an hour old.
 ASOF = ("SELECT o.place, IF(o.event_type = 5, 1, 2) AS side, o.price, ABS(o.units - o.quantity) AS units, "
-        f"o.drone, IF(o.place = me.object_id, 0, 1) AS hours_old "
+        f"{handle('o.drone', 'o.resource', 'o.event_type')} AS drone, IF(o.place = me.object_id, 0, 1) AS hours_old, "
+        f"{planets('o.drone')} AS planets, IF(o.drone = me.agent_id, 1, 0) AS mine "
         "FROM latest_orders AS o FORCE INDEX (latest_orders_open) "
         "INNER JOIN agents AS me ON me.agent_id = [drone_id] "
         "INNER JOIN agents AS a ON a.agent_id = o.drone AND a.wrecked_at IS NULL "
@@ -1906,7 +1931,8 @@ ASOF = ("SELECT o.place, IF(o.event_type = 5, 1, 2) AS side, o.price, ABS(o.unit
         "ORDER BY o.place, side, o.price;")
 queries.append((615, 'Orders everywhere',
                 '[N R L 615 query]: Every exchange\'s orders for resource N: live where the drone is, an hour old '
-                'elsewhere. Rows: place, side (1 buy, 2 sell), price, units on offer or wanted, drone, hours old.', 1,
+                'elsewhere. Rows: place, side (1 buy, 2 sell), price, units on offer or wanted, order handle (#927), hours old, '
+                'planets (1: the planets\' order), mine (1: this drone\'s own).', 1,
                 ASOF))
 # The drone's company's trades over the last H game hours, by resource:
 # credits from sales, units sold, sales tax paid, credits paid for
@@ -1928,10 +1954,17 @@ queries.append((655, 'My company\'s trades',
                 "GROUP BY t.resource ORDER BY t.resource;"))
 # Everything about an event in one row (810 to 844 ask one column each)
 queries.append((845, 'Event details',
-                '[N R L 845 query]: Event N in one row: type, type name, acting drone, protocol, affected drone, '
+                '[N R L 845 query]: Event N in one row: type, type name, acting drone, protocol, affected drone (when one company\'s '
+                'drone acts on another company\'s, each shows only to its own company, 0 otherwise: #927), '
                 'resource, new quantity, new credits, new location, place, game day, seconds into it, message (your company\'s only).', 1,
-                "SELECT e.event_type AS type, t.name AS type_name, IFNULL(x.drone, 0) AS acting, "
-                "IFNULL(x.protocol, 0) AS protocol, e.drone AS affected, e.resource, e.new_quantity AS quantity, "
+                # Anonymous trading (#927): when one company's drone acts on
+                # another's (a trade), each side shows only to its own company: 0 otherwise
+                "SELECT e.event_type AS type, t.name AS type_name, "
+                f"IF(x.drone IS NULL, 0, IF(x.drone = e.drone OR (SELECT company_id FROM agents WHERE agent_id = x.drone) = {MY_CO}, "
+                "x.drone, 0)) AS acting, "
+                "IFNULL(x.protocol, 0) AS protocol, "
+                f"IF(x.drone IS NULL OR x.drone = e.drone OR (SELECT company_id FROM agents WHERE agent_id = e.drone) = {MY_CO}, "
+                "e.drone, 0) AS affected, e.resource, e.new_quantity AS quantity, "
                 "e.new_credits AS credits, e.new_location AS location, e.place, "
                 "FLOOR((e.game_t - g.epoch) / 86400) AS day, MOD(e.game_t - g.epoch, 86400) AS seconds, "
                 "(SELECT b.body FROM broadcasts AS b WHERE b.action_id = e.action AND e.event_type = 13 "
