@@ -394,9 +394,9 @@ class PlayerShares
                 if (Ownership::buyProblem($buyer, $company, $n) !== null) {
                     continue;
                 }
-                $done = DB::transaction(function () use ($o, $buyer, $company, $n) {
+                $done = DB::transaction(function () use ($o, $buyer, $company, $n, $closeOut) {
                     $at = (int) $o->price;
-                    if (!self::charge($buyer, $n * $at, $at, $at)) {
+                    if (!self::charge($buyer, $n * $at, $at, $closeOut)) {   // starting credits only at or below close-out
                         DB::table('player_share_orders')->where('id', $o->id)->delete();   // it can't pay: its order goes
                         return 0;
                     }

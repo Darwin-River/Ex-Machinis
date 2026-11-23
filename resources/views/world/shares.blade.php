@@ -49,10 +49,8 @@
                 {{-- The new rules (#666): matured companies' shares, traded by players and the bank --}}
                 <h3>Players' shares</h3>
                 <div style="white-space: normal; margin-bottom: 1em">Each matured company starts with {{ \App\Services\PlayerShares::COUNT }}
-                    shares, and its owner may offer {{ \App\Services\PlayerShares::OFFER_UNITS }} new ones at a time at its cash-out value, to
-                    fund its growth, up to {{ \App\Services\PlayerShares::MAX_COUNT }}. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
-                    lower of that value and the value then) and sells the ones it holds at its selling price; players trade between
-                    the range's prices. Trade on the <a href="{{ url('market/trade') }}">Trading desk</a>, on a company's page, or through the API.
+                    shares. The bank buys them at their cash-out value (paid {{ config('forge.bank_pay_days') }} game days later at the
+                    lower of that value and the value then) and sells the ones it holds at the same price, or into players' bids above it, at the bid; players trade at any price they agree. Trade on the <a href="{{ url('market/trade') }}">Trading desk</a>, on a company's page, or through the API.
                     <span class="text-muted">As of {{ \App\Services\DronePage::when($asOf ?? \App\Services\World::gameNow()) }} ({{ \App\Services\Dashboard::agoText($asOf ?? null) }}); worked out again every few real minutes.</span></div>
                 @php($stale = \App\Services\Dashboard::staleNote($asOf ?? null))
                 @if($stale)<div class="econ-banner econ-warn" id="shares-stale" role="status">{{ $stale }}</div>@endif
@@ -101,7 +99,7 @@
                     <button type="button" class="button button-secondary share-show-all"
                         onclick="document.getElementById('player-share-market').classList.add('show-all'); this.remove()">Show all {{ count($playerMarket) }} companies</button>
                 @endif
-                <p class="ex-src">Cash-out is what the bank pays for a share; its selling price adds the share's dividends over the last {{ \App\Services\PlayerShares::premiumDays() }} game days.
+                <p class="ex-src">Cash-out is what the bank pays for a share; it sells at the same price, and into players' bids above it, at the bid (#928).
                     Yield is those dividends over the last 30 game days against cash-out. The last price is the last trade between two players
                     (the bank's trades are at its own prices); its premium or discount against today's cash-out is shown only for a trade in the last
                     {{ \App\Http\Controllers\WorldController::PREMIUM_DAYS }} game days.

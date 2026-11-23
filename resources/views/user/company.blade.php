@@ -371,7 +371,7 @@
                         <button class="button button-secondary button-sm mb-2" type="submit">Post the order</button>
                     </form>
                     <p><small class="text-muted">A pegged order's price follows the bank's price, plus or minus the percent you give,
-                        within the range players trade in, and is moved every few real minutes as it changes.</small></p>
+                        and is moved every few real minutes as it changes.</small></p>
                     <form method="POST" action="{{ url('companies/' . $user->user_id . '/bank/sell') }}" class="form-inline mb-2">
                         {{ csrf_field() }}
                         <label class="mr-2" for="bank-sell">Sell to the bank:</label>

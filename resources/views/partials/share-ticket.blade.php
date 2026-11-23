@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
             at = Math.max(P.low, Math.min(P.high, at));
         } else if (!Number.isInteger(at) || at < P.low || at > P.high) {
             say.classList.add('st-bad');
-            say.textContent = `Refused: players trade between ${n(P.low)} and ${n(P.high)} a share now.`;
+            say.textContent = `Refused: a price is from ${n(P.low)} to ${n(P.high)} a share.`;
             return;
         }
         const q = await quote({side, units, limit: at, book: 1});

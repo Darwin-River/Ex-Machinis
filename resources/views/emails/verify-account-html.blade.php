@@ -16,7 +16,7 @@
     <title>Verify your Ex Machinis account</title>
 </head>
 <body style="margin:0; padding:0; background-color:#0b0f1a;">
-<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">Open the link within two days to verify your account and get your {{ $credits }} credits for buying shares.</div>
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">Open the link within two days to verify your account@if(config('forge.player_share_credits') > 0) and get your {{ $credits }} credits for buying shares@endif.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0b0f1a;">
     <tr>
         <td align="center" style="padding:32px 16px;">
@@ -30,7 +30,7 @@
                     <td style="padding:32px 32px 8px; font-family:{!! $font !!}; color:#e6e9f2;">
                         <h1 style="margin:0 0 16px; font-size:24px; line-height:1.3; font-weight:700; color:#ffffff;">Verify your account</h1>
                         <p style="margin:0 0 16px; font-size:16px; line-height:1.6;">Hello {{ $name }},</p>
-                        <p style="margin:0 0 24px; font-size:16px; line-height:1.6;">Confirm this is your e-mail address to finish making your Ex Machinis account. Verifying brings your account its <strong style="color:#ffb547;">{{ $credits }} credits</strong> for buying shares.</p>
+                        <p style="margin:0 0 24px; font-size:16px; line-height:1.6;">Confirm this is your e-mail address to finish making your Ex Machinis account. @if(config('forge.player_share_credits') > 0)Verifying brings your account its <strong style="color:#ffb547;">{{ $credits }} credits</strong> for buying shares.@else Verifying lets you mature startups and trade shares.@endif</p>
                     </td>
                 </tr>
                 <tr>

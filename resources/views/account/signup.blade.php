@@ -7,8 +7,8 @@
         <div class="container">
             @include('_flash_message')
             <p>An account is a name, a password and an e-mail address: one account per address. We send a link to the
-                address; opening it verifies your account and brings it
-                {{ number_format(config('forge.player_share_credits')) }} credits for buying shares in companies. Your
+                address; opening it verifies your account@if(config('forge.player_share_credits') > 0) and brings it
+                {{ number_format(config('forge.player_share_credits')) }} credits for buying shares in companies@endif. Your
                 account gathers everything your companies and shares earn you.</p>
             <p><b>Don't use your real name.</b> Your account's name is public: it shows on the leaderboards. Your e-mail
                 address is private: only you see it. We use it to verify your account and to send the notices you choose on your
