@@ -404,8 +404,11 @@ wait_for 30 "the refining worked" replied $DRONE_ID "refine 0"
 # days), then it launches a drone with a copy of its own program and
 # variables: the new drone runs launched() too, and finds itself a clone
 give $DRONE_ID 6001 1 224
-wait_for 10 "drone got a ship kit" has 6001
 launched() { [ -n "$(sql "select agent_id from agents where user_id=(select user_id from agents where agent_id=$DRONE_ID) and hull_type=6001 and lua_script is not null")" ]; }
+# The drone launches as soon as it has the kit, so it may already be used
+# up by the time we look (#955)
+got_kit() { has 6001 || launched; }
+wait_for 10 "drone got a ship kit" got_kit
 wait_for 120 "drone launched a Mining Cruiser" launched
 NEW=$(sql "select name from agents where hull_type=6001 order by agent_id desc limit 1")
 NEW_ID=$(sql "select agent_id from agents where name='$NEW'")
