@@ -59,6 +59,20 @@
                     </div>
                 @endif
             @endif
+            <h3 class="mt-4" id="lenders">The best lenders</h3>
+            <p>What lending has earned each player over the loans that have closed: the interest on loans repaid, less what defaults cost.</p>
+            <div class="table-custom-responsive">
+                <table class="table-ticket" id="lender-board">
+                    <tr><th>Lender</th><th class="num">Lent</th><th class="num">Earned</th><th class="num">Return</th><th class="num">Loans</th><th class="num">Defaults</th></tr>
+                    @forelse($lenders as $l)
+                        <tr><td>{{ $l['name'] }}</td><td class="num">{{ number_format($l['lent']) }}</td><td class="num">{{ number_format($l['net']) }}</td>
+                            <td class="num">{{ $l['return_percent'] === null ? '' : $l['return_percent'] . '%' }}</td>
+                            <td class="num">{{ $l['loans'] }}</td><td class="num">{{ $l['defaults'] }}</td></tr>
+                    @empty
+                        <tr><td colspan="6">No loan has closed yet.</td></tr>
+                    @endforelse
+                </table>
+            </div>
             <p class="ex-src">Data: <code>GET /api/v1/loans</code>, <code>POST /api/v1/loans/{id}/back</code>, <code>GET /api/v1/account/loans</code></p>
         </div>
     </section>
