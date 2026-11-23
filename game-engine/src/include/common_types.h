@@ -145,6 +145,7 @@
 // Protocols that move goods between drones (decrement here, increment there)
 // An order handle (#927): above this, never a drone ID
 #define ORDER_HANDLE_BASE 1000000000
+#define DELIVER_PROTOCOL_ID 37   // deliver(id, n) on a contract: goods move, but it is not a market trade (#928)
 #define PUSH_PROTOCOL_ID 10
 #define PULL_PROTOCOL_ID 11
 

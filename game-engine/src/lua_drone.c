@@ -416,6 +416,64 @@ static int l_repay(lua_State* L)
     return 1;
 }
 
+/* Contracts (#928). post_contract(resource, units, price, due_in, deposit):
+   its id, or a code */
+static int l_post_contract(lua_State* L)
+{
+    lua_Integer r = luaL_checkinteger(L, 1), units = luaL_checkinteger(L, 2), price = luaL_checkinteger(L, 3);
+    lua_Integer due_in = luaL_checkinteger(L, 4), deposit = luaL_optinteger(L, 5, 0);
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_post_contract(engine_get_db_connection(), engine_get_current_drone_id(), (int)r, (long long)units,
+                                        (long long)price, (long long)due_in, (long long)deposit, game_time_now_seconds()));
+    return 1;
+}
+
+/* take_contract(id): 0, or a code */
+static int l_take_contract(lua_State* L)
+{
+    lua_Integer id = luaL_checkinteger(L, 1);
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_take_contract(engine_get_db_connection(), engine_get_current_drone_id(), (long long)id,
+                                        game_time_now_seconds()));
+    return 1;
+}
+
+/* cancel_contract(id): 0, or a code */
+static int l_cancel_contract(lua_State* L)
+{
+    lua_Integer id = luaL_checkinteger(L, 1);
+    vm_meter_charge(engine_get_query_instructions());
+    lua_pushinteger(L, db_cancel_contract(engine_get_db_connection(), engine_get_current_drone_id(), (long long)id,
+                                          game_time_now_seconds()));
+    return 1;
+}
+
+/* deliver(id, n): moves n units to the contract's buyer drone, which the
+   engine names, as an action like push (protocol 37, which only this may
+   perform). 0 when delivered, else a code */
+static int deliver_allowed = 0;
+static int l_perform(lua_State* L);
+static int l_deliver(lua_State* L)
+{
+    lua_Integer id = luaL_checkinteger(L, 1), n = luaL_checkinteger(L, 2);
+    vm_meter_charge(engine_get_query_instructions());
+    int resource = 0;
+    int target = db_deliver_target(engine_get_db_connection(), engine_get_current_drone_id(), (long long)id, (long long)n,
+                                   &resource, game_time_now_seconds());
+    if(target < 0)
+    {
+        lua_pushinteger(L, target);
+        return 1;
+    }
+    lua_settop(L, 0);
+    lua_pushinteger(L, DELIVER_PROTOCOL_ID);
+    lua_pushinteger(L, n);
+    lua_pushinteger(L, resource);
+    lua_pushinteger(L, target);
+    deliver_allowed = 1;
+    return l_perform(L);
+}
+
 /* close_company() (#925): the kill switch. Asks for the company to end;
    the website ends it within a real minute. Returns 0, or a failure code */
 static int l_close_company(lua_State* L)
@@ -434,6 +492,16 @@ static int l_perform(lua_State* L)
 {
     int nargs = lua_gettop(L);
     int protocol_id = (int)luaL_checkinteger(L, 1);
+    /* A delivery on a contract only through deliver(id, n) (#928) */
+    if(protocol_id == DELIVER_PROTOCOL_ID)
+    {
+        if(!deliver_allowed)
+        {
+            lua_pushinteger(L, PERFORM_REFUSED);
+            return 1;
+        }
+        deliver_allowed = 0;
+    }
     int cells[MAX_PERFORM_CELLS];
     const char* strings[MAX_PERFORM_STRINGS];
     int nstrings = 0, depth = 0;
@@ -838,6 +906,8 @@ static void lua_drone_sandbox(lua_State* L)
         { "set_dividend_share", l_set_dividend_share }, { "pay_out", l_pay_out },
         { "close_company", l_close_company },
         { "request_loan", l_request_loan }, { "cancel_request", l_cancel_request }, { "repay", l_repay },
+        { "post_contract", l_post_contract }, { "take_contract", l_take_contract }, { "deliver", l_deliver },
+        { "cancel_contract", l_cancel_contract },
         { NULL, NULL } };
     for(int i = 0; prims[i].name; i++)
     {

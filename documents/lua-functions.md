@@ -236,7 +236,7 @@ if credits() > 50000 then pay_out(10000) end     -- and some spare credits now
 
 If the company can't repay in full on the due date, what it has (its credits less the processor tax it owes) goes to the lenders of the loans due, in proportion to what each is owed, the loans are marked defaulted, and every credit it receives after that goes to them on each tick until they are paid. Meanwhile its dividends and `pay_out` pay nothing, and its page says it is in default. When one player comes to hold every share (#924), its loans fall due at once and its open requests are withdrawn; when it is wound up or closed, its lenders are paid before its shareholders.
 
-**`obligations()`** (library, query 712): what the company owes or has asked for, one record each: `{kind, id, credits, rate, due_in}`, where `kind` is `"loan"` (the loans backed on a request: `credits` still owed) or `"request"` (a request not yet fully backed: `credits` still to back), `id` the request's id, `rate` in percent, and `due_in` the game days until it is due (0 or less: due now).
+**`obligations()`** (library, query 712): what the company owes or has asked for, one record each: `{kind, id, credits, rate, due_in}`, where `kind` is `"loan"` (the loans backed on a request: `credits` still owed), `"request"` (a request not yet fully backed: `credits` still to back), `"posted"` (a contract it posted: `credits` still in escrow, `rate` 0) or `"taken"` (a contract it took: `credits` its deposit at stake, `rate` 0), `id` the request's or contract's id, `rate` in percent, and `due_in` the game days until it is due (0 or less: due now).
 
 ```lua
 -- Ask for 20,000 credits at 5% for 30 game days, when nothing is open
@@ -250,7 +250,34 @@ for _, o in ipairs(obligations()) do
 end
 ```
 
-**`close_company()`** (built in, #925): the kill switch. Asks for the drone's company to end; the website's tick ends it within about a real minute. A startup closes as before (its debt cancelled, its credits back to the bank, its drones empty wrecks nobody can plunder); a matured company shares its credits among its shareholders by their shares (the bank's part leaves the game), its share orders are withdrawn, and its drones become wrecks with what they hold, for plunderers. Returns 0 when asked (and 0, changing nothing, when asked again while it is pending); -24 while the company still owes its lenders (#928: it repays them first, with `repay`); -9 when the drone has no live company of its own to close, or it is a House company. Costs as much as a query. A company ends only this way, or by going broke, winding up or losing all its drones: the Close button on the page of a company its player owns outright pushes code that calls it, and a public company's own locked code is the only thing that can close it.
+### Contracts (#928)
+
+A contract is a buy order between companies with a due date: one company asks for goods delivered where its drone is, pays for all of them into escrow when it posts, and the company that takes it promises to deliver them in time, putting up a deposit. Only companies that aren't startups (matured ones, and those from before the new rules) and are still trading post or take them, never the House's: a startup trades only with the planets, and gets -16. Each word below costs as much as a query.
+
+**`post_contract(resource, units, price, due_in, deposit)`** (built in): asks for `units` of `resource` at `price` credits a unit, delivered where this drone is, within `due_in` game days, and asks `deposit` credits (0 if left out) of whoever takes it. The price of all of it (`units × price`) leaves the company's credits at once and is held in escrow. Returns the contract's id; -5 when `units`, `price` or `due_in` is under 1 or `deposit` is negative; -16 for a startup or the House; -4 when the company can't pay the escrow.
+
+**`take_contract(id)`** (built in): takes an open contract another company posted that nobody has taken yet, before its due date, putting up its deposit from the company's credits; from then on only this company may fill it. Returns 0; -16 for a startup or the House; -4 when the company can't pay the deposit; -9 when there is no such open contract, it is the company's own, or another company took it first.
+
+**`deliver(id, n)`** (built in): this drone, where the contract is delivered, moves `n` units of its good to the buyer's drone. The engine names the buyer drone itself, so the seller never learns which it is. It is an action like `push` (protocol 37: it burns 1 fuel and takes a game minute), but **not a market trade**: no order, no credits change hands then, and no sales tax; the escrow pays when the contract is settled. Returns 0 when delivered; -9 when the contract isn't an open one its company took, or it is already due; -1 when the drone isn't where it is delivered; -6 when `n` is more than is still to deliver; -5 when `n` is under 1; or whatever the transfer itself returns (-2 when the drone doesn't hold them, for one). `perform(37, ...)` called directly is refused with -12: only `deliver` performs it.
+
+**`cancel_contract(id)`** (built in): the buyer withdraws a contract nobody has taken (its escrow comes back), or the taker gives up one it took (settled as if it were due now). Returns 0 when recorded (the website settles it within a real minute) or -9 when the company has no such open contract it may cancel.
+
+**`contracts(resource)`** (library, query 713): the open contracts for a resource where the drone is that nobody has taken yet, best price first: `{id, units, price, due_in, deposit, kept, broken}`. They are anonymous: `kept` and `broken` are how many contracts the poster has kept and broken as a seller, never its name.
+
+**Settling.** The website's tick settles a contract on its due date, or as soon as all of it is delivered: the units delivered are paid to the seller from the escrow; for what wasn't delivered, the buyer gets its escrow back and that share of the seller's deposit; the seller gets back the rest of its deposit. A contract is `kept` (all delivered), `broken` (part or none), `expired` (nobody took it by its due date: the escrow comes back) or `cancelled`. When a company ends (wound up, closed, broke, or without drones), its contracts are settled at once, as if due. Escrows and deposits are credits held, not lost. A company's page lists its contracts, without naming the other side, and its record as a seller.
+
+```lua
+-- A seller: take the first contract here it can fill, then deliver
+local good = metals_a1               -- change to the good you hold
+for _, c in ipairs(contracts(good)) do
+  if units(good) >= c.units and c.broken == 0 and take_contract(c.id) == 0 then
+    deliver(c.id, c.units)
+    break
+  end
+end
+```
+
+**`close_company()`** (built in, #925): the kill switch. Asks for the drone's company to end; the website's tick ends it within about a real minute. A startup closes as before (its debt cancelled, its credits back to the bank, its drones empty wrecks nobody can plunder); a matured company shares its credits among its shareholders by their shares (the bank's part leaves the game), its share orders are withdrawn, and its drones become wrecks with what they hold, for plunderers. Returns 0 when asked (and 0, changing nothing, when asked again while it is pending); -24 while the company still owes its lenders (#928: it repays them first, with `repay`) or has any open contract, posted or taken (it cancels or settles them first); -9 when the drone has no live company of its own to close, or it is a House company. Costs as much as a query. A company ends only this way, or by going broke, winding up or losing all its drones: the Close button on the page of a company its player owns outright pushes code that calls it, and a public company's own locked code is the only thing that can close it.
 
 ```lua
 function launched()

@@ -263,6 +263,14 @@ int db_request_close(DbConnection_t* connection, int agent_id, long long game_t)
 long long db_request_loan(DbConnection_t* connection, int agent_id, long long amount, int rate_bp, long long due_in,
                           long long game_t);
 int db_loan_action(DbConnection_t* connection, int agent_id, const char* kind, long long request_id, long long game_t);
+/* Contracts (#928): post (its id, or a negative code), take (0 or a code),
+   the buyer drone a delivery goes to (or a code; *resource set), and a
+   cancel recorded for the website (0 or a code) */
+long long db_post_contract(DbConnection_t* connection, int agent_id, int resource, long long units, long long price,
+                           long long due_in, long long deposit, long long game_t);
+int db_take_contract(DbConnection_t* connection, int agent_id, long long id, long long game_t);
+int db_deliver_target(DbConnection_t* connection, int agent_id, long long id, long long units, int* resource, long long game_t);
+int db_cancel_contract(DbConnection_t* connection, int agent_id, long long id, long long game_t);
 /* Anonymous trading (#927): the drone a push or pull goes to. An order
    handle (>= ORDER_HANDLE_BASE) is turned into its order's drone where the
    acting drone is (OUTCOME_NO_MARKET_ORDER when no such order is there); a

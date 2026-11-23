@@ -19,6 +19,11 @@ ErrorCode_t db_plunder(Event_t* event);
 /* A drone salvages a wreck (#929): one of its modules, or some scrap from its hull */
 ErrorCode_t db_salvage(Event_t* event);
 
+/* A delivery on a contract (#928): when the action is protocol 37, its
+   units count against the oldest open contract its company took for this
+   buyer drone and resource */
+void db_contract_delivered(int action_id, Event_t* increment);
+
 /** The sales tax rate (#380), in thousandths of a sale: house_rules.sales_tax_permille */
 int db_sales_tax_permille(void);
 

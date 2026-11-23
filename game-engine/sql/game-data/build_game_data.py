@@ -579,6 +579,17 @@ for old, new, verb in (('7', '17', 'sell'), ('8', '18', 'buy')):
     DOUBLE_PARAMS[new] = 1 << 2
     add_effects(new, [dict(e) for q, e in effects if q == int(old) and e['resource'] != FUEL])
 
+# Contracts (#928): deliver(id, n) moves goods to the buyer's drone as a
+# push does (37, the same effects), but it is not a market trade: the
+# contract's escrow pays. The game engine runs it only for deliver, which
+# names the contract's buyer drone itself (lua_drone.c)
+DELIVER_PROTOCOL = '37'
+protocols[DELIVER_PROTOCOL] = [DELIVER_PROTOCOL, 'Deliver on contract', protocols['10'][2], protocols['10'][3],
+                               '[N R D 37 perform]: Delivers N units of R on a contract (deliver(id, n) only: the drone D '
+                               'is the contract\'s buyer, which the engine names). Paid from the contract\'s escrow when it is '
+                               'settled, not as a trade.', protocols['10'][5], protocols['10'][6], protocols['10'][7]]
+add_effects(DELIVER_PROTOCOL, [dict(e) for q, e in effects if q == 10 and e['resource'] != FUEL])
+
 # House stations (#324 step 10; #380): until #380 a drone offered goods to
 # the House station where it was (31) or ordered them from it (32), and the
 # hour's batch cleared them (event types 9 and 10; db_station.c clears what
@@ -1803,15 +1814,29 @@ queries.append((708, 'House only',
 # Loans (#928): what the drone's company owes its lenders, by request, and
 # the requests not yet fully backed
 queries.append((712, 'My obligations',
-                'What this drone\'s company owes or has asked for (#928), one row each: kind (1 a loan, owed by request; '
-                '2 a request not yet fully backed), request id, credits (owed, or still to back), rate (hundredths of a '
+                'What its company owes (#928): kind (1 loan, 2 open request, 3 contract it posted, 4 contract it took), id, credits (owed, or still to back), rate (hundredths of a '
                 'percent, for the whole loan), game days until due (0 or less: due now).', 0,
                 "SELECT 1 AS kind, l.request_id, SUM(l.owed - l.repaid) AS credits, MAX(l.rate_bp) AS rate, "
                 "CEIL((MAX(l.due_t) - [game_now]) / 86400) AS due_in FROM loans AS l "
                 f"WHERE l.company_id = {MY_CO} AND l.closed_t IS NULL GROUP BY l.request_id "
                 "UNION ALL SELECT 2, r.id, r.amount - r.backed, r.rate_bp, CEIL((r.due_t - [game_now]) / 86400) "
                 f"FROM loan_requests AS r WHERE r.company_id = {MY_CO} AND r.cancelled_t IS NULL AND r.backed < r.amount "
-                "AND r.due_t > [game_now] ORDER BY 1, 2;"))
+                "AND r.due_t > [game_now] "
+                # Contracts (#928): 3 one it posted (credits in escrow), 4 one it took (its deposit at stake)
+                "UNION ALL SELECT 3, c.id, c.escrow, 0, CEIL((c.due_t - [game_now]) / 86400) FROM contracts AS c "
+                f"WHERE c.buyer_company = {MY_CO} AND c.settled_t IS NULL "
+                "UNION ALL SELECT 4, c.id, c.deposit_held, 0, CEIL((c.due_t - [game_now]) / 86400) FROM contracts AS c "
+                f"WHERE c.seller_company = {MY_CO} AND c.settled_t IS NULL ORDER BY 1, 2;"))
+# Contracts (#928): the open contracts where the drone is, for a resource,
+# anonymous: the poster's record as a seller in place of its name
+queries.append((713, 'Contracts here',
+                '[N R L 713 query]: Open contracts for resource N where the drone is, nobody has taken yet (#928): id, units, '
+                'price a unit, game days until due, deposit, contracts its poster has kept and broken as a seller.', 1,
+                "SELECT c.id, c.units, c.price, CEIL((c.due_t - [game_now]) / 86400) AS due_in, c.deposit, "
+                "(SELECT COUNT(*) FROM contracts k WHERE k.seller_company = c.buyer_company AND k.outcome = 'kept') AS kept, "
+                "(SELECT COUNT(*) FROM contracts k WHERE k.seller_company = c.buyer_company AND k.outcome = 'broken') AS broken "
+                f"FROM contracts AS c WHERE c.resource = [value_1] AND c.place = {HERE_} AND c.seller_company IS NULL "
+                "AND c.settled_t IS NULL AND c.due_t > [game_now] ORDER BY c.price DESC, c.id;"))
 queries.append((709, 'My fleet',
                 'This drone\'s company: working drones, the most it may have (0: no limit), and launches on their way.', 0,
                 "SELECT (SELECT COUNT(*) FROM agents AS w WHERE w.company_id = me.company_id AND w.wrecked_at IS NULL) AS drones, "
@@ -2188,7 +2213,7 @@ for line in open(os.path.join(REPO, 'game-engine', 'src', 'lua_library.lua'), en
             LUA_NAMES.setdefault(int(value), name.strip())
 lua_res = lambda rid: LUA_NAMES.get(rid, str(rid))
 LUA_CALLS = {'1': 'jettison(N, R)', '3': 'wait(M)', '7': 'sell_order(P, M, R)', '8': 'buy_order(P, M, R)',
-             '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)', '36': 'salvage(W)',
+             '10': 'push(N, R, D)', '11': 'pull(N, R, D)', '12': 'launch(D, K)', '34': 'plunder(W)', '36': 'salvage(W)', '37': 'deliver(id, N)',
              '40': 'broadcast(text)', '41': 'sell_shares(company, keep, price)',
              '42': 'buy_shares(company, want, price)', '43': 'pull_shares(n, company, seller)',
              '44': 'push_shares(n, company, buyer)', '45': 'offer_shares(n, price, days, min)',
@@ -2232,7 +2257,7 @@ QUERY_FUNCS = {
     '400': 'resource_name(N)', '401': 'unit_mass(N)', '410': 'best_sites(N)', '500': 'protocol_name(N)',
     '501': 'protocol_minutes(N)', '510': 'consumes(N)', '511': 'produces(N)', '512': 'retains(N)',
     '520': 'consumers(N)', '521': 'producers(N)', '522': 'users(N)', '600': 'buy_orders(N)',
-    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '712': 'obligations()', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
+    '610': 'sell_orders(N)', '690': 'share_sell_orders(N)', '691': 'share_buy_orders(N)', '692': 'shares_held()', '693': 'shareholders(N)', '694': 'share_trades(N)', '696': 'shares_for_sale()', '697': 'share_offerings()', '698': 'share_count(N)', '699': 'company_health(N)', '651': 'compute_tax()', '708': 'house_only()', '712': 'obligations()', '713': 'contracts(N)', '615': 'orders_everywhere(N)', '620': 'volume_here(N, H)', '621': 'volume_everywhere(N, H)',
     '640': 'deposits()', '411': 'mine_yield(R, P)', '650': 'taxes()', '655': 'earnings(H)', '660': 'wrecks()', '661': 'wreck_hold(W)',
     '670': 'my_clones()', '671': 'lineage()', '680': 'price_board(N)', '682': 'sales(N, D)', '695': 'recipe(R)',
     '700': 'place_name(N)', '701': 'place_type(N)', '702': 'orbits(N)', '703': 'position(N)',
