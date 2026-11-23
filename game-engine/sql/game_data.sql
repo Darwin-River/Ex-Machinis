@@ -327,7 +327,7 @@ INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, pl
 DELETE FROM `stations`;
 INSERT INTO `stations` (id, name, object_id, budget_cap, refill_per_day, swing_permille, cycle_days, shock_permille) VALUES
   (1, 'Earth Exchange', 3, 2373800, 2373800, 80, 20, 150),
-  (2, 'Moon Depot', 10, 2626672, 2626672, 200, 7, 300),
+  (2, 'Moon Depot', 10, 2630332, 2630332, 200, 7, 300),
   (3, 'Mars Exchange', 4, 2687322, 2687322, 140, 12, 350);
 
 DELETE FROM `station_goods`;
@@ -337,11 +337,11 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (1, 2013, 1, 76, 100, 0, 0),
   (1, 2031, 1, 7, 200, 0, 0),
   (1, 2041, 1, 11, 200, 0, 0),
-  (2, 2011, 1, 14, 200, 0, 0),
-  (2, 2012, 1, 20, 150, 0, 0),
-  (2, 2013, 1, 56, 100, 0, 0),
-  (2, 2031, 1, 5, 200, 0, 0),
-  (2, 2041, 1, 8, 200, 0, 0),
+  (2, 2011, 1, 16, 200, 0, 0),
+  (2, 2012, 1, 24, 150, 0, 0),
+  (2, 2013, 1, 65, 100, 0, 0),
+  (2, 2031, 1, 6, 200, 0, 0),
+  (2, 2041, 1, 9, 200, 0, 0),
   (3, 2011, 1, 24, 200, 0, 0),
   (3, 2012, 1, 36, 150, 0, 0),
   (3, 2013, 1, 81, 100, 0, 0),
@@ -349,10 +349,10 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (1, 2033, 1, 11, 200, 0, 0),
   (1, 2042, 1, 13, 200, 0, 0),
   (1, 2043, 1, 16, 200, 0, 0),
-  (2, 2032, 1, 6, 200, 0, 0),
-  (2, 2033, 1, 8, 200, 0, 0),
-  (2, 2042, 1, 10, 200, 0, 0),
-  (2, 2043, 1, 12, 200, 0, 0),
+  (2, 2032, 1, 7, 200, 0, 0),
+  (2, 2033, 1, 10, 200, 0, 0),
+  (2, 2042, 1, 11, 200, 0, 0),
+  (2, 2043, 1, 14, 200, 0, 0),
   (1, 6001, 2, 3000, 24, 0, 1),
   (1, 5901, 2, 2000, 400, 0, 1),
   (1, 5902, 2, 2000, 400, 0, 1),
@@ -569,7 +569,7 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (1, 5901, 1, 999, 16, 0, 1),
   (1, 5902, 1, 999, 16, 0, 1),
   (1, 6001, 1, 1500, 16, 0, 1),
-  (2, 1100, 1, 6, 80, 0, 0),
+  (2, 1100, 1, 7, 80, 0, 0),
   (2, 1110, 1, 3, 80, 0, 0),
   (2, 1120, 1, 3, 80, 0, 0),
   (2, 1130, 1, 5, 80, 0, 0),
@@ -863,7 +863,7 @@ INSERT INTO `station_goods` (station_id, resource, side, price, daily_units, fro
   (3, 5902, 1, 999, 16, 0, 1),
   (3, 6001, 1, 1500, 16, 0, 1),
   (1, 2071, 1, 11, 80, 0, 0),
-  (2, 2071, 1, 8, 80, 0, 0),
+  (2, 2071, 1, 9, 80, 0, 0),
   (3, 2071, 1, 9, 80, 0, 0);
 
 INSERT IGNORE INTO `station_state` (station_id, budget, refilled_t) SELECT id, budget_cap, 0 FROM `stations`;

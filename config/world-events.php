@@ -68,4 +68,9 @@ return [
         'label' => 'Made goods pay more',
         'text' => 'The House buys alloys, polymers, parts and systems at 85% of their value (it was 75%) and sells parts and systems at 1.3 times (it was 1.5), so making and selling goods paid more, and buying parts to make systems began to pay.',
     ],
+    [
+        'key' => 'moon-full-price', 'kind' => 'rule', 'migration' => '0101_made_goods_spread', 'issue' => 963,
+        'label' => 'Moon pays full price',
+        'text' => 'The Moon Depot pays full price for ores and refined goods (it paid 15% less), still selling them cheaper, so miners and refiners selling at the Moon earned about a fifth more.',
+    ],
 ];

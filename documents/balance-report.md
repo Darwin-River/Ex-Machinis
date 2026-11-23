@@ -10,8 +10,8 @@ A **guard** fails the build when it is broken. A **target** is reported until it
 
 | ID | Objective | Now | Band | Kind | Met |
 |---|---|---|---|---|---|
-| PO-04 | Mining pays a living (credits a tool-hour) | 11.9 | at least 10 | guard | yes |
-| PO-05 | Making things pays more than mining (ratio) | 1.29 | at least 1.0 | target | yes |
+| PO-04 | Mining pays a living (credits a tool-hour) | 14.5 | at least 10 | guard | yes |
+| PO-05 | Making things pays more than mining (ratio) | 1.06 | at least 1.0 | target | yes |
 | PO-06 | Each tier pays more than the one below (ratio) | 1.25 | at least 1.1 | target | yes |
 | PO-07 | Specialists can trade (credits a tool-hour) | 2.4 | at least 0 | target | yes |
 | PO-08 | Every made good has a buyer (goods) | 0 | at most 0 | guard | yes |
@@ -20,7 +20,7 @@ A **guard** fails the build when it is broken. A **target** is reported until it
 | PO-11 | Ships are worth building (ratio) | 5.6 | at most 2.0 | target | **no** |
 | PO-12 | The map has a shape (ratio) | 1 | at least 2.0 | target | **no** |
 | PO-13 | Distance has a price (ratio) | 1 | at least 3.0 | target | **no** |
-| PO-14 | The frontier pays for the trip (ratio) | 2.54 | at least 1.5 | target | yes |
+| PO-14 | The frontier pays for the trip (ratio) | 2.08 | at least 1.5 | target | yes |
 
 ## Live and playtest objectives
 
@@ -50,9 +50,9 @@ Mined at the Moon's abundance, refined and sold to the Moon Depot, after 5% sale
 
 | Mineral | Credits a tool-hour | Ore a batch | Hours a batch |
 |---|---|---|---|
-| Wolfite (N) | 11.9 | 18 | 5.6 |
-| Yalspar (N) | 6.1 | 16 | 5.2 |
-| Vladnium (N) | 4.8 | 12 | 4.4 |
+| Wolfite (N) | 14.5 | 18 | 5.6 |
+| Yalspar (N) | 7.4 | 16 | 5.2 |
+| Vladnium (N) | 6.3 | 12 | 4.4 |
 
 ### The production ladder (PO-05 to PO-07)
 

@@ -1433,12 +1433,24 @@ PLACE_FACTOR = {   # station: {tier (a resource's first digit): factor}
     2: {1: 0.85, 2: 0.85, 3: 1.10, 4: 1.20, 5: 1.10},   # Moon Depot
     3: {1: 1.00, 2: 1.00, 3: 1.25, 4: 1.10, 5: 1.15},   # Mars Exchange
 }
+# What an exchange pays for ores and refined goods where it differs from
+# PLACE_FACTOR (#963, a tuning change per DV-03): the Moon Depot, beside the
+# mines, paid 15% under the base price for them, so the Miner and Refiner
+# starters, which sell there, took twice as long as the Maker to mature
+# (round 73: 68 to 77 and 59 to 60 game days against 29 to 33). It now pays
+# full price, and still sells them at its lower price: raising both would
+# have raised what makers pay for metals at the Moon, the cheapest place to
+# buy them (the balance check's PO-05 fell from 1.29 to 0.45)
+BID_PLACE_FACTOR = {2: {1: 1.00, 2: 1.00}}
 FIXED_PRICES = {FUEL, 6001, MINING_KIT, FACTORY_KIT}
-def place_factor(st, rid):
+def place_factor(st, rid, side=None):
     twist = ((rid * 7919 + st * 104729) % 21 - 10) / 100   # -0.10 to +0.10
-    return PLACE_FACTOR[st].get(int(str(rid)[0]), 1.0) + twist
+    factor = PLACE_FACTOR[st].get(tier_of(rid), 1.0)
+    if side == BUYS and not made_good(rid):
+        factor = BID_PLACE_FACTOR.get(st, {}).get(tier_of(rid), factor)
+    return factor + twist
 STATION_GOODS = [(st, rid, side, price if rid in FIXED_PRICES else
-                  max(1, min(MAX_LISTED, round(price * place_factor(st, rid)))), daily, day)
+                  max(1, min(MAX_LISTED, round(price * place_factor(st, rid, side)))), daily, day)
                  for st, rid, side, price, daily, day in STATION_GOODS]
 # A kit is no cheaper than its parts (#657, round 66: a Mining Kit cost 2,000
 # at Earth, and its parts sold to the House for 2,283 at the Moon and 2,331
