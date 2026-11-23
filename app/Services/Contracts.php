@@ -65,7 +65,8 @@ class Contracts
             DB::transaction(function () use ($id) {
                 $c = DB::table('contracts')->where('id', $id)->whereNull('settled_t')->lockForUpdate()->first();
                 if ($c) {
-                    self::close($c, $c->seller_company === null ? 'expired' : null);
+                    // Nobody took it: expired at its due date, cancelled if its buyer ended first
+                    self::close($c, $c->seller_company === null ? ((int) $c->due_t <= World::gameNow() ? 'expired' : 'cancelled') : null);
                 }
             });
             $n++;

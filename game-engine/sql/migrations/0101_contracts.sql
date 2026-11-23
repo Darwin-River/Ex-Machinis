@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     taken_t BIGINT NULL,
     deposit_held BIGINT NOT NULL DEFAULT 0 COMMENT 'The seller''s deposit, held until settled',
     delivered INT NOT NULL DEFAULT 0,
+    pending_drone INT UNSIGNED NULL COMMENT 'The drone whose deliver(id, n) is on its way: it counts against this contract',
     settled_t BIGINT NULL COMMENT 'Game time it was settled; NULL: open',
     outcome VARCHAR(16) NULL COMMENT 'kept, broken (part or none delivered), expired (never taken), cancelled',
     KEY contracts_open (settled_t, place, resource),

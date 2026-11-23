@@ -316,7 +316,8 @@ void db_contract_delivered(int action_id, Event_t* increment)
     long long contract = wr_value(0,
         "SELECT c.id FROM contracts c JOIN actions a ON a.id = %d JOIN agents s ON s.agent_id = a.drone "
         "WHERE c.seller_company = s.company_id AND c.buyer_drone = %d AND c.resource = %d AND c.settled_t IS NULL "
-        "AND c.delivered < c.units ORDER BY c.id LIMIT 1", action_id, increment->drone_id, increment->resource_id);
+        "AND c.delivered < c.units ORDER BY c.pending_drone = a.drone DESC, c.id LIMIT 1",
+        action_id, increment->drone_id, increment->resource_id);
     if(contract <= 0 || units <= 0)
         return;
     wr_exec("UPDATE contracts SET delivered = LEAST(units, delivered + %lld) WHERE id = %lld", units, contract);

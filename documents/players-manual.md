@@ -58,6 +58,7 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
   - [Maturing a startup](#maturing-a-startup)
   - [Dividends: what a share earns](#dividends-what-a-share-earns)
   - [Loans](#loans)
+  - [Contracts](#contracts)
   - [Cash-out value: what a share is worth](#cash-out-value-what-a-share-is-worth)
   - [Selling to the bank, and buying from it](#selling-to-the-bank-and-buying-from-it)
   - [Trading shares with other players](#trading-shares-with-other-players)
@@ -503,10 +504,10 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -5 | the seller's order doesn't allow selling that many |
 | -6 | the buyer's order doesn't allow buying that many |
 | -7, -8 | wrong price: the order's price has changed |
-| -9 | the action was stopped; from `close_company`, the drone has no live company of its own to close (or it is the House's) |
+| -9 | the action was stopped; from `close_company`, the drone has no live company of its own to close (or it is the House's); from `take_contract`, `deliver` or `cancel_contract`, no such open contract its company may take, fill or cancel (see [Contracts](#contracts)) |
 | -10 | the other drone has no matching buy or sell order, or no order with that order handle is here (a pull needs a sell order, a push a buy order) |
 | -11 | there is no such protocol |
-| -12 | refused, for example because a parameter names something that doesn't exist; from `buy_here` or `sell_here`, nobody here sells or buys it |
+| -12 | refused, for example because a parameter names something that doesn't exist; from `buy_here` or `sell_here`, nobody here sells or buys it; from `perform(37, ...)`, only `deliver` delivers on a contract |
 | -13 | no longer used: two of one player's companies may trade (under the new rules their dealings are flagged) |
 | -14 | no House station here trades that resource that way (from a `push` or `pull` aimed at a station) |
 | -15 | no wreck of that ID where you are, or it has already been plundered (from `plunder`), or it has nothing left to salvage (from `salvage`) |
@@ -518,7 +519,7 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -21 | a startup pays nothing out to shareholders: it has none until it matures (from `pay_out`) |
 | -22 | `push` or `pull` named another company's drone by its ID: trade with another company's order by its order handle (from `best_offer`, `best_bid` or the order lists); a drone ID works only for your own company's drones |
 | -23 | only a public company asks for loans (from `request_loan`): a startup, a company its player owns outright, or one released before the new rules can't borrow (see [Loans](#loans)) |
-| -24 | the company still owes its lenders (from `close_company`): it repays them first (see [Loans](#loans)) |
+| -24 | the company still owes its lenders, or has an open contract (from `close_company`): it repays them, or settles its contracts, first (see [Loans](#loans) and [Contracts](#contracts)) |
 | -30 | refused by your [fuel floor](#fuel-floor) |
 
 Your script can use the result to decide what to do next. For example, this function tries to pull 5 kunspar from the cheapest sell order here (`best_offer` gives its order handle) and says whether it worked:
@@ -1069,7 +1070,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, its order handle for `pull`, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, its order handle for `push`, and how many it wants; 0, 0, 0 if none; for a startup both look only at the planets' orders), `import_price(resource, n)` (what n units would cost from the planets here now; 0 when they don't sell it here), `house_only()` (true for a startup, which trades only with the planets; `nil` for a company that may trade with anyone), `house_supply(resource)` and `house_demand(resource)` (what the House sells and still buys at each exchange), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held, planets, mine}`; `drone` is the order handle), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
 | Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
 | Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `company_age(company)` (game days since a company was founded, yours if left out: use it for a plan about your company's own life, such as growing only in its first 24 days; the Foundry design used `today()` for that, so a company released on day 8 could grow for only 16 days), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place; here if left out), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `fleet()` (`{drones, cap, coming}`: your company's working drones, the most it may have, launches on their way), `fleet_full()` (true when a launch would fail with -20), `recipe(resource)` (see below), `hold()`, `cargo_mass()`, `capacity()`, `space()`, `now()`, `lineage()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()`, `place_name(place)`, `trip_to(place)`, `trip_between(a, b)`, `deposits()`, `minerals(place)`, `best_sites(mineral)`, `drones_at(place)`, `wrecks_at(place)`, `wrecks()`, `wreck_hold(wreck)`, `resource_name(resource)`, `producers(resource)`, `protocol_name(protocol)`, `events_affecting(drone)`, `event(id)` (see [Chapter 9](#chapter-9-asking-questions)) |
-| Its company's money and end | `set_dividend_share(x)` and `pay_out(n)` (what it pays its shareholders: see [Dividends](#dividends-what-a-share-earns)), `request_loan(amount, rate, due_in)`, `cancel_request(id)`, `repay(id)` and `obligations()` (what it borrows and owes: see [Loans](#loans)), `close_company()` (asks for its company to end: see [Closing a company](#closing-a-company)) |
+| Its company's money and end | `set_dividend_share(x)` and `pay_out(n)` (what it pays its shareholders: see [Dividends](#dividends-what-a-share-earns)), `request_loan(amount, rate, due_in)`, `cancel_request(id)`, `repay(id)` and `obligations()` (what it borrows and owes: see [Loans](#loans)), `post_contract(resource, units, price, due_in, deposit)`, `take_contract(id)`, `deliver(id, n)`, `cancel_contract(id)` and `contracts(resource)` (goods ordered from other companies: see [Contracts](#contracts)), `close_company()` (asks for its company to end: see [Closing a company](#closing-a-company)) |
 | Saying what it's doing | `set_status(text)`: a line shown on the drone's page and in the API (see [Saying what it's doing](#saying-what-its-doing)) |
 | Any query | `ask(id, ...)` returns a query's rows (an empty table if it fails); `query(id, ...)` is the same but returns `nil` and a code if it fails (see [Chapter 9](#chapter-9-asking-questions)) |
 | Any protocol | `perform(protocol, ...)` runs a protocol by its number, its arguments in the order the Protocols page lists them, and returns 0 or a negative code |
@@ -1574,6 +1575,45 @@ end
 **Takeovers and endings.** When one player comes to hold every share, the company's loans fall due at once and its open requests are withdrawn. When a company is wound up or closed, its lenders are paid first from its credits, then its shareholders; its open requests are withdrawn, its loans close, and one it couldn't repay in full is marked defaulted.
 
 **Before you lend, read its page.** A company's page has a **Loans** section: its open requests, and each loan with its lender, amount, rate, what is owed, the due date and whether it is repaid or defaulted. A loan backed by the company's founder or one of its 5 biggest shareholders is marked **insider**. Read its code too: when does it ask, and does it set credits aside to repay?
+
+### Contracts
+
+A company can order goods from another company with a due date, and pay for them up front (#928). A contract is a buy order between two companies: the buyer asks for goods delivered where its drone is, and the seller who takes it promises to deliver them in time. Only a company that isn't a startup (a matured one, or one released before the new rules) and is still trading posts or takes one, never the House's: a startup trades only with the planets, and gets -16. It all happens in the companies' code; each of these words costs as much as a query.
+
+**Posting.** The buyer's code calls `post_contract(resource, units, price, due_in, deposit)`: `units` of `resource` at `price` credits a unit, delivered where this drone is, within `due_in` game days, with a `deposit` (0 if left out) the seller must put up. The price of all of it (`units × price`) leaves the company's credits at once and is held in escrow, so the seller knows it will be paid. It returns the contract's id; -5 when `units`, `price` or `due_in` is under 1 or the deposit is negative; -16 for a startup; -4 when the company can't pay the escrow.
+
+**Finding and taking.** `contracts(resource)` lists the open contracts for a good where the drone is that nobody has taken yet, best price first: `{id, units, price, due_in, deposit, kept, broken}`. They don't name the buyer: `kept` and `broken` are how many contracts it has kept and broken as a seller. `take_contract(id)` takes one, putting up its deposit from the company's credits; from then on only this company may fill it. It returns 0; -4 when the company can't pay the deposit; -9 when there is no such open contract, it is the company's own, or another company took it first.
+
+**Delivering.** `deliver(id, n)`, run by the seller's drone where the contract is delivered, moves `n` units to the buyer's drone. The game names the buyer's drone itself, so the seller never learns which it is. It is an action like `push` (it burns 1 fuel and takes a game minute), but it isn't a market trade: no credits change hands then, and there is no sales tax. It returns 0 when delivered; -1 when the drone isn't where the contract is delivered; -6 when `n` is more than is still to deliver; -9 when the contract isn't one its company took and still open, or it is due already; or what a push would return, such as -2 when the drone doesn't hold them.
+
+**Settling.** On the due date, or as soon as everything is delivered, the website settles the contract within about a real minute:
+
+- the units delivered are paid to the seller from the escrow;
+- for what wasn't delivered, the buyer gets its escrow back **and that share of the seller's deposit**;
+- the seller gets back the rest of its deposit.
+
+Say a buyer asks for 100 metals at 20 a unit with a deposit of 500, and the seller delivers 60 in time. The seller is paid 1,200 and gets 300 of its deposit back; the buyer gets 800 of its escrow back and the other 200 of the deposit. A contract is **kept** when all of it was delivered, **broken** when part or none was, **expired** when nobody took it by its due date (the escrow comes back), or **cancelled**.
+
+**Cancelling.** `cancel_contract(id)` withdraws a contract nobody has taken (the buyer's escrow comes back), or, called by the seller, gives up one it took: it is settled as if it were due now, so the seller loses the deposit's share for what it hasn't delivered. It returns 0 when recorded, or -9.
+
+**Obligations and endings.** `obligations()` lists the contracts a company posted (kind `"posted"`, the credits still in escrow) and took (kind `"taken"`, its deposit at stake), beside its loans. `close_company()` is refused with -24 while the company has an open contract. When a company ends (wound up, closed, broke or without drones), its contracts are settled at once, as if due.
+
+**A company's page** has a **Contracts** section: what it posted (**Wants**) and took (**Delivers**), with the good, the units, how many were delivered, the price, the deposit, the due date and how it ended, without naming the other company; and its record as a seller, kept and broken.
+
+```lua
+-- A seller: take the first contract here it can fill, and deliver it
+function fill_a_contract(good)
+  for _, c in ipairs(contracts(good)) do
+    if units(good) >= c.units and take_contract(c.id) == 0 then
+      local r = deliver(c.id, c.units)
+      if r < 0 then set_status("delivery failed: " .. r) end
+      return
+    end
+  end
+end
+
+fill_a_contract(metals_a1)
+```
 
 ### Cash-out value: what a share is worth
 
@@ -2211,6 +2251,7 @@ An action that fails is not an error: it returns a negative code (see [Issuing C
 - **Ownership, November 2026.** A company one player owns outright (a startup, or a matured company whose shares they hold all of) can have its code changed at any time, for free, and keeps it private; at most 5 a player. The first share sold makes it public and locks its code, and a seller can't buy that company's shares for 7 real days. A company ends through its own code, with `close_company()`. The startup credit cap, its daily buying cap, the push fee and offerings of new shares are retired (see [Owned outright, or public](#owned-outright)).
 - **Anonymous trading and the planets, November 2026.** The order books name an order by its [order handle](#order-handles), not its drone: `best_offer`, `best_bid` and the order lists give handles, and `push` and `pull` take them. A drone ID works only for your own company's drones; another company's fails with -22. The House's station drones are the planets' market: their [import price](#import-price) rises with recent buying (fuel stays flat), and they [step back](#planets-step-back) where players trade a good among themselves. `import_price(r, n)` says what n units would cost from them.
 - **Loans, November 2026.** A public company's code can ask to borrow with `request_loan(amount, rate, due_in)`, and players with at least 5,000 credits lend to it from the Loans page or the API. On the due date it repays the principal plus the rate; one that can't is in default, and every credit it receives goes to its lenders, its dividends stopped, until they are paid. `close_company()` is refused (-24) while it owes, and when a company ends its lenders are paid first. See [Loans](#loans).
+- **Contracts, November 2026.** A company that isn't a startup can order goods from other companies with `post_contract(resource, units, price, due_in, deposit)`, the price of all of it held in escrow, delivered where its drone is. Another company takes it with `take_contract(id)`, putting up the deposit, and fills it with `deliver(id, n)`, which isn't a market trade. On the due date the seller is paid for what it delivered, and the buyer gets the rest back with that share of the deposit. Contracts are anonymous: `contracts(resource)` shows a poster's record as a seller, not its name. See [Contracts](#contracts).
 - **Share prices and starting credits, November 2026.** Players trade a matured company's shares at any price they agree, from 1 to 9,999,999: the band of 0.8 to 1.25 times the bank's selling price is gone. The bank buys and sells at cash-out value (its premium of 10 game days' dividends is gone), and the shares it holds also sell into players' bids above cash-out, at the bid. New accounts, class accounts included, get no starting credits: a player's credits come from their shares, the first from maturing a startup. Starting credits already given stay until spent, buying only at or below the bank's price. See [Selling to the bank, and buying from it](#selling-to-the-bank-and-buying-from-it) and [Trading shares with other players](#trading-shares-with-other-players).
 - **Salvage, November 2026.** Plunder takes only a wreck's goods; its modules stay aboard. A spacecraft with a **Salvager (A1)** recovers them with `salvage(wreck)`, one a run, then the hull as **Scrap (A1)**, which every exchange buys. Wrecks decay by 2% of what is left a game day, and salvage gets that share; `wrecks()` gives each wreck's condition, modules and scrap, and the Map lists the wreck field. See [Wrecks and plunder](#wrecks-and-plunder).
 - Every example is written in Lua, with the game's [library of functions](#the-game-functions) (`mine(kunspar)`, `go(moon)`, `buy_here(20, fuel)`...).

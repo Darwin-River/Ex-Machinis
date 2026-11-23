@@ -1296,11 +1296,14 @@ int db_take_contract(DbConnection_t* connection, int agent_id, long long id, lon
     long long deposit = db_loan_value(connection, -1, query_text);
     if(deposit < 0)
         return OUTCOME_ACTION_ABORTED;
-    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
-        "UPDATE companies SET credits = credits - %lld WHERE company_id = %lld AND credits >= %lld", deposit, company, deposit);
-    long long done = db_contract_exec(connection, query_text);
-    if(done <= 0)
-        return done < 0 ? OUTCOME_ACTION_ABORTED : OUTCOME_NO_CREDITS;
+    // (no deposit: nothing to take, and an update that changes nothing reports no rows)
+    if(deposit > 0) {
+        snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+            "UPDATE companies SET credits = credits - %lld WHERE company_id = %lld AND credits >= %lld", deposit, company, deposit);
+        long long done = db_contract_exec(connection, query_text);
+        if(done <= 0)
+            return done < 0 ? OUTCOME_ACTION_ABORTED : OUTCOME_NO_CREDITS;
+    }
     snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
         "UPDATE contracts SET seller_company = %lld, taken_t = %lld, deposit_held = %lld "
         "WHERE id = %lld AND seller_company IS NULL AND settled_t IS NULL", company, game_t, deposit, id);
@@ -1308,7 +1311,8 @@ int db_take_contract(DbConnection_t* connection, int agent_id, long long id, lon
         // Another took it first: the deposit comes back
         snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE companies SET credits = credits + %lld WHERE company_id = %lld",
                  deposit, company);
-        db_contract_exec(connection, query_text);
+        if(deposit > 0)
+            db_contract_exec(connection, query_text);
         return OUTCOME_ACTION_ABORTED;
     }
     return 0;
@@ -1352,6 +1356,9 @@ int db_deliver_target(DbConnection_t* connection, int agent_id, long long id, lo
         return OUTCOME_NO_LOCAL;
     if(units > left)
         return OUTCOME_RESOURCES_UPPER_LIMIT;
+    // The delivery counts against this contract when it lands (db_contract_delivered)
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN, "UPDATE contracts SET pending_drone = %d WHERE id = %lld", agent_id, id);
+    db_contract_exec(connection, query_text);
     *resource = r;
     return target;
 }

@@ -1759,8 +1759,7 @@ queries.append((708, 'House only',
 # Loans (#928): what the drone's company owes its lenders, by request, and
 # the requests not yet fully backed
 queries.append((712, 'My obligations',
-                'What this drone\'s company owes or has asked for (#928), one row each: kind (1 a loan, owed by request; '
-                '2 a request not yet fully backed; 3 a contract it posted, credits in escrow; 4 a contract it took, its deposit), id, credits (owed, or still to back), rate (hundredths of a '
+                'What its company owes (#928): kind (1 loan, 2 open request, 3 contract it posted, 4 contract it took), id, credits (owed, or still to back), rate (hundredths of a '
                 'percent, for the whole loan), game days until due (0 or less: due now).', 0,
                 "SELECT 1 AS kind, l.request_id, SUM(l.owed - l.repaid) AS credits, MAX(l.rate_bp) AS rate, "
                 "CEIL((MAX(l.due_t) - [game_now]) / 86400) AS due_in FROM loans AS l "
