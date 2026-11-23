@@ -442,8 +442,14 @@ wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 30 "the sale to the other company worked" replied $DRONE_ID "sister 0"
 wait_for 30 "a push to another company's drone by its ID is refused (-22: #927)" replied $DRONE_ID "not-own -22"
 wait_for 60 "a drone delivers on a contract with deliver(id, n), not by protocol 37 itself (#928)" replied $DRONE_ID "deliver 0 -12"
-[ "$(sql "select concat(delivered, ' ', (select count(*) from trades where buyer=$SISTER and resource=1130 and game_t >= c.taken_t)) from contracts c where c.buyer_drone=$SISTER")" = "1 0" ] ||
+# (the one trade into the sister drone is the sale above: a delivery traded would make two)
+delivered() { [ "$(sql "select concat(delivered, ' ', (select count(*) from trades where buyer=$SISTER and resource=1130)) from contracts c where c.buyer_drone=$SISTER")" = "1 1" ]; }
+if ! wait_quietly 30 delivered; then
+    sql "select id, seller_company, delivered, pending_drone, settled_t from contracts where buyer_drone=$SISTER" >&2
+    sql "select id, seller, buyer, units, credits, game_t from trades where buyer=$SISTER" >&2
+    sql "select id, protocol, outcome, aborted from actions where drone=$DRONE_ID order by id desc limit 6" >&2
     fail "the delivery didn't count on the contract, or was traded"
+fi
 echo "ok: a delivery on a contract counts against it, and is no trade"
 
 # Refining needs 18 wolfite and the Mining Kit's Refinery (A1); each perform
