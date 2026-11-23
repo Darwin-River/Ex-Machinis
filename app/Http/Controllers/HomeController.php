@@ -176,7 +176,8 @@ class HomeController extends Controller
             'mature_at' => $grant + \App\Services\Startups::matureMargin(), 'shares' => \App\Services\Startups::SHARES,
             'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.startup_hull_value'),
             'fee' => (int) config('forge.startup_fee'), 'push_fee' => (int) config('forge.startup_push_fee'),
-            'cap' => max(intdiv($grant * \App\Services\Startups::capPermille(), 1000), $grant + \App\Services\Startups::matureMargin(), 1), 'max' => (int) config('forge.startup_max')];
+            // The road's scale: a little past the mark it matures at (the credit cap is retired, #923)
+            'cap' => (int) ceil(1.15 * ($grant + \App\Services\Startups::matureMargin())) ?: 1, 'max' => (int) config('forge.startup_max')];
         $starters = \App\Services\Release::STARTERS;
         unset($starters['trader']);   // a startup can't trade with other drones (#658)
         $clock = \App\Services\LaunchQueue::clock();

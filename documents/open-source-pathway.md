@@ -21,6 +21,8 @@ How Ex Machinis became an MIT-licensed project that can be handed to new maintai
 - **Git history is left as it is** (#560). The old passwords and keys in it are no longer live, and the 2018 users dump is no longer relevant. Rewriting history in place would change every commit ID, break every clone, fork and commit link, and still leave old copies reachable through past pull requests. The history clean-up script made for a new repository (#527) was removed.
 - **Contributors:** Carlos Rodríguez and Fernando Rivas wrote their code under contract with the project's owner, who holds the copyright to it, so it can all be licensed under MIT without further permission.
 
+- **Players' private scripts** (#931). The game's own code stays MIT-licensed and public, starters and examples included. What a player writes for their company is theirs: a company's script is private only while one player owns it outright (a startup, or a matured company whose shares they hold all of), and only until its shares are offered or it ends. From then on it is public, as all players' code was before. What a company does (its trades, events and earnings) is always public, and so is the lineage map.
+
 ## Setting up the shared organization
 
 So the project doesn't depend on one person:

@@ -114,6 +114,10 @@ class OwnershipTest extends TestCase
         $this->assertTrue(Startups::reprogram($raider, $id, self::SCRIPT)['ok'], 'a turnaround: the raider rewrites it');
         $this->assertSame(1, Startups::slotsInUse((int) $raider->user_id), 'and it counts against the raider\'s 5');
         $this->assertSame(403, Startups::reprogram($founder, $id, self::SCRIPT)['status']);
+        // Its new code is the raider's to read, not the founder's (#931)
+        $this->assertFalse(Ownership::codePublic($id));
+        $this->assertTrue(Ownership::canSeeCode($id, $raider));
+        $this->assertFalse(Ownership::canSeeCode($id, $founder));
     }
 
     public function testAtMostFiveOwnedOutright()

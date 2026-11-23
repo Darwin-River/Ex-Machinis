@@ -167,10 +167,16 @@ class Ownership
         if ($viewer === null) {
             return false;
         }
-        if ((int) $viewer->user_id === (int) $c->owner_id) {
+        // Its owner now: the founder of a startup, or a matured company's sole
+        // holder (after a takeover, the raider, not the founder)
+        $owner = self::owner($c);
+        if ($owner === null) {
+            return false;
+        }
+        if ((int) $viewer->user_id === $owner) {
             return true;
         }
-        $group = DB::table('users')->where('user_id', $c->owner_id)->value('class_group_id');
+        $group = DB::table('users')->where('user_id', $owner)->value('class_group_id');
         return $group !== null && DB::table('class_groups')->where('id', $group)->where('teacher_id', $viewer->user_id)->exists();
     }
 

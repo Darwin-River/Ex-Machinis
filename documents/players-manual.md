@@ -92,12 +92,12 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
 This is the whole game. Each line is explained where it first matters to you.
 
 1. You write Lua code; your drones run it on their own in a shared, live world.
-2. Found a startup for free: the bank lends it a drone and some cash. Run up to five; close one at any time and its debt is cancelled. Failing is free.
-3. A startup trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like.
-4. When it holds its debt and a little more, you may mature it: its code is locked for good, it can trade with everyone, and you get its 100 shares.
+2. Found a startup for free: the bank lends it a drone and some cash. Own up to five companies outright, startups included; close one at any time and its debt is cancelled. Failing is free.
+3. A startup trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like, for free.
+4. When it holds its debt and a little more, you may mature it: it can trade with everyone, and you get its 100 shares. While you hold all of them its code is still yours to change; the first share you sell makes it public and locks its code.
 5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss.
 6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
-7. All code is public. A matured company can't change, but it can react to prices and orders, so read its code before you buy.
+7. A company's code is private while one player owns it outright, and public once its shares are offered. A public company's code can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and by how much it grew today in percent (a short season, a real day), on the Players page; your account page keeps your records.
 
 ### Your fortune awaits!
@@ -112,22 +112,22 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 **Break, learn, repeat.** That's the game's motto. Once you release a drone, it runs on its own: you can't steer it, and nobody will rescue it. Sooner or later every company meets something its program didn't foresee (a market that moves, a deposit that runs dry, a rival that undercuts it, a bug) and dies. That is how the game is meant to be played. Treat each company as an experiment:
 
-- **Failing is free.** A new company is a **startup**, and the bank lends it its drone and its credits. If it goes wrong, close it: its debt is cancelled, and a game day later its slot is free for the next one. You can run up to five startups at once.
+- **Failing is free.** A new company is a **startup**, and the bank lends it its drone and its credits. If it goes wrong, close it: its debt is cancelled, and a game day later its slot is free for the next one. You can own up to five companies outright at once, startups included.
 - **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
 - **Iterate.** Fix the flaw and send the fix to your startup, or try a different idea as a new startup. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
 - **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it. Once a company has matured, the market may help as well: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)). A startup has only the House and its own drones.
 - **Release early, release often.** There is no test world: every release is live. A startup costs you nothing, so release a script as soon as it might work, watch it, and send it a better one, or close it and start again. Failing costs nothing but the lesson.
-- **Learn from others.** All code is public. The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating.
+- **Learn from others.** A public company's code is there for anyone to read, and so is an ended company's (a company one player owns outright keeps its code private until its shares are offered). The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating.
 
 ### Your first startup, step by step
 
 1. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address, and your account gets **5,000 starting credits**, which can only buy shares (see [Making an account](#making-an-account)).
 2. **Found a startup.** On the **Found a startup** page (the button at the top of every page), pick a starter (the Miner is picked for you) or write your own script, name your company, and press **Found startup**. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **startup**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a startup](#releasing-a-startup)).
-3. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at, with its credit cap marked. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
+3. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
 4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Found a startup page say the pace right now.
-5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code**, shown to you when you're logged in). The first change is free; each one after it adds 100 to its debt (see [Pushing new code](#pushing-new-code)).
-6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Mature** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when one is at its credit cap, and when a matured company of yours is counting down to dissolving. Maturing repays the debt and locks its code for good, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
-7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)).
+5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)).
+6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Mature** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when a matured company of yours is counting down to dissolving. Maturing repays the debt, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
+7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Chapter 7](#chapter-7-maturing-and-shares)). While you hold all 100 you still own it outright, and can change its code; the first share you sell makes it public and locks its code (see [Owned outright, or public](#owned-outright)).
 
 If it fails on the way, close it and start another. That costs you nothing.
 
@@ -143,16 +143,16 @@ We send an e-mail to the address with a **Verify my account** button, good for 2
 
 Your account also has **credits** of its own: what your shares earn you, from dividends and from selling them. They buy shares at any price within the range players trade in.
 
-**E-mail notices.** On your account page, under **E-mail notices**, pick what we may e-mail you about. Two start on once your address is verified, **A startup of mine can mature** and **A startup of mine is past its credit cap**, so a startup's earnings don't quietly go to the bank; the rest are off until you turn them on, and you can turn any off:
+**E-mail notices.** On your account page, under **E-mail notices**, pick what we may e-mail you about. Two start on once your address is verified, **A startup of mine can mature** and **A startup of mine is past its credit cap**; the rest are off until you turn them on, and you can turn any off:
 
-- **A startup of mine can mature** (once a startup, so you mature it before its credit cap sends its earnings to the bank);
+- **A startup of mine can mature** (once a startup);
 - **A company of mine is at risk, stalled or counting down to dissolving** (at most once a real day a company), with why;
 - **A drone of mine is wrecked**, with where and how, and a link to its page;
 - **A weekly digest**: each of your companies' net wealth, a startup's progress to maturing and its health, and your shares' cash-out value and the dividends they paid that week.
 
 For traders there are six more:
 
-- **A startup of mine is past its credit cap** (how much went to the bank in the last real day: mature it);
+- **A startup of mine is past its credit cap** (how much went to the bank in the last real day). The credit cap was retired in November 2026, so this one no longer has anything to tell;
 - **A share order of mine fills** (who you traded with, the price and the cash-out then; at most one e-mail an hour);
 - **A share order of mine can't fill** (outside the range players trade in, with the range now) **or sells below cash-out** (the bank pays more);
 - **The bank pays me for shares I sold it** (what it paid each, and whether that was less than at the sale);
@@ -177,7 +177,7 @@ Write your drone's program on the **Found a startup** page (`/release`, the butt
 
 - each release starts a new **startup** company, with one drone in orbit around Earth, 100 fuel and 3,000 credits, and no equipment: your script buys what it needs (see [Equipping your drone](#unpacking-your-kit));
 - your script is a Lua program, and it must define a function called `launched` (`function launched() ... end`). The drone loads your script, then calls `launched()` on its own;
-- you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, like the drone's code: keep its link to follow it;
+- you go to the drone's page, which shows everything it does and what it prints (once its signal has reached Earth). It's public, though its code is shown only to you while you own its company outright (see [Who sees a company's code](#who-sees-code)): keep its link to follow it;
 - if `launched` crashes, the drone restarts it (see [When `launched` crashes](#when-launched-crashes)).
 
 A company name is 3 to 45 characters, and nobody else's may have it, nor a name that only looks like it: case, spacing, invisible characters and the digits 0 and 1 standing in for O and l don't make a name different. Spaces are tidied, one between words. You must be logged in (see [Making an account](#making-an-account)). From a program, `POST /api/v1/release` with `company_name` and `script` releases one, and your token makes it yours (see the [API](api.md)).
@@ -194,11 +194,11 @@ A script can be at most 16,000 characters, comments included. A release checks y
 **What a startup may do.** Until it matures:
 
 - **it trades only with the House** (the station drones at the exchanges) and its own company's drones. A trade with anyone else fails with -16 (see [Trading at the exchanges](#trading-at-the-exchanges));
-- **it buys at most a tenth** of what the House has on sale of a good at one exchange in a game day, and always at least 5 (-17 after that). Selling to the House has no such cap;
-- **it plunders nothing**, and nobody can plunder its wrecks (see [Wrecks and plunder](#wrecks-and-plunder));
-- **it holds at most twice what it was lent** in credits: 8,400, however often you push (push fees go on its debt but don't raise the cap). When a sale would take it over, the excess goes to the bank. So there is no point in waiting to mature it. Once it reaches its cap, the site says so: "Capper Co is ready to mature: what it earns above 8,400 now goes to the bank" in the Since you last looked card and the digest, a banner on its Road to maturity, and `credit_cap` and `at_cap` in `GET /api/v1/companies/{id}`. A script can tell too: `startup_status().at_cap`.
+- **it plunders nothing**, and nobody can plunder its wrecks (see [Wrecks and plunder](#wrecks-and-plunder)).
 
-You can run **at most 5 startups** at a time. A closed startup's slot reopens a game day after you close it.
+Until November 2026 a startup also bought at most a tenth of what the House had on sale of a good at an exchange in a game day (-17), and held at most twice what it was lent, what it earned above that going to the bank. Both caps are retired: it buys what the House has on sale, and keeps all it earns.
+
+You can own **at most 5 companies outright** at a time, startups included (see [Owned outright, or public](#owned-outright)): founding a sixth is refused. A closed startup's slot reopens a game day after you close it.
 
 **When the world is full** (the servers can't keep up, even with the game clock at its slowest), a release is refused: try again in a few minutes (see [Time and distance](#time-and-distance)).
 
@@ -212,23 +212,24 @@ The game runs fast (at the normal pace a game day every 48 real seconds, slower 
 
 #### Pushing new code
 
-You can send a startup's drones new code whenever you like, without starting over: from your account page (**Change its code**, under the startup), or with `POST /api/v1/startups/{id}/push` and your token. This is called **pushing** new code.
+You can send new code to the drones of a company you own outright (a startup, or a matured company whose shares you hold all of: see [Owned outright, or public](#owned-outright)) whenever you like, without starting over: from its page (**Push new code (free)**), from your account page (**Change its code**, under a startup), or with `POST /api/v1/startups/{id}/push` and your token. This is called **pushing** new code.
 
-- **The first push is free; each after it adds 100 to the startup's debt.** So each one also raises what it needs to mature by 100. A push that would raise its debt so far that the line to mature at would pass its credit cap is refused: it could never mature, so close it and found a new startup with that code instead. To see what a push would cost before you send it, check the script with the company's ID: `POST /api/v1/check` with `company` returns the fee.
+- **It is free.** Until November 2026 each push after the first added 100 to a startup's debt; now none does. To preview a push before you send it, check the script with the company's ID: `POST /api/v1/check` with `company`.
 - **It travels at the speed of light.** The new code goes from Earth to each working drone of the company, arriving after the time light takes to cross the distance: about a second at the Moon, minutes at Mars.
 - **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes, and a drone on a trip finishes the trip first: its new `launched()` starts where it arrives. A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
-- **Everyone can see it.** The company's page and the API list each push, so anyone can see when a company's code changed.
+- **Everyone can see that it changed.** The company's page and the API list each push, so anyone can see when a company's code changed. The code itself stays private while you own the company outright (see [Who sees a company's code](#who-sees-code)).
 - **See what it did**. For each of the last three pushes, the company's page (under **New code**, and the latest beside the Road to maturity) compares the same span on each side of the push, up to 3 game days and never back past the push before: its trading net (sales after tax less purchases), its sales and its failed actions, each a game day, with a line saying what changed ("it earns more from trading (50 → 500 a game day); it fails less"). It compares only once 6 game hours have passed. Prices and crowds move too, so trust a large change more than a small one.
 - **A script can be at most 16,000 characters**, comments included, for a push as for a release. `/check` reports its length.
 - **Put what must happen at once first.** The new `launched()` starts from the top: code that must run straight away (a price change, say) belongs before a long trip, or it waits for the trip.
 - **Standing orders stay.** A drone's standing buy and sell orders for goods are the drone's, not the script's, so they outlive a push and keep trading (in one playtest, a miner pushed into a foundry kept selling the foundry's own metals). The push preview (`/check` with `company`) lists them. `standing_orders()` lists a drone's own, and `cancel_orders()` withdraws them: call it first in the new `launched()` if the new code shouldn't keep them. An order can't be deleted, only replaced, so each is replaced by one that can't trade, an action each. An open order in its first 12 game hours can't be withdrawn (see [Adjusting your orders](#adjusting-your-orders)), so `cancel_orders()` returns how many it withdrew, which can be fewer than you had.
-- **A matured company's code is locked for good.** Nobody can push to it, ever. Get the code right while it is a startup.
+- **Not while its shares are on offer.** While a standing sell order of yours for its shares stands, a push is refused (409): buyers get the code they watched run. Withdraw the order first.
+- **A public company's code is locked.** Once a share has sold, so that more than one holder owns it, nobody can push to it (unless one player buys every share back). Get the code right before you sell a share.
 
 Pushing keeps the startup's drones, goods and progress towards maturing. Releasing a new startup starts from nothing but costs nothing: push when the startup is worth keeping, release when you'd rather start over.
 
 #### Closing a startup
 
-Close a startup at any time, from your account page (**Close**) or with `POST /api/v1/startups/{id}/close`. Its drones become wrecks with empty holds, which nobody can plunder, and its **debt is cancelled**. Its slot reopens a game day later. Closing is how a failed experiment ends: it costs you nothing.
+Close a startup at any time, from its page (**Close it (debt cancelled)**) or with `POST /api/v1/startups/{id}/close`. Either pushes it code that calls `close_company()`, and within about a real minute the website ends it (see [Closing a company](#closing-a-company)): its credits go back to the bank, its drones become wrecks with empty holds, which nobody can plunder, and its **debt is cancelled**. Its slot reopens a game day later. Closing is how a failed experiment ends: it costs you nothing.
 
 **What happened**. Once a company ends (closed, dissolved, or out of drones), its page opens with a short post-mortem: why it ended and when, which drones went before it and where, the action it failed most over its last game day with what usually fixes it, what its drones last said (`set_status`), and its last script error with the line of code involved. **Start a fixed copy** opens the Found a startup page with its newest code loaded and the post-mortem above the editor: change what went wrong and start it. `GET /api/v1/companies/{id}` gives the same as `post_mortem`.
 
@@ -496,7 +497,7 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -2 | not enough of a resource in the cargo hold (or, for `go`, no Engine to fly with) |
 | -3 | not enough room in the cargo hold |
 | -4 | not enough credits |
-| -5 | the seller's order doesn't allow selling that many |
+| -5 | the seller's order doesn't allow selling that many; from `close_company`, the drone has no live company of its own to close (or it is the House's) |
 | -6 | the buyer's order doesn't allow buying that many |
 | -7, -8 | wrong price: the order's price has changed |
 | -9 | the action was stopped |
@@ -507,7 +508,7 @@ Think of your drone's script as a sequencer that decides how one action follows 
 | -14 | no House station here trades that resource that way (from a `push` or `pull` aimed at a station) |
 | -15 | no wreck of that ID where you are, or it has already been plundered |
 | -16 | a startup trades only with the House, and plunders nothing (the new rules) |
-| -17 | a startup has bought its share (a tenth, at least 5) of what the House has on sale of that good here today: its own cap, which resets each game day |
+| -17 | no longer happens: it was a startup's daily buying cap (a tenth of what the House had on sale of a good here), retired in November 2026 |
 | -18 | under the new rules players, not companies, trade shares |
 | -19 | under the new rules an open standing order can't be withdrawn, cut or made worse in its first 12 game hours (a buy order lower or wanting fewer, a sell order dearer or keeping more back) |
 | -20 | your company already has as many working drones as it may: 8 (from `launch`; the kit stays aboard) |
@@ -637,7 +638,7 @@ A spacecraft becomes a **wreck** for good when it crashes five times in a row, o
 
 Plundering takes 1 game hour and burns 1 fuel. Your spacecraft gets half of everything aboard: half of each resource, rounded down (and for an odd unit, such as a single engine, a 50/50 chance). The rest is destroyed. Make room in your hold first: what doesn't fit is lost too. Your share comes aboard a moment after `plunder` returns, so wait a minute before counting it. A wreck is plundered once, so be quick. Any matured company's wreck will do, your own companies' included. If there's no such wreck where you are, or it was already plundered, `plunder` returns -15.
 
-**Startups and wrecks.** A startup plunders nothing: its `plunder` fails with -16. Nobody can plunder a startup's wrecks, either. And when you close a startup, its drones become wrecks with empty holds. So plunder is a matured company's business: a wreck worth plundering is one whose company crashed or went broke after it matured.
+**Startups and wrecks.** A startup plunders nothing: its `plunder` fails with -16. Nobody can plunder a startup's wrecks, either. And when you close a startup, its drones become wrecks with empty holds. So plunder is a matured company's business: a wreck worth plundering is one whose company crashed, went broke or closed itself after it matured (see [Closing a company](#closing-a-company)).
 
 Two functions find wrecks (see [Chapter 9](#chapter-9-asking-questions)):
 
@@ -727,7 +728,7 @@ At the normal pace of the game (1,800 game seconds per real second):
 A few consequences are worth planning for:
 
 - **Program distant drones.** A drone around Neptune is four light-hours away, and a trip there takes 11 game days, so give it a script that decides for itself what to do next.
-- **Released drones steer themselves.** A released drone takes no commands: it runs the script you gave it, calls `launched`, and decides everything else for itself. The only way to change what a startup's drones do is to push new code to it (see [Pushing new code](#pushing-new-code)), which reaches each drone at the speed of light, so a drone around Neptune gets it four hours later. A matured company's code never changes.
+- **Released drones steer themselves.** A released drone takes no commands: it runs the script you gave it, calls `launched`, and decides everything else for itself. The only way to change what a company's drones do is for the player who owns it outright to push new code to it (see [Pushing new code](#pushing-new-code)), which reaches each drone at the speed of light, so a drone around Neptune gets it four hours later. A public company's code never changes.
 - **Replies arrive late.** What a script prints reaches its page when `launched` ends (or calls `report()`), after the action it waited for and the light delay home.
 
 ### Understanding how protocols are organized and numbered
@@ -868,7 +869,7 @@ The Miner, Refiner and Maker starters do this once their company has matured and
 
 **The scrap of 14 Sep 2032.** When the cap came in, companies already past 8 working drones had their newest drones scrapped once, on 14 Sep 2032: each became a wreck ("It was scrapped when the fleet cap came in" on its page), with what it held aboard. A matured company's cash-out value counts its working drones' hulls and the goods and equipment aboard them, so the scrapped drones took that value with them, and its shares with it: Bank Maker's cash-out fell from about 505,000 to 177,000. It was announced only in the release notes, and some players who held those shares called it unfair. It happened once; since then a launch past the cap simply fails with -20.
 
-**Growing a startup.** A startup may launch copies too: they belong to the same company, so they trade only with the House as well. But every credit it spends on a copy is one it must earn back before it can mature, and its daily buying cap at an exchange applies to hulls and kits as to anything else the House sells. Its credits are capped at twice what it was lent (8,400; push fees don't raise it), and what a sale would take past that goes to the bank. That is why the starters launch nothing until they have matured: a startup's quickest route to growing is usually to mature first.
+**Growing a startup.** A startup may launch copies too: they belong to the same company, so they trade only with the House as well. But every credit it spends on a copy is one it must earn back before it can mature. That is why the starters launch nothing until they have matured: a startup's quickest route to growing is usually to mature first.
 
 **Keep money to work with.** A copy costs about 5,000 (a hull and a kit). Launch it only when your company will still have enough left to buy its inputs and fuel: the starters grow at 6,500 or more, leaving 1,500. A company left with less than its own cash floor can't buy anything, and every drone in it stops.
 
@@ -938,7 +939,7 @@ If `launched` hits an error (calling a function that doesn't exist, arithmetic o
 
 Crashes only count "in a row" while nothing is getting done: any action that succeeds starts the count again. When `launched` simply returns, the spacecraft says it has finished, and waits.
 
-It's good practice to try each function on its own before you build it into `launched`. A startup's code changes only when you push new code to it (see [Pushing new code](#pushing-new-code)), a matured company's never, and a restart runs the same script, so a bug that crashes it once will crash it again: release a small script that calls just the new function, watch its page, and once it works, push or release the whole thing. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
+It's good practice to try each function on its own before you build it into `launched`. A company's code changes only when its owner pushes new code to it (see [Pushing new code](#pushing-new-code)), a public company's never, and a restart runs the same script, so a bug that crashes it once will crash it again: release a small script that calls just the new function, watch its page, and once it works, push or release the whole thing. [Appendix A](#appendix-a-when-your-script-fails) explains the common errors.
 
 ## Chapter 5: Building A Vocabulary
 
@@ -993,7 +994,7 @@ A comment should say **why**, not **what**: the code already says what. If you n
 
 ### Code investors can read
 
-When your startup matures, its code is locked and public, and the players thinking of buying its shares read it first (see [Before you buy: read the code](#before-you-buy-read-the-code)). Code they can follow in a minute earns their trust; code they can't is a risk they price in. So write it the way the starters are written:
+Once you offer your company's shares its code is public, and once one sells its code is locked. The players thinking of buying its shares read it first (see [Before you buy: read the code](#before-you-buy-read-the-code)). Code they can follow in a minute earns their trust; code they can't is a risk they price in. So write it the way the starters are written:
 
 - **Names that say what things are and do.** `sell_metals_at_market()`, `fuel_for_round_trip`, `richest_ore`. A good name is worth more than a comment, and it never goes out of date.
 - **Small functions, each doing one thing.** Your main loop should read like a list of steps: refuel, mine, refine, sell, grow.
@@ -1041,6 +1042,7 @@ Every drone comes with a library of names for the game, so you can write `mine(k
 | Market questions | `best_offer(resource)` (the cheapest other drone's sell order here: its price, the seller, and how many it will sell; 0, 0, 0 if none), `best_bid(resource)` (the highest other drone's buy order here: its price, the buyer, and how many it wants; 0, 0, 0 if none; for a startup both look only at the House's orders), `house_only()` (for a startup, the House's station drones here; `nil` for a company that may trade with anyone), `house_supply(resource)` and `house_demand(resource)` (what the House sells and still buys at each exchange), `buy_price(resource)` and `sell_price(resource)` (the best price to buy or sell one here; 0 if nobody sells or buys), `board_price(resource, place)` (what a unit traded for at a place over the last game day, from the price board; 0 if none traded), `sold(resource, days_ago, place)` (how many sold at a place on a game day, an hour old; 0 is today so far), `sell_orders(resource)` and `buy_orders(resource)` (every order here, best first: `{price, units, drone, keep or want, held}`), `cost_to_buy(n, resource)` and `sale_value(n, resource)` (what buying or selling n here comes to, and how many of the n there are), `price_board(resource)`, `sales(resource, days_ago)`, `volume_here(resource, hours)`, `volume_everywhere(resource, hours)` |
 | Other exchanges | `quotes(resource)` (`quotes(r)[place]` is `{bid, bid_units, ask, ask_units, stock, hours_old}`: live here, an hour old elsewhere), `stock(resource, place)` (units on sale there), `orders_everywhere(resource)` (see [Other exchanges](#other-exchanges)) |
 | Other questions | `me()` (this drone's ID), `location()`, `units(resource)` (how many in the hold), `company()`, `credits()` (your company's credits), `today()` (the game day now: plan a late selling trip or a deadline), `company_age(company)` (game days since a company was founded, yours if left out: use it for a plan about your company's own life, such as growing only in its first 24 days; the Foundry design used `today()` for that, so a company released on day 8 could grow for only 16 days), `deposit(mineral)` (units left here), `trip(place)` (game hours to fly there from here, rounded up; -1 if unknown), `crowd(place)` (how many working drones are at a place; here if left out), `my_clones()` (a list of `{drone = id, wrecked = true or false}`), `fleet()` (`{drones, cap, coming}`: your company's working drones, the most it may have, launches on their way), `fleet_full()` (true when a launch would fail with -20), `recipe(resource)` (see below), `hold()`, `cargo_mass()`, `capacity()`, `space()`, `now()`, `lineage()`, `company_name()`, `company_drones()`, `earnings(hours)`, `taxes()`, `place_name(place)`, `trip_to(place)`, `trip_between(a, b)`, `deposits()`, `minerals(place)`, `best_sites(mineral)`, `drones_at(place)`, `wrecks_at(place)`, `wrecks()`, `wreck_hold(wreck)`, `resource_name(resource)`, `producers(resource)`, `protocol_name(protocol)`, `events_affecting(drone)`, `event(id)` (see [Chapter 9](#chapter-9-asking-questions)) |
+| Its company's money and end | `set_dividend_share(x)` and `pay_out(n)` (what it pays its shareholders: see [Dividends](#dividends-what-a-share-earns)), `close_company()` (asks for its company to end: see [Closing a company](#closing-a-company)) |
 | Saying what it's doing | `set_status(text)`: a line shown on the drone's page and in the API (see [Saying what it's doing](#saying-what-its-doing)) |
 | Any query | `ask(id, ...)` returns a query's rows (an empty table if it fails); `query(id, ...)` is the same but returns `nil` and a code if it fails (see [Chapter 9](#chapter-9-asking-questions)) |
 | Any protocol | `perform(protocol, ...)` runs a protocol by its number, its arguments in the order the Protocols page lists them, and returns 0 or a negative code |
@@ -1309,7 +1311,7 @@ Two game functions trade with whoever has the best order here, a station drone o
 - `buy_here(n, resource)` buys up to n: it pulls from the cheapest sell order here, then the next, until it has n or nobody sells more. `buy_here(n, resource, max_price)` buys only from sellers asking at most `max_price` a unit, so it never pays whatever the last seller asks. A pull that fails costs no fuel: it is given back. Pulling from the cheapest sellers in turn means a seller with only a unit or two can't leave you short (buying only what the cheapest seller had once left a drone stranded at Mars with no fuel).
 - A seller or buyer that refuses (its stock changed since your drone looked, or its order keeps more back: "the seller's order didn't allow selling that many") is skipped for the next one. After 6 tries they stop.
 
-Each push or pull is an action and burns a unit of fuel, buying fuel included. A pull of fuel pays its unit after the fuel arrives, so a drone docked at an exchange with an empty tank can still buy fuel there. Anywhere else an empty tank leaves it stuck: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). A pull that fails because the seller's order no longer has the units costs no fuel. They return 0 when they traded something; otherwise -12 when nobody here sells or buys it, or the last refusal's code (for a startup, -17 when it has reached its cap: see below). Check `units` to see how many moved.
+Each push or pull is an action and burns a unit of fuel, buying fuel included. A pull of fuel pays its unit after the fuel arrives, so a drone docked at an exchange with an empty tank can still buy fuel there. Anywhere else an empty tank leaves it stuck: buy fuel before you run dry, or call for it (see [Running low on fuel](#running-low-on-fuel)). A pull that fails because the seller's order no longer has the units costs no fuel. They return 0 when they traded something; otherwise -12 when nobody here sells or buys it, or the last refusal's code. Check `units` to see how many moved.
 
 ```lua
 function trade_at_the_moon()
@@ -1322,9 +1324,9 @@ end
 
 Until it matures, a startup **trades only with the House**: the station drones at the Earth Exchange, the Moon Depot and the Mars Exchange. Its own company's drones may trade with each other as well. A push or pull with any other company's drone fails with -16, and so does a plunder. `buy_here`, `sell_here`, `best_offer` and `best_bid` know this: for a startup they look only at the House's orders. `house_only()` tells your script which kind of company it is: for a startup, the House's station drones here; for a company that may trade with anyone, `nil`. So `if house_only() then ... end` runs only while the company is a startup, and the same script does the right thing once it matures. The starters use it that way.
 
-**The daily buying cap (-17).** From the House at one exchange, a startup buys at most **a tenth of what the House has on sale** of a good there (its sell order's units above the stock it keeps), counting what the startup has already bought there that game day. If the Moon Depot has 80 Metals (A1) on sale and your startup has bought none today, it can buy 8 there (a tenth, rounded down). It can always buy at least 5 (Earth often had only 17 to 40 metals on sale, and a Maker got 1 to 4 a day), so with 40 on sale it can buy 5. Past its cap, a pull fails with -17. The cap is the startup's own (other startups' buying doesn't use it up), it is counted for each good at each exchange, and it starts again each game day. `buy_here` asks for no more than the cap at first (less what the drone has already bought there today), and after a -17 asks for half as much each time until it is refused; it never pulls fuel fewer than 5 at a time, since each pull burns a fuel. **Selling to the House has no cap**, though past a day's demand of a good the House pays less and less for it (see [How much more will the House buy?](#house-demand)).
+**The daily buying cap (-17) is retired.** Until November 2026 a startup bought at most a tenth of what the House had on sale of a good at one exchange in a game day, and a pull past that failed with -17. Now a startup buys whatever the House has on sale, so -17 no longer happens. Selling to the House has never had a cap, though past a day's demand of a good the House pays less and less for it (see [How much more will the House buy?](#house-demand)).
 
-So a startup that needs more of something than one exchange will sell it today should spread its buying: `house_supply(r)` shows how many units the House has on sale (`on_sale`) at each exchange, and `buy_here` returns -17 when the cap stopped it buying any. The Maker starter does this with its metals, before its first trip and each time it runs out. It weighs each exchange's price, the trip there and back, and what its tenth lets it buy there:
+A startup that needs more of something than one exchange has on sale should still spread its buying: `house_supply(r)` shows how many units the House has on sale (`on_sale`) at each exchange. The Maker starter, written while the cap stood, does this with its metals, before its first trip and each time it runs out. It weighs each exchange's price, the trip there and back, and how much it plans to buy there:
 
 ```lua
 -- Where a startup buys metals: the House exchange where a unit costs
@@ -1347,7 +1349,7 @@ function metals_place()
 end
 ```
 
-Once the startup matures, none of this applies: it trades with everyone, with no cap.
+Once the startup matures, it trades with everyone.
 
 ### Transferring resources between drones
 
@@ -1418,20 +1420,60 @@ None of it happens in Lua. **Companies don't trade shares; players do**, on the 
 
 ### Maturing a startup
 
-**When.** A startup may mature once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh startup, 100 more for each paid push. Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Mature** button beside the startup when it can; `GET /api/v1/startups` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
+**When.** A startup may mature once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh startup (100 more for each paid push it had before push fees were retired in November 2026). Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Mature** button beside the startup when it can; `GET /api/v1/startups` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
 
 **How.** Press **Mature** on your account page or on the startup's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/startups/{id}/mature` with your token. It is refused (409) while the startup can't, with how much it still needs.
 
 **What happens.**
 
 - It repays its debt to the bank, out of its credits.
-- Its code is **locked for good**: nobody can push to it, ever.
+- Its code stays **yours to change** while you hold all its shares: you still own it outright, and it counts against your 5 (see [Owned outright, or public](#owned-outright)).
 - It trades with everyone: other players' drones, and the House.
 - You get its **100 shares**.
 
 **After.** A matured company runs until it fails. Its drones can now sell to other players' standing orders and post their own, buy from anyone, and plunder wrecks. The starters launch copies once matured, which spends credits on hulls and kits and lowers the company's cash-out value for a while (see below). Two of one player's matured companies may trade with each other; their dealings are flagged on both companies' pages and in your digest.
 
-**Don't wait.** A startup holds at most twice what it was lent (8,400), so what it earns past that goes to the bank. Mature it as soon as you can.
+**Don't wait.** A startup keeps all it earns (its credit cap was retired in November 2026), but until it matures it trades only with the House. Mature it as soon as you can.
+
+### <a name="owned-outright"></a>Owned outright, or public
+
+A company is **owned outright** while one player owns all of it: a live startup, or a matured company whose 100 shares one player holds all of (the bank none).
+
+- **Its owner changes its code at any time, for free** (see [Pushing new code](#pushing-new-code)), and can close it (see [Closing a company](#closing-a-company)).
+- **At most 5.** A player owns at most 5 companies outright, startups included. Founding a sixth, or buying the shares that would make you the only holder of a sixth, is refused. Shares in public companies have no limit.
+- **Its code is private** (see [Who sees a company's code](#who-sees-code)).
+
+It becomes **public** when its shares change hands:
+
+- **Offering them shows the code.** From the moment you post a standing sell order for its shares, its code is public, and it can't be pushed to while the order stands: buyers get the code they watched run. An offer you withdraw unsold locks nothing, and your next push makes the new code private again.
+- **The first share sold**, to a player or to the bank, makes the company public. It has more than one holder now, so its code is locked: nobody can change it, and only its own code can close it.
+- **No buying back for 7 real days.** Once you sell any shares of a company, you can't buy its shares, from players or from the bank, for 7 real days, and your standing buy orders for it are cancelled. Its page says until when. So nobody can sell a share and buy it straight back to unlock the code.
+- **Takeovers.** A player who buys every share of a public company owns it outright again: its code can be changed, and it counts against their 5.
+
+### <a name="who-sees-code"></a>Who sees a company's code
+
+While one player owns a company outright, its code is seen only by its owner, and in a class by their teacher. Everyone else sees: "Its code is private while one player owns it outright. It becomes public once its shares are offered, and when the company ends." It is public from the moment its shares are offered, once the company is public, and once it has ended. Companies released before these rules came in (November 2026) stay public.
+
+Private code is hidden on the company page (its code, revisions and copy links) and in `GET /api/v1/drones/{id}` (its `script` is null for anyone who may not see it), and the Found a startup page won't load it to copy. What the company does stays public: its trades, events and earnings, the share of its profit it pays, and the Lineage map.
+
+### Closing a company
+
+A company ends through its own code. `close_company()` asks for the drone's company to end, and the website ends it within about a real minute:
+
+- **a startup** closes as it always has: its debt is cancelled, its credits go back to the bank, and its drones become empty wrecks nobody can plunder;
+- **a matured company** shares its credits among its shareholders by their shares (the bank's part leaves the game). What the bank still owes for shares sold to it is paid, at no more than each share got. Its share orders are withdrawn, and its drones become wrecks **with what they hold**, for anyone to plunder.
+
+`close_company()` returns 0, or -5 when the drone has no live company of its own to close (or it is the House's). Calling it again while the closing is pending returns 0 and changes nothing.
+
+On the page of a company you own outright, the **Close** button (or `POST /api/v1/startups/{id}/close`) pushes it this code for you:
+
+```lua
+function launched()
+  close_company()
+end
+```
+
+A public company has no Close button: only its own locked code can close it, so look for `close_company()` when you read a company's code before buying. Companies still end the other ways too: going broke (see [Wrecks and plunder](#wrecks-and-plunder)), winding up after 60 game days without a sale, and losing all their drones.
 
 ### Dividends: what a share earns
 
@@ -1495,6 +1537,7 @@ Players trade shares with **standing orders**, like goods: an order to buy or se
 - **It trades at once** against the best orders it meets, at their price; the rest stands until someone takes it, or you cancel it.
 - **You must be able to pay.** A buy order can't commit more than your account can pay, counting your other buy orders. Your **starting credits** pay only at or below the bank's selling price; above it, only your own credits do.
 - **You must hold what you sell.** Your sell orders for a company together can't offer more shares than you hold.
+- **Selling makes it public.** Offering a company's shares shows its code, the first share sold locks it, and after selling any you can't buy that company's shares for 7 real days (see [Owned outright, or public](#owned-outright)). Buying the shares that would make you sole holder of a sixth company owned outright is refused.
 - **Your own orders can't cross.** A buy at or above your own sell price for the same company, or a sell at or below your own buy price, is refused: cancel the other order first.
 - **A resting order earns a rebate.** When your standing order fills against another player's order, and it has been on the book for at least a game hour, the bank pays you **0.5%** of the trade on top (rounded down: 10 shares at 51 is 510 credits, so 2). Keeping orders on the book pays; placing one and filling it at once doesn't. The player who took your order gets none. Your account page and the since-you-last-looked card say when you got one; a pegged order keeps its time on the book when the bank's prices move it.
 - **Pegged orders follow the bank.** Instead of a fixed price, an order can follow what the bank buys at (the cash-out value) or what it sells at, plus or minus up to 25%: "buy 5 at what the bank buys at −1%", or "sell 5 at what the bank sells at +3%". Every few real minutes it is moved to its price now, kept within the range, and trades at once with any order it then meets. A fixed price goes stale as the company's value moves (in one playtest, fixed-price orders ended up under cash-out, or out of range, within 10 game days); a pegged one doesn't. If it can't stand at its new price (your own orders would cross, or you can't pay), it stays where it was. A repriced order keeps its id, so a script can cancel it by the id it was given. A pegged sell never stands under what the bank buys at (cash-out), whatever its percent: there you'd do better selling to the bank. A price sent with a peg is set aside, and the answer says so.
@@ -1510,7 +1553,7 @@ The **Trading desk** (`/market/trade`, under Market in the menu) puts share trad
 - **The watch list:** every matured company, yours first, with a health pill (steady, stalled, at risk, failing, dissolving), its cash-out value and its return over 30 game days. Pick one to see its book. On a phone it comes after the book and the ticket, with a company picker above them.
 - **The ladder:** that company's book from the dearest sell order at the top to the lowest bid at the bottom, with the bank's selling and buying prices among them and the band players trade in at each end. A script's order says **(script)**. Click a row to fill the ticket: a player's order to trade against it at its price, a bank row to buy or sell now.
 - **The order ticket**, the same one as on every matured company's page, has two ways to trade:
-  - **Buy or sell now** takes the best route for the number of shares you give, in price order: players' standing orders, new shares on offer and the bank. Before you press, it says which, for example "Buy 5 now: 3 from Bram at 1,120 and 2 from the bank at 1,143 = 5,646 credits", how many you'd hold and what part of the company, and how many game days of the last month's dividends would pay a share back. Selling to the bank says it pays in 30 game days, at the lower of today's cash-out and cash-out then. It trades all of it or none, and never at a worse price than it showed you. Quick amounts: 1, 10, and as many as you can afford (or all you hold, to sell).
+  - **Buy or sell now** takes the best route for the number of shares you give, in price order: players' standing orders and the bank. Before you press, it says which, for example "Buy 5 now: 3 from Bram at 1,120 and 2 from the bank at 1,143 = 5,646 credits", how many you'd hold and what part of the company, and how many game days of the last month's dividends would pay a share back. Selling to the bank says it pays in 30 game days, at the lower of today's cash-out and cash-out then. It trades all of it or none, and never at a worse price than it showed you. Quick amounts: 1, 10, and as many as you can afford (or all you hold, to sell).
   - **Name my price** posts a standing order at a price, or one that follows the bank's, and says what meets it at once and what stands on the book.
 - **Your shares:** each holding's worth at cash-out, what you paid for it, the dividends it has paid you, and the **gain** (worth less cost, plus dividends). Shares that came to you when your company matured cost nothing. **Sell** fills the ticket to sell them all.
 - **Your orders,** each with **Move** (a new price: the order keeps its place in time, so its rebate's rest) and **Cancel**.
@@ -1520,16 +1563,9 @@ The **Trading desk** (`/market/trade`, under Market in the menu) puts share trad
 
 A matured company's page shows what it holds as a bar, credits against goods and hulls, and what it made over the last 30 game days against its cash-out value: its **return on capital**. Credits earn nothing until its drones put them to work, so a company worth 690,000 with one drone and nearly all of it in credits may pay less than a small one running flat out (in one playtest, 93% of the matured companies' value sat idle, earning 2.8% a month). The dashboard's **Return on capital** tile gives the same for all matured companies together. Before you buy shares, look at it: the yield is what you're paid, the return on capital is how hard the company works.
 
-### Raising credits with new shares to fund a copy
+### <a name="raising-credits-with-new-shares-to-fund-a-copy"></a>New shares (retired)
 
-A matured company can't take credits from its owner any other way, so it grows on what its drones earn: a copy costs a hull and a kit. Its owner can raise them faster by selling **new shares**:
-
-- **10 at a time,** at the company's **cash-out value** a share at the moment each is bought, or the market's price if that is higher: the best player bid for its shares, or the last trade between two players over the last 7 game days. So no share's cash-out falls, and an owner can't mint shares cheaply to sell into a higher bid. What they fetch goes to the **company's** credits, not its owner's.
-- **Any player may buy,** its owner too, on the company's page (**Buy new shares**) or through the API.
-- **One offering at a time,** and a company has **at most 200 shares**. Its owner can withdraw the rest of an offering; the shares already sold stay sold.
-- **Buying at cash-out doesn't dilute the value.** The company gains a share's worth of credits for each new share, so a share's cash-out value stays as it was. What changes is **each holder's part** of the company: the company page lists each holder's percentage, and its dividends are shared over more shares. If those credits buy a drone that earns, every share earns more.
-
-Each offering is a mark on the company's charts ("Offered 10 shares"), the stock exchange shows a company's share count once it has sold new ones and any shares still on offer, and the trade lists show the sale as **New shares**.
+**Offering new shares is retired** (November 2026): nobody adds credits to a company. A company's money is what it earns, so it grows on what its drones earn: a copy costs a hull and a kit. Offerings still open were closed, and `POST /api/v1/player-shares/{id}/offering` answers 410. Shares sold in earlier offerings stay sold, which is why a few companies have more than 100 shares: they were sold 10 at a time, at the company's cash-out value or the market's price if higher, the credits going to the company. Those earlier offerings are still marks on the company's charts ("Offered 10 shares"), and the trade lists show the sales as **New shares**.
 
 ### <a name="trading-script"></a>Your trading script
 
@@ -1569,11 +1605,12 @@ end
 
 ### Before you buy: read the code
 
-All code is public. A matured company's code can't change, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
+A company's code is public from the moment its shares are offered (see [Who sees a company's code](#who-sees-code)). Once a share has sold its code can't change, unless one player buys every share, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
 
 - **What does it do when the market moves?** A company that sells one product to one exchange does well until that exchange is full (see [How much more will the House buy?](#house-demand)).
 - **What does it do when it runs low on fuel or credits?** A company whose drones run dry earns nothing.
 - **Does it grow?** Launching copies spends credits now (lowering its cash-out value) for more profit later.
+- **Can it close itself?** A company whose code calls `close_company()` ends, its credits shared among its shareholders (see [Closing a company](#closing-a-company)).
 - **Where did it come from?** Its page's **Lineage** shows the code it carries, and how earlier companies with that code did.
 
 <a name="company-health"></a>**Is it healthy?** A share is worth something only while the company's drones keep working: a company whose drones are wrecked ends, and one whose drones are stranded without fuel earns nothing. Its page shows its health, and flags a company **at risk** when it has no working drone, a drone with no fuel left (whatever its credits, it can't move or trade until someone sells it fuel where it is), or a drone that runs dry within 3 game days while it has under 500 credits, and says why. It also lists each idle drone with what its script last said (`set_status`) and what it holds. A drone can ask the same with `company_health(company)` (its own company if you leave it out): `{working, wrecked, fuel, lowest, used, days, credits, idle, stalled}`. `days` is how many game days until its first drone runs dry at the last day's net fall in fuel (-1 when no drone's fuel is falling); `idle` is the game hours since any of its drones last bought, sold, mined, refined or made something other than fuel, and `stalled` is true when that is a game day or more (in one playtest, two companies sat "short of credits" for 20 game days before their owners noticed). The company page and the API judge a company **stalled** more widely: also when at least half its drones have done nothing for a game day and it hasn't sold anything for a game day either, or when it has sold nothing for 168 game hours (7 game days; at 72 hours it flagged Makers that sell a batch of rods every 4 to 7 days). A new company has **7 game days** to make its first sale before "it has never sold anything" counts (a 4-day-old startup mining its first load was flagged). A banner at the top of its page says why. In one playtest, a company of 39 drones earned nothing for days while one drone kept making alloys, and showed as healthy.
@@ -1609,7 +1646,7 @@ The **at risk** flag is a warning, not a verdict: a company at risk may sell its
 
 The company boards (the Leaderboard, by net wealth) and the Lineage map stay as they were.
 
-**The digest.** Your account page starts with **While you were away**: what happened since you last looked, over at most the last 7 game days (a player away for a while got 500 game days at once). For each company: what it sold and bought, and what a startup sent the bank over its credit cap. Then the dividends your shares paid you, what the bank paid you, your share trades (an order of yours that filled), any dealings between your own companies, and the news. `GET /api/v1/account/digest` gives the same (with `?peek=1` it stays unseen).
+**The digest.** Your account page starts with **While you were away**: what happened since you last looked, over at most the last 7 game days (a player away for a while got 500 game days at once). For each company: what it sold and bought (and, before the credit cap was retired, what a startup sent the bank over it). Then the dividends your shares paid you, what the bank paid you, your share trades (an order of yours that filled), any dealings between your own companies, and the news. `GET /api/v1/account/digest` gives the same (with `?peek=1` it stays unseen).
 
 **Since you last looked.** The same news follows you: the home page, your account page and your own companies' pages open with a **Since you last looked** card. Besides the digest's figures it gives each company's share price now and how far it has moved since, and the one action your companies fail most over the last game day, with what usually fixes it ("the hold is full: sell or jettison before taking more"). **Got it** clears it: the next card starts from then. Under it, the home page lists **Yours, just now**: your companies' latest trades and your own share trades, newest first, above everyone's.
 
@@ -1661,7 +1698,7 @@ When a drone loads your script, it runs the script from top to bottom. That top-
 
 Long scripts don't hold up other players. A drone runs your script a turn at a time: a turn is 100,000 instructions, and each Lua instruction counts as six (each query and each action counts as 1,000). A drone that thinks hard pauses mid-thought and carries on at its next turn, a few seconds later, and an action holds your script until it is done. It can't pause inside a function that Lua itself calls, such as the comparison you give `table.sort` or the replacement you give `string.gsub`: there it finishes the call, then pauses. Keep those functions small: one that runs 2 million Lua instructions past the drone's turn is stopped with an error. Everything it printed shows on the drone's page when `launched` returns or calls `report()`.
 
-A released drone can't be stopped or reset. When a startup goes wrong, push a fixed version to it (see [Pushing new code](#pushing-new-code)), or close it and release the fix as a new startup. A push adds at most 100 to its debt, and a new startup costs you nothing. A matured company's code is locked for good.
+A released drone can't be stopped or reset. When a startup goes wrong, push a fixed version to it (see [Pushing new code](#pushing-new-code)), or close it and release the fix as a new startup. A push is free, and so is a new startup. A public company's code is locked.
 
 ### What your drone remembers
 
@@ -1957,7 +1994,7 @@ end
 
 ### Market-aware drones
 
-A startup's code changes only when you push new code, and a matured company's never does, but its market will change: deposits run dry, other players crowd the stations you sell to, miners undercut each other, and new makers start buying what you sell. A drone that follows a fixed plan does well until the market moves, then keeps doing the wrong thing. The drones that last read the market every round and decide for themselves what to make, where to buy and where to sell. Build yours that way.
+A company's code changes only when its owner pushes new code, and a public company's never does, but its market will change: deposits run dry, other players crowd the stations you sell to, miners undercut each other, and new makers start buying what you sell. A drone that follows a fixed plan does well until the market moves, then keeps doing the wrong thing. The drones that last read the market every round and decide for themselves what to make, where to buy and where to sell. Build yours that way.
 
 **Read the market.** These game functions answer the questions most decisions start from, about the place where the drone is:
 
@@ -2095,6 +2132,7 @@ An action that fails is not an error: it returns a negative code (see [Issuing C
 ## Appendix B: Changes since the September 2020 edition
 
 - **The new rules, live since 14 November 2026.** Every release is a **startup**: the bank lends it a drone and its starting credits, it trades only with the House, and you can change its code until you mature it. A matured company's 100 shares are yours, to keep, sell to the bank or trade with other players. [Chapter 1](#chapter-1-getting-started) takes you through your first startup, and [Chapter 7](#chapter-7-maturing-and-shares) explains maturing, shares and the bank.
+- **Ownership, November 2026.** A company one player owns outright (a startup, or a matured company whose shares they hold all of) can have its code changed at any time, for free, and keeps it private; at most 5 a player. The first share sold makes it public and locks its code, and a seller can't buy that company's shares for 7 real days. A company ends through its own code, with `close_company()`. The startup credit cap, its daily buying cap, the push fee and offerings of new shares are retired (see [Owned outright, or public](#owned-outright)).
 - Every example is written in Lua, with the game's [library of functions](#the-game-functions) (`mine(kunspar)`, `go(moon)`, `buy_here(20, fuel)`...).
 - [Chapter 4](#chapter-4-issuing-commands) starts with equipping your drone: it starts with credits and no equipment, and buys a Mining Kit (engine, mining and refining modules), a Factory Kit (engine and the tools that make things), single modules, or nothing at all. Travel uses protocol 5001 (your engine) instead of 5.
 - The mining example uses kunspar on the Moon, which the Mining Kit's Worm can mine. A [table](#extracting-minerals) shows which module mines which minerals, including on the new asteroids, comets and planetary rings.
