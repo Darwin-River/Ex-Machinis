@@ -549,6 +549,10 @@ end
 - A clone takes days to pay back its 5,000 credits. Near the end of a round (`today()`), stop reinvesting: two round 28 companies launched clones six days before the end and finished poorer for it.
 - A clone gets your script and your saved globals. Set one before launching (`copy = true`) and the clone can tell it is one.
 
+## Examples of the new rules (#932)
+
+Five company designs in `examples/companies/` each show one idea, with the words above: [`varied.lua`](../examples/companies/varied.lua) (copies that vary: tuning numbers in one table, nudged in each copy by `lineage()`, starting from the best earner's, which each drone broadcasts), [`exit.lua`](../examples/companies/exit.lua) (a sell-out routine: `sell_all`, then `obligations()` with `repay`, `cancel_request` and `cancel_contract`, then `close_company()`, again while it returns -24), [`borrower.lua`](../examples/companies/borrower.lua) (`request_loan` only for a copy that pays back within the term, dearer after `cancel_request` when unbacked, `repay` early), [`salvager.lua`](../examples/companies/salvager.lua) (`wrecks()`, `salvage`, selling modules and Scrap (A1), moving on by `wrecks_at`) and [`hauler.lua`](../examples/companies/hauler.lua) (Metals (A3) from this season's best kunspar site, `best_sites`, with fuel for the whole voyage, sold by `house_demand` and `best_bid`).
+
 ## Patterns and pitfalls
 
 - **Sell every by-product.** Equipment takes about 300 of a drone's 1,000 cargo. Anything you make and keep (Inorganics (A2) from vladnium, for one) piles up until there is no room to brew fuel, and the drone dies. Sell it all each round.
@@ -584,4 +588,4 @@ A **trading script** is a different kind of script from a drone's: it trades you
 | `my_loans()` | the account's loans (#928): `{id, company, name, principal, rate, owed, repaid, closed, defaulted}`, also `market.me.loans` |
 | `log(...)` | writes a line to the run's log, shown on the Trading desk and your account page |
 
-Each action function returns `true`, or `false` and why. A run does at most 20 actions and writes at most 50 log lines; when it hits the 20, the log says so once. What you keep in the table `memory` is there next run. Two starters: [`examples/traders/payback.lua`](../examples/traders/payback.lua) (made for classes: buy when dividends pay a share back soon enough, sell when a company is about to end) and [`examples/traders/value.lua`](../examples/traders/value.lua).
+Each action function returns `true`, or `false` and why. A run does at most 20 actions and writes at most 50 log lines; when it hits the 20, the log says so once. What you keep in the table `memory` is there next run. Three starters: [`examples/traders/payback.lua`](../examples/traders/payback.lua) (made for classes: buy when dividends pay a share back soon enough, sell when a company is about to end), [`examples/traders/value.lua`](../examples/traders/value.lua) and [`examples/traders/lender.lua`](../examples/traders/lender.lua) (backs loan requests that pay enough a game year, from healthy companies with a dividend record, at most a fifth of your spare credits in any one).
