@@ -20,7 +20,7 @@ A **guard** fails the build when it is broken. A **target** is reported until it
 | PO-11 | Ships are worth building (ratio) | 5.6 | at most 2.0 | target | **no** |
 | PO-12 | The map has a shape (ratio) | 1 | at least 2.0 | target | **no** |
 | PO-13 | Distance has a price (ratio) | 1 | at least 3.0 | target | **no** |
-| PO-14 | The frontier pays for the trip (ratio) | 2.08 | at least 1.5 | target | yes |
+| PO-14 | The frontier pays for the trip (ratio) | 2.12 | at least 1.5 | target | yes |
 
 ## Live and playtest objectives
 
@@ -82,7 +82,7 @@ What the materials and fuel cost when made from refined goods bought from the Ho
 
 - A trip burns 5 fuel to the Moon and 5 to Neptune.
 - Far haul: a 1,000-cargo hull with the Mining Kit and 100 fuel aboard has room for 604 refined units. Earth to Jupiter at their closest takes 99.5 game hours each way at 19.6 m/s².
-- Best far mineral: Zenolite (N) at abundance 10, 151 batches a trip, 621.7 game hours with the trips, 30.2 credits a game hour at the House's best bids.
+- Best far mineral: Zenolite (N) at abundance 10, 151 batches a trip, 621.7 game hours with the trips, 30.7 credits a game hour at the House's best bids.
 
 ### Checks that must stay at zero (PO-08, PO-09)
 

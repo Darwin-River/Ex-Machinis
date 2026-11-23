@@ -11,6 +11,7 @@
 
 -- Places
 local earth, moon, mars, phobos, deimos = 3, 10, 4, 11, 12
+local ceres = 191   -- the frontier exchange, Ceres Station (#973)
 
 -- Resources
 local fuel, magmite, kunspar, yalspar, vladnium, wolfite = 2061, 1000, 1100, 1110, 1120, 1130
@@ -1065,6 +1066,7 @@ _G.moon = moon
 _G.mars = mars
 _G.phobos = phobos
 _G.deimos = deimos
+_G.ceres = ceres
 _G.fuel = fuel
 _G.magmite = magmite
 _G.kunspar = kunspar

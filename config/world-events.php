@@ -73,4 +73,9 @@ return [
         'label' => 'Moon pays full price',
         'text' => 'The Moon Depot pays full price for ores and refined goods (it paid 15% less), still selling them cheaper, so miners and refiners selling at the Moon earned about a fifth more.',
     ],
+    [
+        'key' => 'frontier-exchange', 'kind' => 'rule', 'migration' => '0103_frontier_exchange', 'issue' => 973,
+        'label' => 'Ceres Station opens',
+        'text' => 'A fourth exchange opened at Ceres, in the asteroid belt: it pays more for refined goods and parts, sells fuel dear and little of it, and sells no hulls or kits, so trade began to reach beyond Mars.',
+    ],
 ];

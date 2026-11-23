@@ -20,7 +20,7 @@ python3 tools/balance/measure_live.py            # the live game, as a Markdown 
 
 `static_check.py` imports `game-engine/sql/game-data/build_game_data.py`. Run that way, the build works the numbers out without writing anything, so the check sees exactly the prices, recipes, times and fuel costs the game will load. The model:
 
-- **Prices** are the House's listed prices. A purchase pays the cheapest exchange's ask, and a sale gets the best bid, less the 5% sales tax.
+- **Prices** are the House's listed prices at the inner exchanges (Earth, the Moon and Mars). A purchase pays the cheapest one's ask, and a sale gets the best bid, less the 5% sales tax. A frontier exchange such as Ceres Station (#973) is days away and this model has no trips, so only the far haul (PO-14) counts its bids.
 - **Mining** at a place yields its abundance a run. One run takes 1 game hour and 1 fuel. Refining takes its recipe's time and fuel.
 - **One step** means buying a recipe's inputs from the House, making the good and selling it to the House. **Whole chain** means making it from refined goods bought from the House. Far goods the House doesn't sell are priced at their value with its markup.
 - **Credits a tool-hour** is (sale − inputs − fuel) ÷ the tool hours the work takes.
