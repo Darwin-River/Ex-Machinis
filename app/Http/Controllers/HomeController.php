@@ -81,6 +81,8 @@ class HomeController extends Controller
         // and matured companies pay their shareholders dividends
         if (config('forge.new_rules')) {
             \App\Services\PlayerShares::settleBankPayments();
+            // The bank's shares sell into players' bids above close-out (#928)
+            \App\Services\PlayerShares::bankSells();
             \App\Services\PlayerShares::payDividends();
             // ...and pay out what their code asked to (#930)
             \App\Services\PlayerShares::settlePayouts();

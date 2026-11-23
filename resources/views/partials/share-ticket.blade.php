@@ -57,8 +57,7 @@
             <div class="st-say" id="st-price-say" role="status" aria-live="polite"></div>
         </form>
         <p class="st-band"><small>The bank buys at <b>{{ number_format($tk['p']['buys_at']) }}</b> (paid in {{ config('forge.bank_pay_days') }} game days)
-            and sells at <b>{{ number_format($tk['p']['sells_at']) }}</b>; players trade between {{ number_format($tk['p']['low']) }} and
-            {{ number_format($tk['p']['high']) }}.@if(!$sample) You hold <b>{{ number_format($tk['held']) }}</b>.@endif</small></p>
+            and sells at <b>{{ number_format($tk['p']['sells_at']) }}</b>; players trade at any price they agree.@if(!$sample) You hold <b>{{ number_format($tk['held']) }}</b>.@endif</small></p>
 </div>
 @once
 @push('styles')

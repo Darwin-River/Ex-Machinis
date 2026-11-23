@@ -216,8 +216,8 @@
                     and hulls {{ number_format($playerShares['cash_out']['hulls']) }}, less debts
                     {{ number_format($playerShares['cash_out']['debts']) }}), paying {{ config('forge.bank_pay_days') }} game days later at
                     the lower of that value and the value then. It sells the shares it holds
-                    ({{ number_format($playerShares['bank_holds']) }}) at <b>{{ number_format($playerShares['sells_at']) }}</b>.
-                    Players trade between {{ number_format($playerShares['low']) }} and {{ number_format($playerShares['high']) }} a share.
+                    ({{ number_format($playerShares['bank_holds']) }}) at the same price, or into players' bids above it, at the bid.
+                    Players trade its shares at any price they agree: there is no floor or band.
                     It has <b id="share-count">{{ number_format($playerShares['count']) }}</b> shares
                     @if($playerShares['count'] > \App\Services\PlayerShares::COUNT)({{ \App\Services\PlayerShares::COUNT }} when it matured, and new ones it sold since) @endif
                     in all.</p>

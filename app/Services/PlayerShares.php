@@ -351,18 +351,71 @@ class PlayerShares
      */
     public static function prices(int $company, ?array $cash = null): array
     {
-        return self::quote(($cash ?? self::cashOut($company))['per_share'],
-            self::dividendsOverMany([$company], self::premiumDays())[$company], self::bankHolds([$company])[$company]);
+        return self::quote(($cash ?? self::cashOut($company))['per_share'], 0, self::bankHolds([$company])[$company]);
     }
 
-    /** prices() from its parts: a share's cash-out, its dividends over premiumDays() and the bank's shares */
+    /** The highest price a share order may name (#928: players set prices, with no band) */
+    public const MAX_PRICE = 9999999;
+
+    /**
+     * prices() from its parts (#928): the bank buys and sells at close-out
+     * value (its sells_at is its buys_at: no dividend premium, so nobody
+     * gains by buying from it and selling straight back), and players trade
+     * at any price they agree, with no floor or band ($premium is unused)
+     */
     private static function quote(int $buys, int $premium, int $bankHolds): array
     {
-        $sells = $buys + $premium;
-        return ['buys_at' => $buys, 'sells_at' => $sells,
-            'low' => (int) floor($sells * (float) config('forge.share_range_low')),
-            'high' => (int) ceil($sells * (float) config('forge.share_range_high')),
-            'bank_holds' => $bankHolds];
+        return ['buys_at' => $buys, 'sells_at' => $buys, 'low' => 1, 'high' => self::MAX_PRICE, 'bank_holds' => $bankHolds];
+    }
+
+    /**
+     * The tick (#928): the shares the bank holds sell into players' standing
+     * buy orders priced above close-out value, best price first, at the
+     * order's price; what it gets leaves the game. How many shares it sold
+     */
+    public static function bankSells(): int
+    {
+        $sold = 0;
+        foreach (DB::table('bank_shares')->where('units', '>', 0)->pluck('units', 'company_id') as $company => $units) {
+            $company = (int) $company;
+            if (!self::company($company) || self::dissolving($company)) {
+                continue;
+            }
+            $closeOut = self::cashOut($company)['per_share'];
+            $orders = DB::table('player_share_orders')->where('company_id', $company)->where('side', 'buy')
+                ->where('price', '>', $closeOut)->orderByDesc('price')->orderBy('id')->get();
+            foreach ($orders as $o) {
+                $left = (int) (DB::table('bank_shares')->where('company_id', $company)->value('units') ?? 0);
+                if ($left <= 0) {
+                    break;
+                }
+                $buyer = (int) $o->user_id;
+                $n = min($left, (int) $o->units);
+                if (Ownership::buyProblem($buyer, $company, $n) !== null) {
+                    continue;
+                }
+                $done = DB::transaction(function () use ($o, $buyer, $company, $n) {
+                    $at = (int) $o->price;
+                    if (!self::charge($buyer, $n * $at, $at, $at)) {
+                        DB::table('player_share_orders')->where('id', $o->id)->delete();   // it can't pay: its order goes
+                        return 0;
+                    }
+                    self::move(null, $buyer, $company, $n);
+                    CreditFlows::record('bank_sold_shares', -$n * $at, $company, $buyer);   // leaves the game (#937)
+                    DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => null, 'buyer_id' => $buyer,
+                        'units' => $n, 'price' => $at, 'game_t' => World::gameNow()]);
+                    $rest = (int) $o->units - $n;
+                    $rest > 0 ? DB::table('player_share_orders')->where('id', $o->id)->update(['units' => $rest])
+                              : DB::table('player_share_orders')->where('id', $o->id)->delete();
+                    if (Ownership::soleHolder($company) === $buyer) {
+                        Loans::takeover($company);
+                    }
+                    return $n;
+                });
+                $sold += $done;
+            }
+        }
+        return $sold;
     }
 
     /** The shares the bank holds of each company: [company => units] */

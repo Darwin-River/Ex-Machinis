@@ -105,7 +105,8 @@
                     Yield is those dividends over the last 30 game days against cash-out. The last price is the last trade between two players
                     (the bank's trades are at its own prices); its premium or discount against today's cash-out is shown only for a trade in the last
                     {{ \App\Http\Controllers\WorldController::PREMIUM_DAYS }} game days.
-                    Players trade between {{ (int) round(config('forge.share_range_low') * 100) }}% and {{ (int) round(config('forge.share_range_high') * 100) }}% of the selling price.
+                    Players trade at any price they agree: there is no floor or band (#928). The bank buys and sells at cash-out value,
+                    and the shares it holds also sell into players' bids above that, at the bid.
                     The 30-day lines share one scale (<span id="share-spark-scale">a percent scale</span>): each is the change in cash-out from
                     its first day, in percent, with that day's level dashed, so a steady share is a flat line whatever its price. Hover a line for the credits.
                     Data: <code>GET /api/v1/player-shares/{id}</code> and <code>GET /api/v1/companies/{id}/history</code> (cash_out_share).</p>
