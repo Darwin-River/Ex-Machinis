@@ -126,7 +126,7 @@
                 <p class="stat-meta" id="startup">A startup: it owes the bank {{ number_format((int) $user->debt) }} credits, and
                     trades only with the House until it matures.</p>
             @elseif(($user->matured_t ?? null) !== null)
-                <p class="stat-meta" id="startup">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}: its code is locked for good.</p>
+                <p class="stat-meta" id="startup">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}.{{ \App\Services\Ownership::owner((int) $user->user_id) === null ? ' Its code is locked: more than one holder owns its shares.' : ' One player owns all its shares, so its code can still change.' }}</p>
             @endif
 
             @if($road)
@@ -176,10 +176,10 @@
                                     <button class="button button-primary" type="submit">Mature it</button></form>
                             @endif
                             <form method="POST" action="{{ url('startups/' . $user->user_id . '/close') }}"
-                                  onsubmit="return confirm('Close this startup? It leaves the game with all it holds, and its debt is cancelled.')">{{ csrf_field() }}
-                                <button class="button button-secondary" type="submit">Close it (debt cancelled)</button></form>
+                                  onsubmit="return confirm('Close this startup? This pushes code that calls close_company(): within a real minute its credits go back to the bank, its drones become empty wrecks, and its debt is cancelled.')">{{ csrf_field() }}
+                                <button class="button button-secondary" type="submit" id="close-button">Close it (debt cancelled)</button></form>
                             <details id="startup-push">
-                                <summary class="button button-secondary" style="display: inline-block">Push new code {{ $road['push_fee'] === 0 ? '(the first is free)' : '(adds ' . number_format($road['push_fee']) . ' to its debt)' }}</summary>
+                                <summary class="button button-secondary" style="display: inline-block">Push new code (free)</summary>
                                 <form method="POST" action="{{ url('startups/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
                                     <label for="startup-script">New script (Lua): its working drones drop what they run and start it</label>
                                     @include('partials.lua-editor')
@@ -270,20 +270,41 @@
                                 <button class="button button-secondary button-sm mb-2" type="submit">Withdraw the rest</button>
                             </form>
                         @endif
-                    @elseif($playerShares['is_owner'])
-                        @if($playerShares['count'] + \App\Services\PlayerShares::OFFER_UNITS <= \App\Services\PlayerShares::MAX_COUNT)
-                            <form method="POST" action="{{ url('companies/' . $user->user_id . '/offering') }}" class="form-inline mb-2">
-                                {{ csrf_field() }}
-                                <span class="mr-2">Raise credits for a copy: offer {{ \App\Services\PlayerShares::OFFER_UNITS }} new shares at
-                                    {{ number_format($playerShares['buys_at']) }} each (about {{ number_format(\App\Services\PlayerShares::OFFER_UNITS * $playerShares['buys_at']) }} credits).
-                                    Every holder's part of the company shrinks a little.</span>
-                                <button class="button button-secondary button-sm mb-2" type="submit">Offer new shares</button>
-                            </form>
-                        @else
-                            <p><small>It has {{ $playerShares['count'] }} shares, the most a company may have ({{ \App\Services\PlayerShares::MAX_COUNT }}).</small></p>
-                        @endif
                     @endif
                 </div>
+                {{-- Owned outright (#923): its code is yours to change, until you sell a share --}}
+                @if($playerShares['outright'])
+                    <div id="owned-outright" class="mb-3">
+                        <p><b>You own all its shares:</b> you can change its code at any time, for free, and close it.
+                            <b>Selling any share makes it public and locks its code for good</b> (unless someone later buys every share back):
+                            buyers get exactly the code they watched run, and nobody can change it after taking their money. Its code is public
+                            from the moment you offer shares, and you can't buy its shares for {{ \App\Services\Ownership::BAN_DAYS }} real days after selling any.</p>
+                        @if($playerShares['on_offer'])
+                            <p id="push-on-offer"><small>Its shares are on offer, so its code can't change: withdraw your sell orders to change it.</small></p>
+                        @else
+                            <details id="outright-push" class="mb-2">
+                                <summary class="button button-secondary" style="display: inline-block">Push new code (free)</summary>
+                                <form method="POST" action="{{ url('startups/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
+                                    <label for="outright-script">New script (Lua): its working drones drop what they run and start it</label>
+                                    @include('partials.lua-editor')
+                                    <textarea v-pre class="form-control" id="outright-script" name="script" rows="10" spellcheck="false" data-lua-editor
+                                              maxlength="{{ config('forge.max_script_length') }}" required>{{ $code['current']['script'] ?? '' }}</textarea>
+                                    <button class="button button-primary mt-2" type="submit">Push it</button>
+                                </form>
+                            </details>
+                            <form method="POST" action="{{ url('startups/' . $user->user_id . '/close') }}" class="mb-2"
+                                  onsubmit="return confirm('Close this company? This pushes code that calls close_company(): within a real minute its credits go to you, its shareholder, and its drones become wrecks with what they hold.')">{{ csrf_field() }}
+                                <button class="button button-secondary" type="submit" id="close-button">Close it</button></form>
+                        @endif
+                    </div>
+                @elseif($playerShares['public'])
+                    <p id="code-locked"><small>Its code is locked: more than one holder owns its shares, so nobody can change it.
+                        A player who buys every share owns it outright again, and can.</small></p>
+                @endif
+                @if($playerShares['banned_until'])
+                    <p id="buy-ban"><small>You sold shares of this company: you can buy its shares again from
+                        {{ $playerShares['banned_until']->format('M j, H:i') }} UTC.</small></p>
+                @endif
                 <div class="row">
                     @foreach(['sell' => 'Offered', 'buy' => 'Wanted'] as $side => $label)
                         <div class="col-md-6"><h3 class="h6">{{ $label }} by players</h3>
@@ -588,6 +609,8 @@
                         </table>
                     </div>
                 @endif
+            @elseif($codeHidden ?? false)
+                <p id="code-private">{{ \App\Services\Ownership::PRIVATE_NOTE }}</p>
             @else
                 <p>This company's program came by email: it has no released code to show.</p>
             @endif
@@ -639,12 +662,14 @@
                 @if($ended)
                     <p style="white-space: normal">It has ended: its code can't change.</p>
                 @elseif(!empty($pushes['startup']))
-                    <p style="white-space: normal">Its owner reprograms this startup from their
-                        <a href="{{ url('account') }}#startups">account page</a> (or the API). Pushed {{ $pushes['count'] }}
-                        {{ $pushes['count'] === 1 ? 'time' : 'times' }}; the next push adds {{ number_format($pushes['next_fee']) }}
-                        credits to its debt{{ $pushes['next_fee'] === 0 ? ' (the first is free)' : '' }}.</p>
+                    <p style="white-space: normal">Its owner reprograms this startup from its page (or the API), for free.
+                        Pushed {{ $pushes['count'] }} {{ $pushes['count'] === 1 ? 'time' : 'times' }}.</p>
+                @elseif(empty($pushes['locked']))
+                    <p style="white-space: normal">One player owns all its shares, so they can still change its code, for free. Once they
+                        sell a share it is public, and its code is locked. Pushed {{ $pushes['count'] }} {{ $pushes['count'] === 1 ? 'time' : 'times' }}.</p>
                 @else
-                    <p style="white-space: normal">This company has matured: its code is locked for good.</p>
+                    <p style="white-space: normal">Its shares are held by more than one holder: its code is locked. A player who
+                        buys every share owns it outright again, and can change it.</p>
                 @endif
                 @include('partials.push-effects')
             @else

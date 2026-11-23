@@ -114,6 +114,12 @@ class UserController extends Controller
 
         // Its code and revisions (#594): the drones' pages link here
         $code = \App\Services\CompanyCode::of((int) $company->company_id);
+        // Private while one player owns it outright (#931): its owner and their teacher see it
+        $companyRow = \Illuminate\Support\Facades\DB::table('companies')->where('company_id', $company->company_id)->first();
+        $codeHidden = $code !== null && !\App\Services\Ownership::canSeeCode($companyRow, \Illuminate\Support\Facades\Auth::user());
+        if ($codeHidden) {
+            $code = null;
+        }
         // Its code's lineage (#616): parents, new code, and who carries it on
         $lineage = \App\Services\CodeLineage::ofCompany((int) $company->company_id);
 
@@ -136,6 +142,13 @@ class UserController extends Controller
                 'count' => \App\Services\PlayerShares::count((int) $id),
                 'offering' => \App\Services\PlayerShares::offering((int) $id),
                 'is_owner' => $viewer && (int) $viewer->user_id === (int) $company->owner_id,
+                // Owned outright by the viewer (#923): its code can change, and selling a share locks it
+                'outright' => $viewer && $viewer->login !== null
+                    && \App\Services\Ownership::ownedBy((int) $id, (int) $viewer->user_id),
+                'on_offer' => \App\Services\Ownership::onOffer((int) $id),
+                'public' => \App\Services\Ownership::owner((int) $id) === null,
+                'banned_until' => $viewer && $viewer->login !== null
+                    ? \App\Services\Ownership::bannedUntil((int) $viewer->user_id, (int) $id) : null,
             ];
         }
         // The new rules (#639): who it deals with, same-owner deals flagged
@@ -188,7 +201,7 @@ class UserController extends Controller
             // The share of its profit its code pays as dividends (#930)
             $stats['dividend_percent'] = \App\Services\PlayerShares::dividendPermille((int) $id) / 10;
         }
-        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'today', 'lineage',
+        return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'codeHidden', 'today', 'lineage',
             'playerShares', 'dealings', 'owner', 'road', 'perf'));
     }
 

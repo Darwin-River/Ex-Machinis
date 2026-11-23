@@ -172,14 +172,12 @@
             <h3 class="h5 mt-4" id="startups">Your startups</h3>
             <p>Every company starts as a startup: <a href="{{ url('release') }}">release a drone</a> and the bank lends it
                 its drone and starting credits, plus a fee ({{ number_format($mine['grant']) }} credits in all). A startup
-                trades only with the House, and you can change its code whenever you like (the first change is free; each
-                after it adds {{ number_format(config('forge.startup_push_fee')) }} to its debt). Once it holds its debt and
-                {{ number_format(\App\Services\Startups::matureMargin()) }} more, mature it: it repays, its code is locked for
-                good, and its {{ \App\Services\PlayerShares::COUNT }} shares are yours. A startup holds at most
-                {{ \App\Services\Startups::capPermille() / 1000 }} times its debt: what it earns above that goes to the bank,
-                so mature it once it can. Close one at any time:
-                it leaves the game and its debt is cancelled. You have {{ $mine['slots']['used'] }} of
-                {{ $mine['slots']['max'] }} startup slots in use.</p>
+                trades only with the House, and you can change its code whenever you like, for free. Once it holds its debt and
+                {{ number_format(\App\Services\Startups::matureMargin()) }} more, mature it: it repays, trades with everyone, and its
+                {{ \App\Services\PlayerShares::COUNT }} shares are yours. Its code stays yours to change while you hold all its shares;
+                the first share you sell makes it public and locks its code. A company ends through its own code
+                (<code>close_company()</code>): its page's Close button pushes that for you, and a startup's debt is cancelled.
+                You own {{ $mine['slots']['used'] }} of at most {{ $mine['slots']['max'] }} companies outright (startups included).</p>
             @if(count($mine['startups']))
                 <table class="table table-sm">
                     <thead><tr><th scope="col">Startup</th><th scope="col" class="text-right">Credits</th>
@@ -196,7 +194,7 @@
                             <td class="text-right">
                                 @if($seed['can_mature'] && $account['verified'])
                                     <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/mature') }}" class="d-inline"
-                                          onsubmit="return confirm('Mature this startup? Its code is locked for good.')">
+                                          onsubmit="return confirm('Mature this startup? It repays its debt and its 100 shares are yours; its code stays yours to change until you sell a share.')">
                                         {{ csrf_field() }}<button class="button button-primary button-sm" type="submit">Mature</button>
                                     </form>
                                 @endif

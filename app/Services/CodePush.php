@@ -136,19 +136,24 @@ class CodePush
         }
         $drones = DB::table('agents')->where('company_id', $companyId)->whereNull('wrecked_at')
             ->whereNull('station_id')->where('language', 'lua')->count();
-        // The new rules (#653): a startup's owner reprograms it for a flat fee
-        // on its debt; a matured company's code is locked
+        // The new rules (#653, #923): the owner of a startup, or of a matured
+        // company whose shares they hold all of, reprograms it for free; a
+        // public company's code is locked
         if ((int) $company->startup === 1) {
             $fee = Startups::pushFee($company);
             return ['startup' => true, 'enabled' => $company->eliminated_at === null && $drones > 0,
                 'number' => (int) $company->pushes + 1, 'fee' => $fee, 'debt' => (int) $company->debt,
                 'debt_after' => (int) $company->debt + $fee, 'drones' => $drones,
-                'note' => 'Its owner reprograms a startup from the account page or POST /api/v1/startups/'
-                    . $companyId . '/push: the fee goes on its debt (the first push is free).'];
+                'note' => 'Its owner reprograms a startup from its page or POST /api/v1/startups/'
+                    . $companyId . '/push, for free.'];
         }
         if ($company->owner_id !== null) {
-            return ['startup' => false, 'enabled' => false, 'drones' => $drones,
-                'note' => 'This company has matured: its code is locked and can\'t be pushed to.'];
+            $outright = Ownership::owner($company) !== null;
+            return ['startup' => false, 'enabled' => $outright && $company->eliminated_at === null && $drones > 0, 'drones' => $drones,
+                'fee' => 0, 'outright' => $outright,
+                'note' => $outright ? 'One player owns all its shares: they reprogram it from its page or POST /api/v1/startups/'
+                    . $companyId . '/push, for free, until they sell a share.'
+                    : 'Its shares are held by more than one holder: its code is locked and can\'t be pushed to.'];
         }
         [$permille, $fee] = self::nextFee($company);
         // Each drone's standing orders for goods (#571): they outlive the push
@@ -265,8 +270,9 @@ class CodePush
     /** What the company page and API say about pushes */
     public static function summary(object $company): array
     {
-        // The new rules (#666): a startup's owner reprograms it for a flat
-        // fee on its debt (the first free); a matured company's code is locked
+        // The new rules (#666, #923): a startup's owner, or a matured
+        // company's sole shareholder, reprograms it for free; a public
+        // company's code is locked
         if ((int) ($company->startup ?? 0) === 1) {
             $fee = Startups::pushFee($company);
             return ['enabled' => $company->eliminated_at === null, 'startup' => true, 'count' => (int) $company->pushes,
@@ -274,7 +280,8 @@ class CodePush
                 'log' => self::log((int) $company->company_id)];
         }
         if (($company->owner_id ?? null) !== null) {
-            return ['enabled' => false, 'locked' => true, 'count' => (int) $company->pushes,
+            $locked = $company->eliminated_at !== null || Ownership::owner($company) === null;
+            return ['enabled' => !$locked, 'locked' => $locked, 'count' => (int) $company->pushes,
                 'log' => self::log((int) $company->company_id)];
         }
         [$permille, $fee] = self::nextFee($company);

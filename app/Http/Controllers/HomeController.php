@@ -89,6 +89,8 @@ class HomeController extends Controller
             // A matured company that sells nothing for 60 game days is wound up (#875)
             \App\Services\WindUp::runIfDue();
         }
+        // A company whose code called close_company() ends (#925)
+        \App\Services\Closures::settle();
         return response('ok');
     }
 

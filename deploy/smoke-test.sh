@@ -232,6 +232,16 @@ wait_for 120 "a drone that crashes 5 times in a row becomes a wreck" dry
 [ "$(sql "select concat(end_cause, ' ', credits) from companies where name='Dry Forge'")" = "drones 0" ] || fail "the company whose last drone died did not end"
 echo "ok: a company whose last drone died has ended"
 
+# The kill switch (#925): a company ends through its own code. close_company()
+# asks, and the website's tick ends it
+CLOSE_SCRIPT=$(printf 'function launched()\n  close_company()\n  while true do wait(60) end\nend')
+release "Smoke Closer" "$CLOSE_SCRIPT"
+closed() { [ "$(sql "select end_cause from companies where name='Smoke Closer'")" = closed ]; }
+wait_for 120 "a company whose code calls close_company() ends (#925)" closed
+[ "$(sql "select count(*) from agents a join companies c on c.company_id = a.company_id where c.name='Smoke Closer' and a.wrecked_at is null")" = 0 ] ||
+    fail "the closed company's drones are still working"
+echo "ok: close_company() ends the company, and its drones become wrecks"
+
 # Companies (#324 step 4): the player gets a second company with a drone at
 # the Moon and a buy order for wolfite. The first drone sells to it, and it
 # goes through: the same player's companies may trade with each other (#367

@@ -98,12 +98,11 @@ class StartupsTest extends TestCase
         $this->actingAs($owner)->get('/account')->assertOk()->assertSee('11,000')->assertSee('750');
         $this->assertSame(750, \App\Services\PlayerBoards::digest($owner, false)['companies'][0]['to_bank']);
 
-        // #684: push fees go on its debt but don't raise the cap
-        $this->assertTrue(Startups::reprogram($owner, $id, self::SCRIPT)['ok'], 'the first push is free');
+        // #923: pushes are free, so they leave the debt and the cap alone
         $this->assertTrue(Startups::reprogram($owner, $id, self::SCRIPT)['ok']);
         $this->assertTrue(Startups::reprogram($owner, $id, self::SCRIPT)['ok']);
         $s = Startups::of($owner)['startups'][0];
-        $this->assertSame(5700, $s['debt'], 'two paid pushes of 100');
+        $this->assertSame(5500, $s['debt'], 'pushes are free');
         $this->assertSame(11000, $s['credit_cap'], 'still twice its 5,500 starting debt');
     }
 
@@ -119,7 +118,14 @@ class StartupsTest extends TestCase
         $owner = $this->player('Closer');
         $id = Startups::start($owner, 'Short Lived', self::SCRIPT)['company'];
         $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
+        // The Close button pushes code that calls close_company() (#925)
         $this->actingAs($owner)->post("/startups/$id/close")->assertRedirect('/account#startups')->assertSessionHas('success');
+        $this->assertSame(\App\Services\Closures::SCRIPT, DB::table('code_pushes')->where('company_id', $id)->value('script'));
+        $this->assertNull($this->company($id)->eliminated_at, 'it ends once its code asks');
+        // Its drone runs it (the engine records the call), and the tick ends it
+        DB::table('company_closures')->insert(['company_id' => $id, 'drone' => $drone, 'requested_t' => World::gameNow()]);
+        $this->assertSame(1, \App\Services\Closures::settle());
+        $this->assertSame('closed', DB::table('company_closures')->where('company_id', $id)->value('outcome'));
         $c = $this->company($id);
         $this->assertNotNull($c->eliminated_at);
         $this->assertSame('closed', $c->end_cause);
@@ -139,7 +145,7 @@ class StartupsTest extends TestCase
         $this->assertSame(404, Startups::close($owner, $theirs)['status']);
     }
 
-    public function testReprogrammingAddsTheFeeToItsDebt()
+    public function testReprogrammingIsFree()
     {
         $owner = $this->player('Tinkerer');
         $id = Startups::start($owner, 'Tinker Co', self::SCRIPT)['company'];
@@ -159,10 +165,10 @@ class StartupsTest extends TestCase
         $this->assertSame(403, CodePush::push($id, 'whatever', self::SCRIPT)['status']);
         $this->actingAs($owner)->post("/startups/$id/push", ['script' => "function launched() wait(30) end"])
             ->assertSessionHas('success');
-        $this->assertSame(5600, (int) $this->company($id)->debt, 'the next costs the fee');
+        $this->assertSame(5500, (int) $this->company($id)->debt, 'every push is free (#923)');
         // The push preview says so (#653)
         $this->postJson('/api/v1/check', ['script' => self::SCRIPT, 'company' => $id])->assertOk()
-            ->assertJsonPath('push.startup', true)->assertJsonPath('push.fee', 100)->assertJsonPath('push.debt_after', 5700);
+            ->assertJsonPath('push.startup', true)->assertJsonPath('push.fee', 0)->assertJsonPath('push.debt_after', 5500);
     }
 
     public function testMaturing()
@@ -191,12 +197,13 @@ class StartupsTest extends TestCase
         $this->assertSame(2500, (int) $c->credits, 'it repaid 5,500');
         $this->assertNotNull($c->matured_t);
         $this->assertSame(100, (int) DB::table('player_shares')->where('user_id', $owner->user_id)->where('company_id', $id)->value('units'));
-        $this->get('/companies/' . $id)->assertSee('its code is locked for good');
-        $this->assertSame(403, CodePush::push($id, 'whatever', self::SCRIPT)['status'], 'nobody can push to it');
-        $this->assertSame(409, Startups::reprogram($owner, $id, self::SCRIPT)['status']);
-        $this->assertSame(409, Startups::close($owner, $id)['status']);
-        // It no longer takes a slot
-        $this->assertSame(0, Startups::slotsInUse((int) $owner->user_id));
+        // Its owner holds all 100 shares: it is owned outright, so its code
+        // can still change (#923), and it still takes one of the 5
+        $this->actingAs($owner)->get('/companies/' . $id)->assertSee('id="owned-outright"', false);
+        $this->assertSame(403, CodePush::push($id, 'whatever', self::SCRIPT)['status'], 'no password push');
+        $this->assertTrue(Startups::reprogram($owner, $id, self::SCRIPT)['ok']);
+        $this->assertSame(409, Startups::close($owner, $id)['status'], 'it closes through its code');
+        $this->assertSame(1, Startups::slotsInUse((int) $owner->user_id));
     }
 
     /** #871: only a player founds a startup; a guest's founded before then can still be claimed */
@@ -246,27 +253,6 @@ class StartupsTest extends TestCase
             $this->assertContains("That name looks the same as Look Alike 10's: choose one that reads differently.", $errors, $twin);
         }
         $this->postJson('/api/v1/release', ['company_name' => 'Look Alike 11', 'script' => self::SCRIPT], $h)->assertCreated();
-    }
-
-    /** #876: a push that would leave a startup unable to mature under its credit cap is refused */
-    public function testAPushThatWouldMakeMaturingImpossibleIsRefused()
-    {
-        DB::table('house_rules')->updateOrInsert(['id' => 1], ['tax_period' => 0, 'tax_grace' => 0, 'tax_flat' => 0,
-            'tax_permille' => 0, 'plunder_share' => 50, 'compute_tax_per_million' => 15, 'startup_credit_cap_permille' => 2000]);
-        $owner = $this->player('Pusher Too');
-        $id = Startups::start($owner, 'Push Limit Co', self::SCRIPT)['company'];
-        $c = $this->company($id);
-        $cap = Startups::creditCap($c);
-        $this->assertNotNull($cap);
-        // Paid pushes have raised its debt to just under the line
-        $fees = $cap - Startups::matureMargin() - (int) $c->debt;
-        DB::table('code_pushes')->insert(['company_id' => $id, 'number' => 1, 'game_t' => 0, 'credits_before' => 0,
-            'permille' => 0, 'fee' => $fees, 'drones' => 1, 'script' => 'x']);
-        DB::table('companies')->where('company_id', $id)->update(['debt' => (int) $c->debt + $fees, 'pushes' => 2]);
-        $this->assertSame($cap, Startups::creditCap($this->company($id)), 'push fees leave the cap where it was');
-        $r = Startups::reprogram($owner, $id, self::SCRIPT);
-        $this->assertSame(409, $r['status']);
-        $this->assertStringContainsString('so it could never mature', $r['error']);
     }
 
     public function testTheApi()

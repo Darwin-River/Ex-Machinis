@@ -1157,6 +1157,47 @@ int db_request_payout(DbConnection_t* connection, int agent_id, long long amount
 
 /** ****************************************************************************
 
+    @brief          close_company() (#925): records that the drone's company
+                    asks to end. The website's tick ends it: a startup's debt
+                    is cancelled; a matured company's credits go to its
+                    shareholders and its drones become wrecks with their holds.
+                    Once asked, asking again changes nothing.
+
+    @return         0, or OUTCOME_ACTION_ABORTED (no live company, or the House)
+
+*******************************************************************************/
+int db_request_close(DbConnection_t* connection, int agent_id, long long game_t)
+{
+    if(db_reconnect(connection) != ENGINE_OK)
+        return OUTCOME_ACTION_ABORTED;
+    char query_text[DB_MAX_SQL_QUERY_LEN+1];
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "INSERT INTO company_closures (company_id, drone, requested_t) "
+        "SELECT c.company_id, %d, %lld FROM companies c JOIN agents a ON a.company_id = c.company_id "
+        "WHERE a.agent_id = %d AND c.eliminated_at IS NULL AND IFNULL(c.house, 0) = 0 "
+        "AND NOT EXISTS (SELECT 1 FROM company_closures r WHERE r.company_id = c.company_id AND r.done_t IS NULL)",
+        agent_id, game_t, agent_id);
+    if (mysql_query(connection->hndl, query_text)) {
+        engine_trace(TRACE_LEVEL_ALWAYS, "ERROR: Query [%s] failed", query_text);
+        return OUTCOME_ACTION_ABORTED;
+    }
+    if(mysql_affected_rows(connection->hndl) > 0)
+        return 0;
+    // Asked already, or no live company of its own to close
+    snprintf(query_text, DB_MAX_SQL_QUERY_LEN,
+        "SELECT COUNT(*) FROM company_closures r JOIN agents a ON a.company_id = r.company_id "
+        "WHERE a.agent_id = %d AND r.done_t IS NULL", agent_id);
+    if (mysql_query(connection->hndl, query_text))
+        return OUTCOME_ACTION_ABORTED;
+    MYSQL_RES* res = mysql_store_result(connection->hndl);
+    MYSQL_ROW row = res ? mysql_fetch_row(res) : NULL;
+    int pending = row && row[0] ? atoi(row[0]) : 0;
+    if(res) mysql_free_result(res);
+    return pending > 0 ? 0 : OUTCOME_ACTION_ABORTED;
+}
+
+/** ****************************************************************************
+
     @brief          Appends to the output a paused script has produced so far
                     (agents.OUTPUT holds it until the script finishes)
 

@@ -333,77 +333,20 @@ class PlayerSharesTest extends TestCase
         $this->assertSame($placed, (int) DB::table('player_share_orders')->where('user_id', $buyer->user_id)->value('game_t'));
     }
 
-    public function testNewSharesFundTheCompany()
+    public function testNewSharesAreRetired()
     {
-        // #780: its owner offers 10 new shares at a time at cash-out; any
-        // player (its owner too) buys; the credits go to the company; at most 200
+        // #780 retired by #923: nobody adds credits to a company, so its
+        // owner can't offer new shares; its count stays 100
         $owner = $this->player('Grower');
         $id = $this->matured($owner, 'Growth Co', 100000);
-        $other = $this->player('Backer');
-        DB::table('users')->whereIn('user_id', [$owner->user_id, $other->user_id])->update(['credits' => 1000000]);
-        $this->assertSame(100, PlayerShares::count($id));
-        $this->assertSame(403, PlayerShares::offer($other, $id)['status'], 'only its owner offers');
-        $this->assertSame(409, PlayerShares::buyOffered($other, $id, 1)['status'], 'nothing on offer yet');
-
-        $before = PlayerShares::prices($id)['buys_at'];
-        $credits = (int) DB::table('companies')->where('company_id', $id)->value('credits');
         $r = PlayerShares::offer($owner, $id);
-        $this->assertTrue($r['ok']);
-        $this->assertSame(10, $r['units']);
-        $this->assertSame(409, PlayerShares::offer($owner, $id)['status'], 'one offering at a time');
-        $this->assertSame(10, PlayerShares::offering($id)['left']);
-
-        // A backer buys 6 at cash-out: the company gets the credits, the count grows
-        $b = PlayerShares::buyOffered($other, $id, 6);
-        $this->assertTrue($b['ok']);
-        $this->assertSame([6, $before, 6 * $before, 4, 106], [$b['units'], $b['price'], $b['cost'], $b['left'], $b['count']]);
-        $this->assertSame($credits + 6 * $before, (int) DB::table('companies')->where('company_id', $id)->value('credits'));
-        $this->assertSame(6, PlayerShares::held((int) $other->user_id, $id));
-        $this->assertEqualsWithDelta($before, PlayerShares::prices($id)['buys_at'], 1, 'buying at cash-out leaves a share\'s cash-out as it was');
-        $this->assertSame(409, PlayerShares::buyOffered($other, $id, 5)['status'], 'only 4 left');
-        // its owner buys the rest; the offering closes
-        $this->assertTrue(PlayerShares::buyOffered($owner, $id, 4)['ok']);
+        $this->assertSame(410, $r['status']);
+        $this->assertSame(PlayerShares::OFFERS_RETIRED, $r['error']);
         $this->assertNull(PlayerShares::offering($id));
-        $this->assertSame(110, PlayerShares::count($id));
-
-        // Ownership by percent, and the trade shown as new shares, not the bank's
-        $holders = collect(PlayerShares::holders($id))->keyBy('name');
-        $this->assertSame(round(100 * 104 / 110, 1), $holders['Grower']['percent']);
-        $this->assertSame(round(100 * 6 / 110, 1), $holders['Backer']['percent']);
-        $t = PlayerShares::trades($id)[0];
-        $this->assertSame([true, 'New shares', false], [$t['issued'], $t['seller_name'], $t['seller_is_bank']]);
-        $this->assertSame('the company (new shares)', PlayerShares::fills((int) $owner->user_id, 0)[0]['with']);
-
-        // Shown on the company page, the stock exchange, its charts' marks and the API
-        $this->actingAs($owner)->get('/companies/' . $id)->assertOk()->assertSee('id="share-count"', false)->assertSee('110')
-            ->assertSee('Of the company')->assertSee('Offer new shares');
-        \Illuminate\Support\Facades\Cache::flush();
-        $this->get('/market/shares')->assertOk()->assertSee('110 shares');
-        $this->assertContains('offered', array_column(\App\Services\WorldEvents::company($id), 'kind'));
-        $this->getJson("/api/v1/player-shares/$id")->assertOk()->assertJsonPath('count', 110)->assertJsonPath('offering', null);
-
-        // #874: with a player bidding over cash-out, new shares cost the bid, so minting can't undercut the market
-        $buys = PlayerShares::prices($id)['buys_at'];
-        $high = $buys + 40;
-        $this->assertTrue(PlayerShares::order($other, $id, 'buy', 1, $high)['ok']);
-        $this->assertSame($high, PlayerShares::offerPrice($id));
-        $this->assertTrue(PlayerShares::offer($owner, $id)['ok']);
-        $this->assertSame($high, PlayerShares::offering($id)['price']);
-        $paid = PlayerShares::buyOffered($owner, $id, 1);
-        $this->assertSame($high, $paid['price']);
-        $this->assertGreaterThanOrEqual($buys, PlayerShares::prices($id)['buys_at'], 'no holder\'s cash-out falls');
-        $this->assertTrue(PlayerShares::withdraw($owner, $id));
-        DB::table('player_share_orders')->where('company_id', $id)->delete();
-
-        // The web form offers again, and its owner can withdraw; the cap is 200
+        $this->assertSame(409, PlayerShares::buyOffered($owner, $id, 1)['status'], 'nothing on offer');
         $this->actingAs($owner)->post('/companies/' . $id . '/offering')->assertRedirect();
-        $this->assertSame(10, PlayerShares::offering($id)['left']);
-        $this->actingAs($other)->post('/companies/' . $id . '/offering/buy', ['units' => 2])->assertRedirect();
-        $this->assertSame(113, PlayerShares::count($id));
-        $this->assertTrue(PlayerShares::withdraw($owner, $id));
-        $this->assertNull(PlayerShares::offering($id));
-        DB::table('companies')->where('company_id', $id)->update(['player_share_count' => 195]);
-        $this->assertSame(409, PlayerShares::offer($owner, $id)['status'], 'past 200');
+        $this->assertSame(100, PlayerShares::count($id));
+        $this->actingAs($owner)->get('/companies/' . $id)->assertOk()->assertDontSee('Offer new shares');
     }
 
     public function testAClassGroupTradesOnlyWithinItself()
@@ -469,9 +412,10 @@ class PlayerSharesTest extends TestCase
         $owner = $this->player('Api Founder');
         $id = $this->matured($owner, 'Api Co', 100000);
         $h = ['Authorization' => 'Bearer ' . Players::issueToken($owner)];
-        // The company's API shows players' shares and its locked code (#666)
+        // The company's API shows players' shares, and that its code isn't
+        // locked while its founder holds them all (#666, #923)
         $this->getJson("/api/v1/companies/$id")->assertOk()->assertJsonPath('shares.count', PlayerShares::COUNT)
-            ->assertJsonPath('shares.holders.0.name', 'Api Founder')->assertJsonPath('pushes.locked', true);
+            ->assertJsonPath('shares.holders.0.name', 'Api Founder')->assertJsonPath('pushes.locked', false);
         $this->getJson('/api/v1/shares')->assertOk()->assertJsonPath('player_shares.0.company', $id)
             ->assertJsonPath('companies.0.company', $id);   // the page's rows, not the old rules' market (#881)
         $this->get('/market/shares')->assertOk()->assertSee('Api Co');
@@ -484,7 +428,8 @@ class PlayerSharesTest extends TestCase
             ->assertJsonPath('orders.0.id', $order);
         $this->postJson("/api/v1/player-shares/orders/$order/cancel", [], $h)->assertOk();
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2], $h)->assertOk()->assertJsonPath('units', 2);
-        $this->postJson("/api/v1/player-shares/$id/bank/buy", ['units' => 1], $h)->assertOk();
+        // Having sold, it can't buy back for 7 real days (#923)
+        $this->postJson("/api/v1/player-shares/$id/bank/buy", ['units' => 1], $h)->assertStatus(409);
         $this->postJson("/api/v1/player-shares/$id/bank/sell", ['units' => 2])->assertStatus(401);
         // Whole numbers only, and clear messages (#674)
         $this->postJson("/api/v1/player-shares/$id/orders", ['side' => 'buy', 'units' => 1, 'price' => 70.5], $h)->assertStatus(422);
@@ -518,7 +463,8 @@ class PlayerSharesTest extends TestCase
             'the oldest order keeps the rest');
         $this->assertSame([], array_values(array_filter($orders, fn ($o) => $o['price'] === $p['sells_at'])), 'the newest order went first');
 
-        // A buy at or above its own sell crosses: refused
+        // A buy at or above its own sell crosses: refused (7 real days on, when it may buy again: #923)
+        DB::table('share_sale_bans')->where('user_id', $owner->user_id)->delete();
         DB::table('users')->where('user_id', $owner->user_id)->update(['credits' => 1000000]);
         $buy = PlayerShares::order($owner, $id, 'buy', 1, $p['high']);
         $this->assertSame(422, $buy['status']);
@@ -533,7 +479,7 @@ class PlayerSharesTest extends TestCase
     {
         $owner = $this->player('Tidy Founder');
         $id = $this->matured($owner, 'Tidy Co', 100000);
-        $this->get('/companies/' . $id)->assertOk()->assertSee('its code is locked for good')
+        $this->get('/companies/' . $id)->assertOk()->assertSee('One player owns all its shares, so its code can still change.')
             ->assertDontSee('never traded')->assertDontSee('push password')->assertDontSee('No dividends until')
             ->assertDontSee('id="shares"', false);
 

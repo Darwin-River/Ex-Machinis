@@ -194,7 +194,9 @@ class ApiController extends Controller
                 'subject' => $m->subject, 'body' => $m->body])->all(),
             'post_mortem' => $postMortem ? ['headline' => $postMortem['headline'], 'cause' => $postMortem['cause'] ?? null,
                 'failure' => $postMortem['failure']] : null,
-            'script' => $code ? $code['release']->source : null,
+            // Private while one player owns its company outright (#931)
+            'script' => $code && \App\Services\Ownership::canSeeCode((int) $agent->company_id, \App\Services\Players::byToken(request()->bearerToken()))
+                ? $code['release']->source : null,
         ]);
     }
 
