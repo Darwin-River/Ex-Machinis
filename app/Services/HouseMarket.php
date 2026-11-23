@@ -179,6 +179,7 @@ class HouseMarket
                 $wanted[HouseStations::SELL_ORDER_EVENT][$resource] = [$keep, self::importPrice($price, $planets[$resource] ?? null)];
                 continue;
             }
+            $listed = $price;
             $spread = (int) ($planets[$resource]['spread'] ?? 0);
             if ($spread > 0) {
                 // Stepped back: it bids less, by up to half
@@ -189,7 +190,8 @@ class HouseMarket
             $held = $units[$resource] ?? 0;
             $bought = max(0, $held - $keep);
             // Its lowest bid (#739): half the listed price
-            $floor = self::bidFloor($price);
+            // (from its listed price: stepping back never takes it below half of that)
+            $floor = self::bidFloor($listed);
             if ($bought < $daily) {
                 $bid = max($floor, $price - intdiv($price * $bought, 2 * $daily));
                 $wanted[HouseStations::BUY_ORDER_EVENT][$resource] = [$daily + $keep, $bid];

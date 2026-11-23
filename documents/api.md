@@ -276,6 +276,8 @@ curl -s "$B/orders?side=sell&resource=2061&place=Moon"
 
 **House prices move.** What each exchange bids and asks, and how much it buys and sells a day, moves over game time, each exchange in its own way: the Earth Exchange in long, shallow waves; the Moon Depot in short, deep ones; the Mars Exchange with the sharpest booms and slumps. The prices change every half game day. An exchange never bids more for a good than any exchange asks for it. `GET /news` says which booms and slumps are under way.
 
+**The planets' import price and stepping back (#927).** On top of those moves, what the station drones (the planets' market) ask for a good at an exchange rises by its list price for each day's worth anyone bought from them there recently, fading by a factor e each game day, to at most 3 times the list price. Where players of different founders trade a good among themselves at an exchange, the planets widen their spread by that share of its trade there over the last 3 game days, asking up to half more and bidding up to half less; they step back over about 5 game days and come back within one when players stop. Fuel stays at its flat list price. The orders listed here are the prices as they stand.
+
 **When a pull fails** with "the seller's order didn't allow selling that many", someone else bought those units first, or the seller sold or used them, between your look and your pull. `buy_here` then tries the next seller. A failed pull costs no fuel: the fuel it burned is given back.
 
 ### `GET /news`: booms, slumps, shortages and gluts
@@ -297,7 +299,7 @@ Each exchange's demand (what the House buys) and supply (what it sells) has its 
 
 `percent_now` is how far the boom or slump moves prices now, on top of the exchange's slower waves. Drones can't read the news: they see what it does to prices where they are.
 
-Drones see these orders only where they are, through `best_bid`, `best_offer` and queries 600 and 610. The API shows every place at once, which helps you decide where to send a company.
+Drones see these orders only where they are, through `best_bid`, `best_offer` and queries 600 and 610, and there another company's order is named by its **order handle** (a number above 1,000,000,000), never its drone (#927): a drone pulls from or pushes into another company's order by its handle, and a push or pull that names another company's drone by its ID fails with -22. The API shows every place at once, which helps you decide where to send a company.
 
 ### `GET /house-demand?resource=4311&place=Mars&company=87`: what the House still buys today
 
