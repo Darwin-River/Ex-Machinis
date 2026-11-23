@@ -477,6 +477,7 @@ class Dashboard
             'companies' => self::companies($parts['matured'], $parts['daily']),
             'drones_by_place' => $parts['drones']['places'],
             'players' => self::players(),
+            'credits_balance' => CreditCheck::status(),
             'sources' => [
                 'trading' => 'GET /api/v1/history, summed by game day and place',
                 'matured_profit' => 'GET /api/v1/companies/{id}/earnings for each matured company, summed',
@@ -486,6 +487,7 @@ class Dashboard
                 'companies' => 'GET /api/v1/shares, /player-shares/{id} and /companies/{id}/earnings',
                 'drones_by_place' => 'GET /api/v1/places (station drones and closed startups left out)',
                 'players' => 'GET /api/v1/players',
+                'credits_balance' => 'GET /api/v1/clock, credits',
             ],
         ];
     }

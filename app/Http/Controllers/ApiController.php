@@ -38,7 +38,9 @@ class ApiController extends Controller
             'budget_percent' => \App\Services\HistoryBudget::budget(),
             'warning' => $disk['used_percent'] >= \App\Services\HistoryBudget::URGENT_PERCENT,
             // History tables holding more free space than rows (#827): forge:history-rebuild hands it back
-            'rebuild' => $disk['rebuild']]]);
+            'rebuild' => $disk['rebuild']],
+            // Do credits balance? (#937): the latest daily check, and how many recent ones didn't
+            'credits' => \App\Services\CreditCheck::status()]);
     }
 
     /** The economy dashboard (#698): the same figures as /dashboard, kept for a minute */

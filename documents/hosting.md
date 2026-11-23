@@ -589,6 +589,7 @@ To keep the downtime short when moving on purpose:
 | Daily, at a glance | The site is up, and the game clock is moving | The Home page's clock line. Free uptime monitors such as UptimeRobot or Better Stack can check `https://<domain>` every few minutes and email you |
 | Weekly | Disk space | `df -h /` (the history keeps itself near 60%, #813, #821) and `docker system df`; `curl -s https://exmachinis.com/api/v1/clock` shows `disk` |
 | Weekly | Backups ran | `tail /var/backups/exmachinis/backup.log` and `rclone lsd offsite:exmachinis` |
+| Daily, at a glance | Credits balance (#937) | `curl -s https://<domain>/api/v1/clock` shows `credits.balanced` (and the dashboard's "Do credits balance?" card); the website's log says "Credits don't balance" when a daily check finds a difference. `docker compose exec app php artisan forge:check-credits` checks now and lists the credits created and destroyed by kind. A difference is a bug: open an issue with the day and the kinds |
 | Daily, at a glance | The House's prices are moving | `curl -s https://<domain>/api/v1/news` answers, and the scheduler logs no "tick failed" |
 | Weekly | The engines are keeping up | the Home page's clock: at the floor, with releases queueing, means the server is too small |
 | Monthly | Test a restore | [Test your backups](#test-your-backups) |

@@ -122,6 +122,10 @@ class WorldReset
         });
 
         $plan['bank_companies'] = self::startBankCompanies($bankCompanies);
+        // A fresh world: the credit check starts again from a baseline (#937)
+        if (\Illuminate\Support\Facades\Schema::hasTable('credit_checks')) {
+            CreditCheck::restart();
+        }
         return $plan;
     }
 

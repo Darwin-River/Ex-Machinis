@@ -178,6 +178,7 @@ class Players
                 DB::table('users')->where('user_id', $id)->update(['email_verified_at' => now(),
                     'share_credits' => DB::raw('share_credits + ' . (int) config('forge.player_share_credits')),
                     'updated_at' => now()]);
+                CreditFlows::record('share_credits_granted', (int) config('forge.player_share_credits'), null, $id);   // #937
                 // Told when a startup can mature or passes its cap, unless turned off (#876)
                 if (\Illuminate\Support\Facades\Schema::hasTable('notice_settings')) {
                     DB::table('notice_settings')->insertOrIgnore(['user_id' => $id, 'can_mature' => 1, 'at_cap' => 1, 'updated_at' => now()]);
