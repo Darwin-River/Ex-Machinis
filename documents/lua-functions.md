@@ -579,6 +579,9 @@ A **trading script** is a different kind of script from a drone's: it trades you
 | `cancel(order)` | cancels one of your standing orders, by id |
 | `bank_buy(company, units)` | buys shares the bank holds, at its selling price |
 | `bank_sell(company, units)` | sells shares to the bank, paid in 30 game days at the lower of today's cash-out and cash-out then |
+| `loan_requests()` | the open loan requests (#928): `{id, company, name, amount, left, rate, per_year, term_days, due_in}`; the market table also has `lend_min_credits` |
+| `back_loan(request, credits)` | lends credits on a loan request, under the Loans page's rules (at least `lend_min_credits` to back new loans) |
+| `my_loans()` | the account's loans (#928): `{id, company, name, principal, rate, owed, repaid, closed, defaulted}`, also `market.me.loans` |
 | `log(...)` | writes a line to the run's log, shown on the Trading desk and your account page |
 
 Each action function returns `true`, or `false` and why. A run does at most 20 actions and writes at most 50 log lines; when it hits the 20, the log says so once. What you keep in the table `memory` is there next run. Two starters: [`examples/traders/payback.lua`](../examples/traders/payback.lua) (made for classes: buy when dividends pay a share back soon enough, sell when a company is about to end) and [`examples/traders/value.lua`](../examples/traders/value.lua).

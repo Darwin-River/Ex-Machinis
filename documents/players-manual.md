@@ -1708,9 +1708,12 @@ It acts with:
 | `buy_pegged(company, units, peg, percent)`, `sell_pegged(...)` | posts a pegged order: `peg` is `"buys_at"` or `"sells_at"` (see [pegged orders](#trading-shares-with-other-players)) |
 | `cancel(order)` | cancels one of your orders, by its `id` |
 | `bank_buy(company, units)`, `bank_sell(company, units)` | trades with the bank |
+| `loan_requests()` | the open loan requests (see [Loans](#loans)): `{id, company, name, amount, left, rate, per_year, term_days, due_in}` |
+| `back_loan(request, credits)` | lends that many credits on a request, under the same rules as the Loans page (at least 5,000 credits to back new loans) |
+| `my_loans()` | your loans: `{id, company, name, principal, rate, owed, repaid, closed, defaulted}` |
 | `log(...)` (or `print`) | writes a line in its log |
 
-Each action goes through the same rules as your own: the range, paying, holding what you sell, your own orders not crossing. At most **20 actions** a run; a refused one is logged with why. Whatever it keeps in the table **`memory`** (numbers, strings, booleans and tables of them, up to 64 KB) is there next run. It runs in a sandbox: Lua's `string`, `table`, `math` and `utf8`, no files and no `os`, at most 20 million instructions and 32 MB a run.
+Each action goes through the same rules as your own: paying, holding what you sell, your own orders not crossing, and for loans the 5,000 credits needed to back new ones. At most **20 actions** a run; a refused one is logged with why. Whatever it keeps in the table **`memory`** (numbers, strings, booleans and tables of them, up to 64 KB) is there next run. It runs in a sandbox: Lua's `string`, `table`, `math` and `utf8`, no files and no `os`, at most 20 million instructions and 32 MB a run.
 
 For a class, **the payback trader** (`examples/traders/payback.lua`) has two rules, one line each to change: buy a share when its dividends pay its price back in under 1,000 game days (live shares take hundreds to thousands), and sell what you hold of a company that is about to end: dissolving, or wound up within 10 game days. A company only "at risk" or stalled is kept, since selling to the bank is final. A run does at most 20 actions; its log says when it hit that. Orders a script places show on the book as **(script)**, so everyone can tell them from a person's.
 

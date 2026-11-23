@@ -28,7 +28,8 @@ class LoanController extends Controller
         $mine = $user ? Loans::ofUser((int) $user->user_id) : null;
         $credits = $user ? (int) \Illuminate\Support\Facades\DB::table('users')->where('user_id', $user->user_id)->value('credits') : null;
         $min = Loans::minCredits();
-        return view('world.loans', compact('requests', 'mine', 'credits', 'min'));
+        $lenders = Loans::leaderboard();
+        return view('world.loans', compact('requests', 'mine', 'credits', 'min', 'lenders'));
     }
 
     /** POST /loans/{id}/back {credits} */
@@ -45,7 +46,8 @@ class LoanController extends Controller
     /** GET /api/v1/loans: the open loan requests */
     public function apiIndex(): JsonResponse
     {
-        return response()->json(['min_credits' => Loans::minCredits(), 'requests' => Loans::requests()]);
+        return response()->json(['min_credits' => Loans::minCredits(), 'requests' => Loans::requests(),
+            'lenders' => Loans::leaderboard()]);
     }
 
     /** POST /api/v1/loans/{id}/back {credits} */
