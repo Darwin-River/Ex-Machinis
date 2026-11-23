@@ -205,6 +205,7 @@ class WorldController extends Controller
     {
         $planets = World::map();
         $places = World::places();
-        return view('world.map', compact('planets', 'places'));
+        $farMap = \App\Services\FarMap::seasons();   // #922
+        return view('world.map', compact('planets', 'places', 'farMap'));
     }
 }

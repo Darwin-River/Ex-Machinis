@@ -9,4 +9,6 @@ php artisan config:cache >/dev/null
 # House station drones (#380): the House trades through them (sell-to-station
 # and buy-from-station need one where the drone is). Made where missing
 php artisan forge:stations || echo "forge:stations failed" >&2
+# The far minerals' homes this season (#922): the game data just loaded leaves them out
+php artisan forge:far-map >/dev/null || echo "forge:far-map failed" >&2
 exec docker-php-entrypoint "$@"

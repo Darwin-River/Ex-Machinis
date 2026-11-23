@@ -11,7 +11,7 @@
 #   - it asks about its world by name (quotes, cost_to_buy) and sets its
 #     status line (set_status),
 #   - it buys a Mining Kit at Earth and unpacks it, flies to the Moon, mines
-#     and refines kunspar,
+#     and refines wolfite (kunspar is found only far away, #922),
 #   - companies of one player may trade with each other,
 #   - a released script in several pieces runs, the Release page offers
 #     starter scripts, and drones know the game names,
@@ -233,7 +233,7 @@ wait_for 120 "a drone that crashes 5 times in a row becomes a wreck" dry
 echo "ok: a company whose last drone died has ended"
 
 # Companies (#324 step 4): the player gets a second company with a drone at
-# the Moon and a buy order for kunspar. The first drone sells to it, and it
+# the Moon and a buy order for wolfite. The first drone sells to it, and it
 # goes through: the same player's companies may trade with each other (#367
 # step 1). (Made before the first drone is released, so its script can name
 # the sister drone; all releases here belong to the website's one owner)
@@ -243,7 +243,7 @@ SISTER_CO=$(sql "select max(company_id) from companies where user_id=$PLAYER_ID"
 sql "insert into agents (user_id, company_id, name, object_id, hull_type) values ($PLAYER_ID, $SISTER_CO, 'sister1', 10, 1)"
 SISTER=$(sql "select agent_id from agents where name='sister1'")
 sql "insert into events (event_type, action, logged, outcome, drone, resource, installed, locked, new_quantity, new_credits, game_t)
-     select 5, 0, 1, 1, $SISTER, 1100, 0, 0, 50, 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $SISTER"
+     select 5, 0, 1, 1, $SISTER, 1130, 0, 0, 50, 1, IFNULL(MAX(game_t), 0) + 1 from events where drone = $SISTER"
 
 # The first drone: released on the website, it goes through the game's
 # starting sequence and much else, one step after the other. Each step
@@ -294,23 +294,23 @@ function launched()
   say("asked " .. place_name() .. " " .. type(quotes(fuel)) .. " " .. #hold() .. " " .. got .. " " .. now().day)
   -- The starting sequence: buy and unpack a Mining Kit at Earth (#506: a
   -- company starts with credits and no kit), fly to the Moon (the line
-  -- after the trip runs once it is over), mine kunspar
+  -- after the trip runs once it is over), mine wolfite
   equip(mining_kit)
   say("kit " .. units(engine_module))
   say("unpack " .. unpack())
   print("sq " .. sq(7))
   print("moon-trip " .. travel(moon))
   say("after-trip " .. sq(6))
-  say("mine " .. mine(kunspar))
+  say("mine " .. mine(wolfite))
   -- Computing costs the company processor tax (#544)
   local s = 0
   for i = 1, 20000 do s = s + i end
   say("computed " .. s)
   -- Sell a unit to the player's other company
-  say("sister " .. push(1, kunspar, $SISTER))
-  -- Refining needs 20 kunspar (each mining run gives 5 here)
-  for _ = 1, 4 do mine(kunspar) end
-  say("refine " .. refine(kunspar))
+  say("sister " .. push(1, wolfite, $SISTER))
+  -- Refining needs 18 wolfite (each mining run gives 5 here)
+  for _ = 1, 4 do mine(wolfite) end
+  say("refine " .. refine(wolfite))
   -- Launch a clone once the test gives it a Mining Cruiser kit
   hold_until(function() return units(cruiser_kit) > 0 end)
   parent, note = me(), "from-parent"
@@ -322,20 +322,20 @@ function launched()
   hold_until(function() return bids($MOON_STATION, metals_a1) end)
   say("station " .. push(1, metals_a1, $MOON_STATION))
   -- Mine the deposit the test emptied; mine again once it refills
-  local k = units(kunspar)
-  local r = mine(kunspar)
-  say("mined-dry gained " .. units(kunspar) - k .. " result " .. r)
-  hold_until(function() return deposit(kunspar) > 0 end)
-  say("mined-again " .. mine(kunspar))
+  local k = units(wolfite)
+  local r = mine(wolfite)
+  say("mined-dry gained " .. units(wolfite) - k .. " result " .. r)
+  hold_until(function() return deposit(wolfite) > 0 end)
+  say("mined-again " .. mine(wolfite))
   -- Plunder the wreck the test brought here
-  k = units(kunspar)
+  k = units(wolfite)
   r = plunder($DRY)
   -- The share comes aboard by its own action, a moment after the plunder
   for _ = 1, 10 do
-    if units(kunspar) - k >= 5 then break end
+    if units(wolfite) - k >= 5 then break end
     wait(60)
   end
-  local got = units(kunspar) - k
+  local got = units(wolfite) - k
   say("plunder " .. r .. " gained " .. got .. " half " .. tostring(got >= 5))
   -- Hear the released drone's broadcast, from the Earth database
   local id
@@ -366,7 +366,7 @@ wait_for 30 "drone $DRONE asked about its world by name" replied $DRONE_ID "aske
 echo "ok: the drone's status line is set"
 
 # The starting sequence from the game data: buy a Mining Kit at Earth and
-# unpack it (#506), fly to the Moon (10), mine kunspar (1100) with the
+# unpack it (#506), fly to the Moon (10), mine wolfite (1130) with the
 # kit's mining module
 has() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=$1")" -ge "${2:-1}" ]; }
 wait_for 120 "drone bought a Mining Kit at Earth and unpacked it" replied $DRONE_ID "kit 1"
@@ -377,16 +377,16 @@ wait_for 120 "drone flew to the Moon" at_moon
 wait_for 60 "drone ran its steps before the trip" replied $DRONE_ID "sq 49%moon-trip 0"
 # perform paused the script for the trip: the line after it must still run
 wait_for 30 "script carried on after the trip" replied $DRONE_ID "after-trip 36"
-wait_for 120 "drone mined kunspar on the Moon" has 1100
+wait_for 120 "drone mined wolfite on the Moon" has 1130
 wait_for 30 "the mining went through" replied $DRONE_ID "mine 0"
 
-sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1100")" = 1 ]; }
+sister_bought() { [ "$(sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$SISTER and resource=1130")" = 1 ]; }
 wait_for 90 "a sale to the player's other company goes through" sister_bought
 wait_for 30 "the sale to the other company worked" replied $DRONE_ID "sister 0"
 
-# Refining needs 20 kunspar and the Mining Kit's Refinery (A1); each perform
+# Refining needs 18 wolfite and the Mining Kit's Refinery (A1); each perform
 # waits for its action
-wait_for 180 "drone refined kunspar into metals" has 2011
+wait_for 180 "drone refined wolfite into metals" has 2011
 wait_for 30 "the refining worked" replied $DRONE_ID "refine 0"
 
 # Launch (#238): give the drone a Mining Cruiser kit (building one takes
@@ -470,15 +470,15 @@ echo "ok: actions burn fuel, thinking doesn't, and a fuelled drone keeps going"
 # the sale (#380), here 50%
 sql "update house_rules set sales_tax_permille = 500"
 # Mining deposits (#324 step 11): mining takes from the place's deposit. Empty
-# the Moon's kunspar deposit and stop it refilling: mining there yields
+# the Moon's wolfite deposit and stop it refilling: mining there yields
 # nothing. Let it refill again, and a few game hours later mining yields again.
 # Deposits run dry only while house_rules.deposits_deplete is on (#866: off
 # in play), so this test turns the rule on
 sql "update house_rules set deposits_deplete = 1 where id = 1"
-kunspar() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=1100"; }
-sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1100"
-sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1100, 0, 0) on duplicate key update amount = 0"
-KUNSPAR=$(kunspar)
+wolfite() { sql "select IFNULL(MAX(units), 0) from sqInventory where drone=$DRONE_ID and resource=1130"; }
+sql "update deposits set refill_per_day = 0 where object_id = 10 and resource = 1130"
+sql "insert into deposit_state (object_id, resource, amount, refilled_t) values (10, 1130, 0, 0) on duplicate key update amount = 0"
+WOLFITE=$(wolfite)
 COMPANY=$(sql "select company_id from agents where agent_id=$DRONE_ID")
 sql "update companies set credits = 70000 where company_id = $COMPANY"
 wait_for 60 "a balance of 70,000 and 300 x 300 come out right" replied $DRONE_ID "doubles 70000 90000"
@@ -496,19 +496,19 @@ echo "ok: a drone sold to the House station drone at once, and paid the sales ta
 no_tax
 wait_for 30 "the station sale worked" replied $DRONE_ID "station 0"
 
-wait_for 90 "drone mined the empty deposit" sh -c "docker compose logs game-engine | grep -q 'Deposit of resource \[1100\] at \[10\]: \[0\] of'"
+wait_for 90 "drone mined the empty deposit" sh -c "docker compose logs game-engine | grep -q 'Deposit of resource \[1130\] at \[10\]: \[0\] of'"
 wait_for 60 "drone finished mining the empty deposit" replied $DRONE_ID "mined-dry gained 0 "
-[ "$(kunspar)" = "$KUNSPAR" ] || fail "a mined-out deposit still yielded kunspar"
+[ "$(wolfite)" = "$WOLFITE" ] || fail "a mined-out deposit still yielded wolfite"
 echo "ok: a mined-out deposit yields nothing"
 # Plunder (#324 step 12), the drone's next step but one: a drone where the
 # wreck is may plunder it, whoever owns it (#367 step 1). Put the wreck on
-# the Moon, where the first drone is, with 10 kunspar aboard; the plunderer
+# the Moon, where the first drone is, with 10 wolfite aboard; the plunderer
 # gets half and the wreck is left empty
 sql "update agents set object_id = 10 where agent_id = $DRY"
-give $DRY 1100 10 "$KIT + 10"
-sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1100"
-more_kunspar() { [ "$(kunspar)" -gt "$KUNSPAR" ]; }
-wait_for 90 "the deposit refilled over game time and yields again" more_kunspar
+give $DRY 1130 10 "$KIT + 10"
+sql "update deposits set refill_per_day = 40 where object_id = 10 and resource = 1130"
+more_wolfite() { [ "$(wolfite)" -gt "$WOLFITE" ]; }
+wait_for 90 "the deposit refilled over game time and yields again" more_wolfite
 wait_for 60 "drone finished mining again" replied $DRONE_ID "mined-again 0"
 
 [ -z "$(sql "select id from actions where drone=$DRONE_ID and aborted=1")" ] || fail "an action was aborted"
@@ -614,9 +614,9 @@ if ! wait_quietly 90 replied $DRONE_ID "plunder 0 gained % half true"; then
     sql "select id, body from drone_messages where agent_id=$DRONE_ID order by id desc limit 6" >&2
     sql "select resource, units from sqInventory where drone=$DRONE_ID and units <> 0" >&2
     sql "select id, protocol, outcome, aborted from actions where drone=$DRONE_ID order by id desc limit 6" >&2
-    fail "the plunderer got half the wreck's kunspar"
+    fail "the plunderer got half the wreck's wolfite"
 fi
-echo "ok: the plunderer got half the wreck's kunspar"
+echo "ok: the plunderer got half the wreck's wolfite"
 
 # Public Forge (#324 step 6): release a script on the website. It is
 # longer than one 2,048-character command, so it is released in pieces that

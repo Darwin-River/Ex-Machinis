@@ -71,6 +71,34 @@
                     @endforelse
                 </table>
             </div>
+
+            @if(!empty($farMap))
+                <h3 class="mt-4" id="far-map">Where Metals (A3) come from</h3>
+                <p>Metals (A3), which computers, lasers, batteries, reactors, most modules and every ship need, are refined only from
+                    minerals found far from Earth, the Moon and Mars, and only on a few bodies at a time. The exchanges don't sell them,
+                    but buy them. Every {{ $farMap['season_days'] }} real days the homes move; the next season's are shown
+                    {{ $farMap['publish_days'] }} real days before it starts.</p>
+                @foreach(['current' => 'This season', 'next' => 'Next season'] as $key => $title)
+                    @php($s = $farMap[$key])
+                    @if($s)
+                        <h4>{{ $title }} (season {{ $s['season'] }}, {{ \Carbon\Carbon::parse($s['starts_at'])->format('j M') }} to
+                            {{ \Carbon\Carbon::parse($s['ends_at'])->format('j M') }})</h4>
+                        @if($s['homes'] === null)
+                            <p>Shown from {{ \Carbon\Carbon::parse($s['published_at'])->format('j M') }}.</p>
+                        @else
+                            <div class="table-custom-responsive">
+                                <table class="table-ticket" id="far-{{ $key }}">
+                                    <tr><th>Mineral</th><th>Found at</th></tr>
+                                    @foreach($s['homes'] as $m)
+                                        <tr><td>{{ $m['name'] }}</td>
+                                            <td>@foreach($m['places'] as $p)<a href="{{ url('locations/' . $p['object_id']) }}">{{ $p['name'] }}</a>@if(!$loop->last), @endif @endforeach</td></tr>
+                                    @endforeach
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+                @endforeach
+            @endif
         </div>
     </section>
 @endsection

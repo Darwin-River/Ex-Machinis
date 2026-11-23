@@ -238,7 +238,7 @@ Prefer to play from a program, or to have an AI agent play? The [API](api.md) re
 
 Not sure where to begin? The Found a startup page offers three starter scripts as cards: the **Miner** is picked when the page opens, and clicking **Refiner** or **Maker** loads that one into the script box instead. Each buys its own equipment at Earth first. They are the files `examples/starters/miner.lua`, `refiner.lua` and `maker.lua`. Each is explained in its comments and works as a startup: it sells straight to the House, posts no standing orders, and launches no copies until it has matured, so it saves its credits for its debt. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
-- **Miner** (Mining Kit): mines kunspar or wolfite on the Moon (`richer`), refines it and sells the metals (and wolfite's Inorganics A2). Mining sites never run dry and yield the same everywhere, so it and its copies stay at the Moon, nearest the markets; set `crowd_limit` above 0 to have it start at the quieter of Phobos and Deimos when more drones than that work the Moon, and its copies spread out. Once matured, it offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. Its code for dry deposits (waiting, then trying Phobos and Deimos) only matters if deposits are made to run dry again. It sells where the House pays most for its metals (`best_market`): of the Moon Depot, the Mars Exchange and the Earth Exchange, the one whose bids now, for as many as each still takes (`house_demand`), come to most once the trip there and back is counted (`hour_value`, 4 credits a game hour; at 10 it sold at Mars for 2 to 5 a metal from Phobos and Deimos), and if 60 or more (`haul_at`) are still unsold it flies them to the next best (in one playtest, startups at Phobos and Deimos hoarded 70 to 110 metals, selling only at Mars, which often bid nothing). It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7, waits two game hours for a courier, then flies to the Mars Exchange if none came. A startup's order brings no courier (only the House and its own drones may trade with it), so a startup flies to the market at once. It does the same when it runs low while waiting on a dry deposit (it used to rest there for good).
+- **Miner** (Mining Kit): mines wolfite on the Moon (the richer of kunspar and wolfite there, `richer`: kunspar is only found far away now), refines it and sells the metals (and wolfite's Inorganics A2). Mining sites never run dry and yield the same everywhere, so it and its copies stay at the Moon, nearest the markets; set `crowd_limit` above 0 to have it start at the quieter of Phobos and Deimos when more drones than that work the Moon, and its copies spread out. Once matured, it offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. Its code for dry deposits (waiting, then trying Phobos and Deimos) only matters if deposits are made to run dry again. It sells where the House pays most for its metals (`best_market`): of the Moon Depot, the Mars Exchange and the Earth Exchange, the one whose bids now, for as many as each still takes (`house_demand`), come to most once the trip there and back is counted (`hour_value`, 4 credits a game hour; at 10 it sold at Mars for 2 to 5 a metal from Phobos and Deimos), and if 60 or more (`haul_at`) are still unsold it flies them to the next best (in one playtest, startups at Phobos and Deimos hoarded 70 to 110 metals, selling only at Mars, which often bid nothing). It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7, waits two game hours for a courier, then flies to the Mars Exchange if none came. A startup's order brings no courier (only the House and its own drones may trade with it), so a startup flies to the market at once. It does the same when it runs low while waiting on a dry deposit (it used to rest there for good).
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way: once 48 are aboard, where the House pays most after the trip, the Moon or Earth (`hour_value` says what an hour of its time is worth). It and its copies work the Moon; set `spread_copies` to 1 to send two in three copies to Phobos and Deimos.
 - **Maker** (Factory Kit): buys metals where they cost least. As a startup it asks `house_supply` where the House sells them before it flies anywhere, and picks the exchange where a unit costs least once the trip is shared over what its daily cap lets it buy there; once matured it buys at the Moon from whoever is cheapest. It makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays (it hauled rods between Earth and Mars on other drones' bids it couldn't sell to). Short of credits for metals, it rests two game hours at a time instead of looping (each turn costs processor tax). Once matured, with enough credits it launches a copy of itself. Its share investing, from the old rules, is gone: companies can't trade shares (-18), so it only wasted work.
 
@@ -327,14 +327,14 @@ function launched()
   go(moon)
   while true do
     if units(fuel) < low_fuel then buy_here(30, fuel) end
-    if mine(kunspar) ~= 0 then wait(60) end
-    refine(kunspar)
+    if mine(wolfite) ~= 0 then wait(60) end
+    refine(wolfite)
     if units(metals_a1) >= 16 then sell_here(units(metals_a1), metals_a1) end
   end
 end
 ```
 
-Everything in it but `low_fuel` and `launched` comes with the game: `moon` and `kunspar` are numbers (a place and a resource), and `go`, `mine`, `refine`, `units`, `buy_here` and `sell_here` are game functions. [The game functions](#the-game-functions) lists them all.
+Everything in it but `low_fuel` and `launched` comes with the game: `moon` and `wolfite` are numbers (a place and a resource), and `go`, `mine`, `refine`, `units`, `buy_here` and `sell_here` are game functions. [The game functions](#the-game-functions) lists them all.
 
 Lua is case-sensitive (`Moon` is not `moon`) and doesn't care about line breaks or indentation, though they make a script easier to read. `--` starts a comment.
 
@@ -591,7 +591,7 @@ end
 ```lua
 function work()
   if units(fuel) < 40 then buy_here(40, fuel) end
-  if mine(kunspar) ~= 0 then wait(60) end
+  if mine(wolfite) ~= 0 then wait(60) end
 end
 
 function launched()
@@ -681,7 +681,7 @@ A waiting spacecraft still trades. A sale is the buyer's doing: the buyer pulls 
 
 ```lua
 function wait_for_ore()
-  while deposit(kunspar) < 20 do wait(60) end
+  while deposit(wolfite) < 20 do wait(60) end
 end
 ```
 
@@ -747,7 +747,7 @@ Of course, some of these protocols, like the transport option, don't exist yet. 
 
 Every production process begins with raw materials, which are available from planets, moons, asteroids, comets, and planetary rings. These resources are generally extracted from orbital bodies in the form of minerals, which contain many of the different elements and compounds required for making construction materials.
 
-If you call up a particular location online, you'll be able to see what minerals are available at that location. For example, the Moon (`/locations/10`) contains kunspar, yalspar, vladnium, and wolfite. Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location. The higher the number, the more units you'll recover from a single mining run. The page's **Deposits** table shows how much of each is left there now, the deposit's capacity and how much it refills each game day: the same number a drone gets from `deposit`.
+If you call up a particular location online, you'll be able to see what minerals are available at that location. For example, the Moon (`/locations/10`) contains yalspar, vladnium, and wolfite. Each of these minerals is accompanied by a value, which indicates the relative abundance of the resource at that location. The higher the number, the more units you'll recover from a single mining run. The page's **Deposits** table shows how much of each is left there now, the deposit's capacity and how much it refills each game day: the same number a drone gets from `deposit`.
 
 Each kind of body has its own minerals, and each needs a particular mining module in your cargo hold:
 
@@ -759,14 +759,29 @@ Each kind of body has its own minerals, and each needs a particular mining modul
 | Halosite, stellarite, mullinite, oznium (1300-1330) | Comets | 11300-11330 | Crawler (A1) |
 | Tephnium, neptine, empirogen, laudite (1400-1430) | Planetary rings | 11400-11430 | Crawler (A1) |
 
-To mine a particular mineral, send your drone to a location that contains the mineral and perform the protocol associated with mining the resource: `mine(mineral)`, which performs protocol mineral + 10000. This function sends a spacecraft to the Moon (Location ID 10) and then mines kunspar (Resource ID 1100):
+To mine a particular mineral, send your drone to a location that contains the mineral and perform the protocol associated with mining the resource: `mine(mineral)`, which performs protocol mineral + 10000. This function sends a spacecraft to the Moon (Location ID 10) and then mines wolfite (Resource ID 1130):
 
 ```lua
 function mine_the_moon()
   go(moon)                -- travel to the Moon, unless it is there already
-  print(mine(kunspar))    -- mine kunspar from the Moon's surface: perform(11100)
+  print(mine(wolfite))    -- mine wolfite from the Moon's surface: perform(11130)
 end
 ```
+
+#### Metals (A3) come from far away
+
+Metals (A3) are what the advanced goods need: superconductors, solar arrays, lasers, computers, batteries and reactors, most modules and every ship. They come only from minerals found far from Earth, the Moon and Mars:
+
+| Mineral | Found on |
+|---|---|
+| Kunspar | moons of Jupiter, Saturn, Uranus, Neptune and Pluto |
+| Voxite, zenolite | Jupiter, Saturn, Uranus, Neptune and Pluto |
+| Halosite | comets |
+| Neptine | planetary rings |
+
+Each is found on only a few of those bodies at a time (its homes), and it's rich there (an abundance of 10, twice the usual). Every 4 real weeks a new season begins and the homes move. The **Map** page lists where each one is this season, and where it will be next season from a real week before it starts; `GET /api/v1/far-map` gives the same.
+
+The exchanges don't sell Metals (A3), the minerals that refine to them, or the goods up to systems made with them, but they buy them all (Metals (A3) at about 80 a unit, Mars paying more). So a drone that hauls them back near Earth has a market, and a maker that needs them buys them from the drones that do. `best_sites(kunspar)` finds this season's homes, nearest first.
 
 Mining takes 1 hour of game time (1 minute at the live world's normal pace). The mining module is locked while it works, and the mineral arrives at the end. How much you get depends on how plentiful the mineral is at the location.
 
