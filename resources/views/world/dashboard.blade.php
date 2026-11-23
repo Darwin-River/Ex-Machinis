@@ -137,6 +137,27 @@
                     <div class="ex-chart" id="dash-players" aria-label="Players' wealth"></div>
                     <p class="ex-src">Data: <code>{{ $dash['sources']['players'] }}</code></p>
                 </div>
+                @php($cb = $dash['credits_balance'] ?? null)
+                @if($cb && $cb['checked_day'] !== null)
+                    <div class="mh-card dash-6" id="dash-credits">
+                        <h3>Do credits balance?</h3>
+                        <p class="dash-q">Once a game day the game adds up every credit held and checks that it changed only by credits
+                            created (companies founded, the bank paying) and destroyed (taxes, companies ending, the bank being paid).</p>
+                        @if($cb['difference'] === null)
+                            <p>Game day {{ number_format($cb['checked_day']) }}: {{ number_format($cb['held']) }} credits held. This first check is the baseline.</p>
+                        @else
+                            <p>Game day {{ number_format($cb['checked_day']) }}: {{ number_format($cb['held']) }} credits held;
+                                {{ number_format($cb['created']) }} created and {{ number_format($cb['destroyed']) }} destroyed since the day before.</p>
+                        @endif
+                        @if($cb['balanced'])
+                            <p id="dash-credits-ok">They balance: the last {{ $cb['checks'] }} checks found no credits created or lost by mistake.</p>
+                        @else
+                            <p id="dash-credits-bad" class="econ-down">They don't balance: {{ $cb['mismatches'] }} of the last {{ $cb['checks'] }} checks found
+                                a difference, the latest on game day {{ number_format($cb['last_mismatch_day']) }}. It's a bug, and it's being looked into.</p>
+                        @endif
+                        <p class="ex-src">Data: <code>{{ $dash['sources']['credits_balance'] ?? 'GET /api/v1/clock, credits' }}</code></p>
+                    </div>
+                @endif
             </div>
         </div>
     </section>

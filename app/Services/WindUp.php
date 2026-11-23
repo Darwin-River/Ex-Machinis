@@ -143,16 +143,23 @@ class WindUp
             $count = max(1, PlayerShares::count($company));
             $credits = max(0, (int) $c->credits - (int) ($c->compute_debt ?? 0));
             $perShare = intdiv($credits, $count);
-            // Each player's shares, paid out
+            // Each player's shares, paid out of the company's credits (#937: a
+            // move, not a flow; what is left goes when it ends)
+            $paidOut = 0;
             foreach (DB::table('player_shares')->where('company_id', $company)->where('units', '>', 0)->get(['user_id', 'units']) as $h) {
                 DB::table('users')->where('user_id', $h->user_id)
                     ->update(['credits' => DB::raw('credits + ' . ((int) $h->units * $perShare))]);
+                $paidOut += (int) $h->units * $perShare;
+            }
+            if ($paidOut > 0) {
+                DB::table('companies')->where('company_id', $company)->update(['credits' => DB::raw('credits - ' . $paidOut)]);
             }
             // A sale to the bank not yet paid is paid now, at no more than it was sold for
             foreach (DB::table('bank_payments')->where('company_id', $company)->whereNull('paid_t')->get() as $b) {
                 $amount = (int) $b->units * min((int) $b->price_at_sale, $perShare);
                 DB::table('bank_payments')->where('id', $b->id)->update(['paid_t' => $now, 'paid' => $amount]);
                 DB::table('users')->where('user_id', $b->user_id)->update(['credits' => DB::raw('credits + ' . $amount)]);
+                CreditFlows::record('bank_paid', $amount, $company, (int) $b->user_id);   // #937
             }
             DB::table('player_share_orders')->where('company_id', $company)->delete();
             // Its drones leave the game with what they hold

@@ -277,6 +277,7 @@ class Startups
             if (!$done) {
                 return ['ok' => false, 'status' => 409, 'error' => 'It can\'t pay its debt now: try again.'];
             }
+            CreditFlows::record('startup_matured', -$debt, $companyId);   // the grant repaid to the bank (#937)
             DB::table('player_shares')->insert(['user_id' => $owner->user_id, 'company_id' => $companyId, 'units' => self::SHARES]);
             CompanyNow::forget($owner);   // its strip shows the change at once (#770)
             return ['ok' => true, 'company' => $companyId, 'name' => $company->name, 'repaid' => $debt, 'shares' => self::SHARES];

@@ -97,6 +97,7 @@ class CodePush
             if (!$paid) {
                 return ['ok' => false, 'status' => 409, 'error' => 'Another push is under way: try again.'];
             }
+            CreditFlows::record('push_fee', -$fee, $companyId);   // #937
             $number = (int) $company->pushes + 1;
             DB::table('code_pushes')->insert(['company_id' => $companyId, 'number' => $number,
                 'game_t' => World::gameNow(), 'credits_before' => (int) $company->credits, 'permille' => $permille,

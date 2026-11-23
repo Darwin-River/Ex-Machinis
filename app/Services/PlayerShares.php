@@ -504,6 +504,8 @@ class PlayerShares
                 return self::fail(409, 'You can\'t pay ' . number_format($cost) . ' credits.');
             }
             self::move(null, (int) $user->user_id, $company, $units);
+            // What the bank is paid leaves the game (#937)
+            CreditFlows::record('bank_sold_shares', -$cost, $company, (int) $user->user_id);
             DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => null,
                 'buyer_id' => $user->user_id, 'units' => $units, 'price' => $p['sells_at'], 'game_t' => World::gameNow()]);
             return ['ok' => true, 'units' => $units, 'price' => $p['sells_at'], 'cost' => $cost];
@@ -656,6 +658,7 @@ class PlayerShares
                 $rebate = self::rebate($n * $at, $o->game_t ?? null);
                 if ($rebate > 0) {
                     DB::table('users')->where('user_id', $o->user_id)->update(['credits' => DB::raw('credits + ' . $rebate)]);
+                    CreditFlows::record('share_rebate', $rebate, $company, (int) $o->user_id);   // #937
                 }
                 DB::table('player_share_trades')->insert(['company_id' => $company, 'seller_id' => $seller,
                     'buyer_id' => $buyer, 'units' => $n, 'price' => $at, 'game_t' => World::gameNow()]
@@ -1189,6 +1192,9 @@ class PlayerShares
                         }
                         if ($user !== null) {
                             DB::table('users')->where('user_id', $user)->update(['credits' => DB::raw('credits + ' . $amount)]);
+                        } else {
+                            // The bank's part leaves the game (#937)
+                            CreditFlows::record('dividend_to_bank', -$amount, (int) $c->company_id);
                         }
                         DB::table('player_dividends')->insert(['company_id' => $c->company_id, 'user_id' => $user,
                             'day' => (int) $d->day, 'units' => $units, 'amount' => $amount]);
@@ -1233,6 +1239,7 @@ class PlayerShares
                 $done = DB::table('bank_payments')->where('id', $b->id)->whereNull('paid_t')->update(['paid_t' => $now, 'paid' => $amount]);
                 if ($done) {
                     DB::table('users')->where('user_id', $b->user_id)->update(['credits' => DB::raw('credits + ' . $amount)]);
+                    CreditFlows::record('bank_paid', $amount, (int) $b->company_id, (int) $b->user_id);   // #937
                 }
             });
         }

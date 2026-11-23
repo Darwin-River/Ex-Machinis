@@ -750,6 +750,11 @@ FORGE_COMPANY=$(sql "select company_id from agents where agent_id=$FORGE_DRONE")
 # (well past the 90,000 it waits for: its thinking is billed in credits, and
 # a bill between this and its next look left it at 89,99x for good, #889)
 sql "update companies set credits = 100000 where company_id = $FORGE_COMPANY"
+# Credits balance (#937): from here the test changes no credits by hand, so
+# a check now is the baseline the last one is compared with (the earlier
+# hand-set credits show as differences before it)
+docker compose exec -T app php artisan forge:check-credits >/dev/null || true
+CREDIT_BASE=$(sql "select ifnull(max(id), 0) from credit_checks")
 # (its sell order first: until the test says, it waits a game hour at a time)
 forge_sells() { [ "$(sql "select count(*) from events where drone=$FORGE_DRONE and event_type=4 and resource=2061 and outcome=1")" -ge 1 ]; }
 forge_waits() { forge_sells && [ "$(sql "select a.protocol from agents g join actions a on a.id = g.waiting_action where g.agent_id=$FORGE_DRONE")" = 3 ]; }
@@ -845,5 +850,13 @@ wait_for 180 "a House station drone posts its orders" posted
     fail "an exchange bids more than another asks"
 curl -fsS http://localhost/api/v1/news | grep -q '^\[' || fail "/news didn't answer"
 curl -fsS http://localhost/api/v1/recipes/4311/tree | grep -q '"resource":2011' || fail "the pump's recipe tree has no metals"
+
+# Credits balance (#937): since the baseline every credit created or
+# destroyed (sales tax, processor tax, companies founded and ended) is in
+# credit_flows, and the website's daily checks and a last one agree
+docker compose exec -T app php artisan forge:check-credits || fail "credits don't balance"
+[ "$(sql "select count(*) from credit_checks where id > $CREDIT_BASE and difference <> 0")" = 0 ] ||
+    fail "a daily credit check found credits that don't balance: $(sql "select concat(day, ' ', difference, ' ', ifnull(kinds, '')) from credit_checks where id > $CREDIT_BASE and difference <> 0 limit 3")"
+echo "ok: credits balance: they change only by what is created and destroyed"
 
 echo "Smoke test passed."

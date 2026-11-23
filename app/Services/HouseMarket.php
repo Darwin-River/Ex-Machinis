@@ -59,6 +59,12 @@ class HouseMarket
             } catch (\Throwable $e) {
                 report($e);
             }
+            // Do credits balance? Once a game day (#937)
+            try {
+                CreditCheck::checkIfDue();
+            } catch (\Throwable $e) {
+                report($e);
+            }
             // Code lineage (#616): new releases' and pushes' parents, a few each tick
             try {
                 CodeLineage::catchUp();
