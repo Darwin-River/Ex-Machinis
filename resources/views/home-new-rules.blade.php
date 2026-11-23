@@ -8,17 +8,15 @@
         .home-lead { font-size: 1.15rem; color: #c3c9d8; max-width: 34em; white-space: normal; }
         .home-code { background: #0f1424; border: 1px solid #263052; border-radius: 10px; padding: 16px 18px; margin: 0;
               font: 14px/1.6 "JetBrains Mono", ui-monospace, monospace; color: #cfe3ff; white-space: pre; overflow-x: auto; }
-        .home-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 0 0 2.5rem; padding: 0; list-style: none; }
-        .home-step { background: #111729; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px 18px; }
-        .home-step .n { color: #4cc9f0; font-weight: 700; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
-        .home-step h2 { font-size: 1.15rem; margin: 6px 0; }
-        .home-step p { margin: 0; color: #c3c9d8; font-size: 15px; white-space: normal; }
+
+
+
         .home-clock { color: #c3c9d8; font-size: 15px; margin: 0 0 1.5rem; white-space: normal; }
         #feed { width: 100%; }
         #feed td { white-space: normal; vertical-align: top; }
         #feed td:first-child { white-space: nowrap; color: #9aa3b8; padding-right: 1em; }
-        @media (max-width: 991px) { .home-steps { grid-template-columns: 1fr 1fr; } .home-hero h1 { font-size: 2rem; } }
-        @media (max-width: 480px) { .home-steps { grid-template-columns: 1fr; } #feed td:first-child { white-space: normal; } }
+        @media (max-width: 991px) {
+        @media (max-width: 480px) {
         /* A smaller hero on a phone (#905: 962 px, more than a screen, before the steps) */
         @media (max-width: 575px) {
             .home-hero { padding: 1.25rem 0 1rem; }
@@ -39,15 +37,24 @@
                 <div class="col-lg-7 mb-4 mb-lg-0">
                     <p class="hero-kicker">Free &middot; multiplayer &middot; open source</p>
                     <h1>Write the code.<br>Your drones run the company.</h1>
-                    <p class="home-lead">A space-trading game you play in Lua. The bank lends your first company, a
-                        <b>startup</b>, a drone and {{ $n($startup['credits']) }} credits; make it earn back the
-                        {{ $n($startup['grant']) }} it owes and its {{ $startup['shares'] }} shares are yours, and if it crashes,
-                        close it and it costs you nothing. <b>Break, learn, repeat.</b></p>
+                    <p class="home-lead">A space-trading game you play in Lua. Code drones that mine, make and trade; grow your
+                        companies, then invest in other players' and lend to them. A startup costs you nothing if it crashes:
+                        <b>break, learn, repeat.</b></p>
+                    {{-- The first button follows the path (#987): an account, then the player's next step --}}
+                    @php($path = \App\Services\Pipeline::for(auth()->user()))
+                    @php($nextStep = collect($path['steps'])->firstWhere('key', $path['next'] ?? 'account'))
                     <div class="hero-actions">
-                        <a class="button button-primary button-lg" href="{{ url('release') }}">Found a startup (free)</a>
-                        <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Your first startup (5 minutes)</a>
+                        @if(!$path['player'])
+                            <a class="button button-primary button-lg" href="{{ url('signup') }}">Make an account (free)</a>
+                            <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Your first startup (5 minutes)</a>
+                        @else
+                            <a class="button button-primary button-lg" href="{{ $nextStep['url'] }}">{{ $path['next'] ? 'Next: ' . $nextStep['action'] : $nextStep['action'] }}</a>
+                            <a class="button button-secondary button-lg" href="{{ url('release') }}">Found a startup</a>
+                        @endif
                     </div>
-                    <p class="mt-3 mb-0"><a href="{{ url('signup') }}">Make an account</a> to keep what you start: it's free.</p>
+                    @if(!$path['player'])
+                        <p class="mt-3 mb-0">Or <a href="{{ url('release') }}">found a startup now</a> and make an account later to keep it.</p>
+                    @endif
                 </div>
                 <div class="col-lg-5">
 {!! \App\Services\LuaHighlight::block(<<<'LUA'
@@ -75,18 +82,9 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
             @if (session('status'))
                 <div class="alert alert-success">{{ session('status') }}</div>
             @endif
-            <ol class="home-steps" id="home-steps">
-                <li class="home-step"><div class="n">Step 1</div><h2>Pick a starter</h2>
-                    <p>Miner, Refiner or Maker on the <a href="{{ url('release') }}">Found a startup</a> page. Each explains itself in comments.</p></li>
-                <li class="home-step"><div class="n">Step 2</div><h2>Found a startup</h2>
-                    <p>The bank lends it a drone ({{ $n($startup['hull']) }}), {{ $n($startup['credits']) }} credits and a
-                        {{ $n($startup['fee']) }} fee: it owes {{ $n($startup['grant']) }}.</p></li>
-                <li class="home-step"><div class="n">Step 3</div><h2>Watch and fix</h2>
-                    <p>Its page shows what went wrong. Push a fix, for free, or close it and try again.</p></li>
-                <li class="home-step"><div class="n">Step 4</div><h2>Mature it</h2>
-                    <p>At {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} to work with)
-                        it repays the bank, and its {{ $startup['shares'] }} shares are yours.</p></li>
-            </ol>
+            {{-- The path through the game (#987): account, code drones, invest, lend --}}
+            <h2 class="h4">Your path</h2>
+            @include('partials.pipeline')
 
             {{-- The game clock in one plain line, honest when it is slowed (#697) --}}
             @php($s = $status)

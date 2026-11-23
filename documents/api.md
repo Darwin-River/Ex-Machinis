@@ -73,7 +73,7 @@ The [players' manual](players-manual.md) explains the game and the Lua functions
 | `script` | yes | the script, in Lua |
 | `company` | no | a company's ID: the response then previews a code push to it (`push`, below; #558). Nothing is charged or sent |
 
-A script must define the function `launched` (`function launched() ... end`): see the players' manual, [Speaking Lua](players-manual.md#chapter-10-writing-your-drone-in-lua). FORTH has been retired: a FORTH script (`: launched ... ;`) is refused, with an error saying so. Drones released in FORTH before then carry on.
+A script must define the function `launched` (`function launched() ... end`): see the players' manual, [Lua through the starter](players-manual.md#chapter-2-lua-through-the-starter). FORTH has been retired: a FORTH script (`: launched ... ;`) is refused, with an error saying so. Drones released in FORTH before then carry on.
 
 **Example:**
 

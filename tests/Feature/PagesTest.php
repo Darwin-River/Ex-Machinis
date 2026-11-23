@@ -168,13 +168,14 @@ class PagesTest extends TestCase
         $this->get('/support')->assertOk()->assertDontSee('no accounts');
     }
 
-    /** #690: the queries page has no typos, and points to the right chapter */
+    /** #690: the queries page has no typos, and points to the right part of the manual (#932: it is staged now) */
     public function testTheQueriesPageReadsWell()
     {
         $sql = file_get_contents(base_path('game-engine/sql/game_data.sql'));
         foreach (['Spaecraft', 'Spacraft', 'Retuns', 'compony', 'were Company ID', 'Until #544'] as $typo) {
             $this->assertStringNotContainsString($typo, $sql);
         }
-        $this->get('/queries')->assertOk()->assertSee('chapter 9')->assertDontSee('chapter 8');
+        $this->get('/queries')->assertOk()->assertSee('manual#asking-the-game-questions', false)
+            ->assertSee('manual#the-questions-by-subject', false)->assertDontSee('chapter 9');
     }
 }

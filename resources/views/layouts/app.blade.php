@@ -56,11 +56,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-play" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Play</a>
                         <div class="dropdown-menu" aria-labelledby="nav-play">
-                            <a class="dropdown-item" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a>
-                            @if(config('forge.new_rules') && auth()->check() && auth()->user()->login !== null)<a class="dropdown-item" href="{{ url('account') }}">Your companies and shares</a>@endif
-                            @if(config('forge.new_rules'))<a class="dropdown-item" href="{{ url('startups/race') }}">Startup race</a>@endif
+                            {{-- In the order of the path through the game (#987): account, code drones, invest, lend --}}
+                            @if(config('forge.new_rules'))
+                                <h6 class="dropdown-header">1. Account</h6>
+                                @if(auth()->check() && auth()->user()->login !== null)
+                                    <a class="dropdown-item" href="{{ url('account') }}">Your companies and shares</a>
+                                @else
+                                    <a class="dropdown-item" href="{{ url('signup') }}">Make an account</a>
+                                @endif
+                                <h6 class="dropdown-header">2. Code drones</h6>
+                            @endif
                             {{-- The five-minute guide and the manual are two pages (#719) --}}
                             <a class="dropdown-item" href="{{ url('getting-started') }}">First startup (5 minutes)</a>
+                            <a class="dropdown-item" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a>
+                            @if(config('forge.new_rules'))
+                                <a class="dropdown-item" href="{{ url('startups/race') }}">Startup race</a>
+                                <h6 class="dropdown-header">3. Invest</h6>
+                                <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
+                                <a class="dropdown-item" href="{{ url('market/trade') }}">Trading desk</a>
+                                <h6 class="dropdown-header">4. Lend</h6>
+                                <a class="dropdown-item" href="{{ url('market/loans') }}">Loan requests</a>
+                            @endif
                         </div>
                     </li>
                     <li class="nav-item dropdown">

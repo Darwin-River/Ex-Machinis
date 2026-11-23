@@ -65,6 +65,7 @@
     </x-page-header>
     <section class="section section-xs section-first">
         <div class="container fs" id="first-startup">
+            @if(config('forge.new_rules'))@include('partials.pipeline', ['here' => 'code'])@endif
             <p class="fs-lead">A <b>startup</b> is a company the bank lends you for free. Your Lua code runs its drone on its
                 own; if it fails, close it and it costs you nothing. Here is the whole way from nothing to its
                 {{ $startup['shares'] }} shares, with the numbers in force today.</p>
@@ -160,12 +161,16 @@
             </ol>
 
             <h2 class="h4 mt-4" id="next">What next?</h2>
+            {{-- On along the path (#987): invest, then lend --}}
             <ul class="fs-next">
-                <li><a href="{{ url('manual') }}"><b>The manual</b><span>The whole game, chapter by chapter.</span></a></li>
+                @if(config('forge.new_rules'))
+                    <li><a href="{{ url('market/shares') }}"><b>Step 3: Invest</b><span>Read a matured company's code on its page, buy its shares on the Stock exchange and earn its dividends.</span></a></li>
+                    <li><a href="{{ url('market/loans') }}"><b>Step 4: Lend</b><span>With {{ number_format(\App\Services\Loans::minCredits()) }} credits, back companies' loan requests and earn their interest.</span></a></li>
+                @endif
+                <li><a href="{{ url('manual') }}"><b>The manual</b><span>The whole game, a stage at a time: your first drone, markets, growing, going public, finance.</span></a></li>
                 <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md"><b>Lua functions</b><span>Every function a drone can call.</span></a></li>
                 <li><a href="{{ url('market') }}"><b>The market</b><span>Where each good is cheapest and where it pays most.</span></a></li>
                 <li><a href="{{ url('blog') }}"><b>Strategy blog</b><span>How the best companies were written.</span></a></li>
-                @if(config('forge.new_rules'))<li><a href="{{ url('market/trade') }}"><b>Trade shares</b><span>The Trading desk: buy into matured companies, earn their dividends, or write a trading script.</span></a></li>@endif
             </ul>
         </div>
     </section>
