@@ -2320,31 +2320,35 @@ table('far_homes', ['resource', 'object_id'], far_homes)
 table('queries', ['id', 'name', 'description', 'parameters', 'script'], queries)
 lines += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
 
-with open(OUT, 'w', encoding='utf-8') as f:
-    f.write('\n'.join(lines))
+# Run as a script, write the game data and the manual's query appendix. Imported
+# (tools/balance, #961), only work the numbers out: the balance check reads
+# them without writing anything
+if __name__ == '__main__':
+    with open(OUT, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
 
-# The design manual's query appendix is written from the same data
-MANUAL = os.path.join(REPO, 'documents', 'design-manual.md')
-START, END = '<!-- queries:start', '<!-- queries:end -->'
-manual = open(MANUAL, encoding='utf-8').read()
-a = manual.index(START)
-a = manual.index('\n', a) + 1
-b = manual.index(END)
-cell = lambda v: str(v).replace('|', '\\|').replace('\n', ' ')
-table_md = ['| Category | Query ID | Name | Usage and description | Parameters | MySQL script |',
-            '|:--|:--|:--|:--|:--|:--|']
-for qid, name, desc, params, script in queries:
-    table_md.append(f'| {cell(category.get(str(qid), "Spacecraft"))} | {qid} | {cell(name)} | {cell(desc)} '
-                    f'| {params} | `{cell(script)}` |')
-manual = manual[:a] + '\n'.join(table_md) + '\n' + manual[b:]
-with open(MANUAL, 'w', encoding='utf-8') as f:
-    f.write(manual)
+    # The design manual's query appendix is written from the same data
+    MANUAL = os.path.join(REPO, 'documents', 'design-manual.md')
+    START, END = '<!-- queries:start', '<!-- queries:end -->'
+    manual = open(MANUAL, encoding='utf-8').read()
+    a = manual.index(START)
+    a = manual.index('\n', a) + 1
+    b = manual.index(END)
+    cell = lambda v: str(v).replace('|', '\\|').replace('\n', ' ')
+    table_md = ['| Category | Query ID | Name | Usage and description | Parameters | MySQL script |',
+                '|:--|:--|:--|:--|:--|:--|']
+    for qid, name, desc, params, script in queries:
+        table_md.append(f'| {cell(category.get(str(qid), "Spacecraft"))} | {qid} | {cell(name)} | {cell(desc)} '
+                        f'| {params} | `{cell(script)}` |')
+    manual = manual[:a] + '\n'.join(table_md) + '\n' + manual[b:]
+    with open(MANUAL, 'w', encoding='utf-8') as f:
+        f.write(manual)
 
-print(f'Wrote {os.path.relpath(OUT, REPO)}: {len(resources)} resources, {len(protocols)} protocols, '
-      f'{len(effect_rows)} effects, {len(loc_eff)} location effects, {len(mkt_eff)} market effects, '
-      f'{len(new_bodies)} new bodies, {len(planet_updates)} planet orbit corrections, '
-      f'{len(abundances)} abundances, {len(queries)} queries.')
-if notes:
-    print('\nAssumptions and gaps:')
-    for n in notes:
-        print(' -', n)
+    print(f'Wrote {os.path.relpath(OUT, REPO)}: {len(resources)} resources, {len(protocols)} protocols, '
+          f'{len(effect_rows)} effects, {len(loc_eff)} location effects, {len(mkt_eff)} market effects, '
+          f'{len(new_bodies)} new bodies, {len(planet_updates)} planet orbit corrections, '
+          f'{len(abundances)} abundances, {len(queries)} queries.')
+    if notes:
+        print('\nAssumptions and gaps:')
+        for n in notes:
+            print(' -', n)

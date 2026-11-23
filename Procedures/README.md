@@ -6,7 +6,7 @@ These standard operating procedures (SOPs) say how the developers of Ex Machinis
 - **Attachments** are in [Attachments/](Attachments/): machine instructions (M) that Claude follows, templates (T), and appendices (A).
 - **Anchors**: every numbered item has a link anchor, so `…/AD-01%20Creating%20and%20resolving%20GitHub%20issues.md#5.6` opens AD-01 at §5.6. Run `python3 Procedures/Tools/update_anchors.py` after renumbering; `--check` only reports.
 
-To have Claude do a task, name the machine instructions, for example: "Apply DV-02-M1 to run playtest round 42" or "Apply FR-01-M1 for November."
+To have Claude do a task, name the machine instructions, for example: "Apply DV-02-M1 to run playtest round 42", "Apply DV-03-M1 to #963" or "Apply FR-01-M1 for November."
 
 ## Index
 
@@ -18,6 +18,7 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 | [AD-03](SOPs/AD-03%20Deploying%20to%20the%20live%20server.md) | Deploying to the live server | M1 following a deploy |
 | [DV-01](SOPs/DV-01%20Making%20and%20testing%20game%20changes.md) | Making and testing game changes | A1 docs to keep current, M1 making a game change |
 | [DV-02](SOPs/DV-02%20Running%20playtest%20rounds.md) | Running playtest rounds | M1 running a round, T1 round comment for #380 |
+| [DV-03](SOPs/DV-03%20Tuning%20gameplay%20parameters.md) | Tuning gameplay parameters | M1 a tuning cycle, T1 tuning issue |
 | [OR-01](SOPs/OR-01%20Writing%20and%20publishing%20blog%20posts.md) | Writing and publishing blog posts | M1 drafting a post, T1 blog post |
 | [OR-02](SOPs/OR-02%20Engaging%20on%20social%20media.md) | Engaging on social media | A1 accounts and conduct, M1 drafting posts, T1 social post |
 | [OR-03](SOPs/OR-03%20Promoting%20Ex%20Machinis%20to%20schools%20and%20learners.md) | Promoting Ex Machinis to schools and learners | A1 audiences and messages, M1 drafting a lesson, T1 lesson |

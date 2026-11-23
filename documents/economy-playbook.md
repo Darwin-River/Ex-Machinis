@@ -46,6 +46,8 @@ For an empty world, before players arrive. Round 8 seeded a fresh world with thi
 
 ## Economic levers
 
+Since #961, a lever change aimed at balance is a tuning change per [DV-03](../Procedures/SOPs/DV-03%20Tuning%20gameplay%20parameters.md): it names the playability objectives (`PO-nn`, in `tools/balance/objectives.json`) it serves, is checked against the [balance report](balance-report.md) before it ships, and is recorded in these tables with its objectives once measured. The backlog of proposed changes is #962.
+
 The game data a world's owner can change (`game-engine/sql/game-data/build_game_data.py`; in a running world, the tables directly). The levers changed so far, and what each did:
 
 | Lever | Table | From | To | Effect |

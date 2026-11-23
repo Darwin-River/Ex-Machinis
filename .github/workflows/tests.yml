@@ -87,6 +87,9 @@ jobs:
           git status --porcelain game-engine/sql/game_data.sql documents/design-manual.md
           test -z "$(git status --porcelain game-engine/sql/game_data.sql documents/design-manual.md)" || { echo "Run game-engine/sql/game-data/build_game_data.py and commit the result"; exit 1; }
 
+      - name: Check the playability guards and the balance report (DV-03, #961)
+        run: python3 tools/balance/static_check.py --check
+
       - name: Install build dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libconfig-dev libmysqlclient-dev
 
