@@ -415,6 +415,30 @@ static int heap_gap_ids[HEAP_GAPS_MAX];
 static long long heap_gap_at[HEAP_GAPS_MAX];
 static int heap_gap_n = 0;
 
+/* A skip wider than HEAP_GAP_SPAN_MAX ids (a burst: a release of a thousand
+   drones, a big transaction) is kept as a range, read again each pass for
+   as long, rather than not at all: before #946 its ids waited for the
+   sweep (10-20 s) or the five-minute check */
+#define HEAP_RANGES_MAX   64
+static int heap_range_lo[HEAP_RANGES_MAX], heap_range_hi[HEAP_RANGES_MAX];   /* ids lo < id < hi */
+static long long heap_range_at[HEAP_RANGES_MAX];
+static int heap_range_n = 0;
+
+static void db_heap_range_add(int lo, int hi, long long now)
+{
+    if(heap_range_n == HEAP_RANGES_MAX) {
+        // Full: the oldest goes (the sweep still looks)
+        memmove(heap_range_lo, heap_range_lo + 1, sizeof(int) * (HEAP_RANGES_MAX - 1));
+        memmove(heap_range_hi, heap_range_hi + 1, sizeof(int) * (HEAP_RANGES_MAX - 1));
+        memmove(heap_range_at, heap_range_at + 1, sizeof(long long) * (HEAP_RANGES_MAX - 1));
+        heap_range_n--;
+    }
+    heap_range_lo[heap_range_n] = lo;
+    heap_range_hi[heap_range_n] = hi;
+    heap_range_at[heap_range_n] = now;
+    heap_range_n++;
+}
+
 static void db_heap_gap_add(int id, long long now)
 {
     if(heap_gap_n == HEAP_GAPS_MAX) {
@@ -455,7 +479,11 @@ static long long db_heap_ms(void)
    many weren't in. With two more columns, "outcome, aborted", it adds only
    the pending ones, as the batch query's conditions say, and notes the
    highest id of all. gaps: 1, the rows come in id order past heap_max_id,
-   and the ids they skip are noted; 2, the rows are noted ids found */
+   the ids they skip are noted (a wide skip as a range), and the highest id
+   seen moves up; 2, the rows are noted ids found. Only the read past the
+   highest id (1) moves it: a read that moved it would skip ids unnoted
+   (#946: the five-minute check did, and counted the newest events, which
+   the next read would have taken, as missing) */
 static ErrorCode_t db_heap_read(DbConnection_t* connection, const char* query, int* added, int* rows, int gaps)
 {
     *added = 0;
@@ -478,14 +506,17 @@ static ErrorCode_t db_heap_read(DbConnection_t* connection, const char* query, i
         long long game_t = row[1] ? atoll(row[1]) : 0;
         long long action = row[2] ? atoll(row[2]) : EVENT_HEAP_NULL_ACTION;
         if(id <= 0) continue;
-        if(gaps == 1 && id > heap_max_id + 1 && id - heap_max_id <= HEAP_GAP_SPAN_MAX) {
+        if(gaps == 1 && id > heap_max_id + 1) {
             long long now = db_heap_ms();
-            for(int g = heap_max_id + 1; g < id; g++)
-                db_heap_gap_add(g, now);
+            if(id - heap_max_id <= HEAP_GAP_SPAN_MAX) {
+                for(int g = heap_max_id + 1; g < id; g++)
+                    db_heap_gap_add(g, now);
+            } else
+                db_heap_range_add(heap_max_id, id, now);
         }
         if(gaps == 2)
             db_heap_gap_remove(id);
-        if(id > heap_max_id) heap_max_id = id;
+        if(gaps == 1 && id > heap_max_id) heap_max_id = id;
         // outcome = 0 and (aborted) != 1: a NULL aborted (no action) is not != 1
         if(filter && (!row[3] || atoi(row[3]) != 0 || !row[4] || atoi(row[4]) == 1))
             continue;
@@ -512,18 +543,25 @@ static ErrorCode_t db_heap_max_id(DbConnection_t* connection, int* max_id)
     return ENGINE_OK;
 }
 
-/* Every pending event: at start, and every few minutes */
+/* Every pending event: at start, and every few minutes. The check reads
+   only the ids up to the highest seen: those above it are new, and the
+   read past the highest id takes them (#946) */
 static ErrorCode_t db_heap_load_all(DbConnection_t* connection, const char* why)
 {
     int top = 0, added = 0, rows = 0;
     long long started = db_heap_ms();
-    // The top id first: what is inserted while this reads, the sweep finds
-    ErrorCode_t result = db_heap_max_id(connection, &top);
+    char query[512];
+    ErrorCode_t result = ENGINE_OK;
+    if(!heap_loaded) {
+        // The top id first: what is inserted while this reads, the sweep finds
+        result = db_heap_max_id(connection, &top);
+        snprintf(query, sizeof(query), "SELECT id, game_t, action FROM events AS e WHERE outcome = 0 "
+            "AND (SELECT aborted FROM actions WHERE id = e.action) != 1");
+    } else
+        snprintf(query, sizeof(query), "SELECT id, game_t, action FROM events AS e WHERE e.id <= %d AND outcome = 0 "
+            "AND (SELECT aborted FROM actions WHERE id = e.action) != 1", heap_max_id);
     if(result == ENGINE_OK)
-        result = db_heap_read(connection,
-            "SELECT id, game_t, action FROM events AS e WHERE outcome = 0 "
-            "AND (SELECT aborted FROM actions WHERE id = e.action) != 1",
-            &added, &rows, 0);
+        result = db_heap_read(connection, query, &added, &rows, 0);
     if(result != ENGINE_OK)
         return result;
     if(!heap_loaded) {
@@ -568,18 +606,30 @@ static ErrorCode_t db_heap_read_gaps(DbConnection_t* connection, long long now)
             kept++;
         }
     heap_gap_n = kept;
-    if(!heap_gap_n)
+    kept = 0;
+    for(int i = 0; i < heap_range_n; i++)
+        if(now - heap_range_at[i] < HEAP_LAG_STEP_MS) {
+            heap_range_lo[kept] = heap_range_lo[i];
+            heap_range_hi[kept] = heap_range_hi[i];
+            heap_range_at[kept] = heap_range_at[i];
+            kept++;
+        }
+    heap_range_n = kept;
+    if(!heap_gap_n && !heap_range_n)
         return ENGINE_OK;
-    size_t len = 256 + (size_t)heap_gap_n * 12;
+    size_t len = 256 + (size_t)heap_gap_n * 12 + (size_t)heap_range_n * 48;
     char* query = malloc(len);
     if(!query)
         return ENGINE_MEMORY_ALLOC_ERROR;
     char* end = query;
     end += sprintf(end, "SELECT id, game_t, action, outcome, (SELECT aborted FROM actions WHERE id = e.action) "
-        "FROM events AS e WHERE e.id IN (");
+        "FROM events AS e WHERE e.id IN (0");
     for(int i = 0; i < heap_gap_n; i++)
-        end += sprintf(end, i ? ",%d" : "%d", heap_gap_ids[i]);
-    sprintf(end, ")");
+        end += sprintf(end, ",%d", heap_gap_ids[i]);
+    end += sprintf(end, ")");
+    // The wide skips: their pending rows (those in already change nothing)
+    for(int i = 0; i < heap_range_n; i++)
+        end += sprintf(end, " OR (e.id > %d AND e.id < %d)", heap_range_lo[i], heap_range_hi[i]);
     int added = 0;
     ErrorCode_t result = db_heap_read(connection, query, &added, NULL, 2);
     free(query);
@@ -631,16 +681,18 @@ static ErrorCode_t db_event_heap_take_due(DbConnection_t* connection, int batch_
     ErrorCode_t result = ENGINE_OK;
     if(!heap_loaded)
         result = db_heap_load_all(connection, "start");
-    else if(now - heap_reconciled_at >= HEAP_RECONCILE_MS) {
-        result = db_heap_load_all(connection, "the five-minute check");
-        heap_reconciled_at = now;
-    }
     if(result == ENGINE_OK)
         result = db_heap_read_gaps(connection, now);
     if(result == ENGINE_OK)
         result = db_heap_read_new(connection);
     if(result == ENGINE_OK && now - heap_swept_at >= HEAP_SWEEP_MS)
         result = db_heap_sweep(connection, now);
+    // The five-minute check, once the reads above are in: what it finds
+    // now, no read has (#946)
+    if(result == ENGINE_OK && heap_loaded && now - heap_reconciled_at >= HEAP_RECONCILE_MS) {
+        result = db_heap_load_all(connection, "the five-minute check");
+        heap_reconciled_at = now;
+    }
     if(result != ENGINE_OK)
         return result;
 

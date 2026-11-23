@@ -77,6 +77,28 @@ static int wake_gap_ids[WAKE_GAPS_MAX];
 static long long wake_gap_at[WAKE_GAPS_MAX];
 static int wake_gap_n = 0;
 
+/* A skip wider than WAKE_GAP_SPAN_MAX ids (a burst of releases) is kept as a
+   range, read again each batch for as long, rather than not at all: before
+   #946 its ids waited for the sweep (10-20 s) or the five-minute check */
+#define WAKE_RANGES_MAX 64
+static int wake_range_lo[WAKE_RANGES_MAX], wake_range_hi[WAKE_RANGES_MAX];   /* ids lo < id < hi */
+static long long wake_range_at[WAKE_RANGES_MAX];
+static int wake_range_n = 0;
+
+static void wake_range_add(int lo, int hi, long long now)
+{
+    if(wake_range_n == WAKE_RANGES_MAX) {
+        memmove(wake_range_lo, wake_range_lo + 1, sizeof(int) * (WAKE_RANGES_MAX - 1));
+        memmove(wake_range_hi, wake_range_hi + 1, sizeof(int) * (WAKE_RANGES_MAX - 1));
+        memmove(wake_range_at, wake_range_at + 1, sizeof(long long) * (WAKE_RANGES_MAX - 1));
+        wake_range_n--;
+    }
+    wake_range_lo[wake_range_n] = lo;
+    wake_range_hi[wake_range_n] = hi;
+    wake_range_at[wake_range_n] = now;
+    wake_range_n++;
+}
+
 static long long wake_ms(void)
 {
     struct timespec t;
@@ -128,8 +150,10 @@ static unsigned int wake_row_flags(MYSQL_ROW row)
 }
 
 /* Adds the commands of a wake_columns() query not in yet: *added. gaps: 1,
-   the rows come in id order past wake_max_id and the ids they skip are
-   noted; 2, they are noted ids found */
+   the rows come in id order past wake_max_id, the ids they skip are noted
+   (a wide skip as a range) and the highest id seen moves up; 2, they are
+   noted ids found. Only the read past the highest id moves it (#946: the
+   five-minute check did, skipping ids unnoted) */
 static ErrorCode_t wake_read(DbConnection_t* connection, const char* query, int* added, int* rows, int gaps)
 {
     *added = 0;
@@ -149,14 +173,17 @@ static ErrorCode_t wake_read(DbConnection_t* connection, const char* query, int*
     while((row = mysql_fetch_row(res))) {
         int id = row[0] ? atoi(row[0]) : 0;
         if(id <= 0) continue;
-        if(gaps == 1 && id > wake_max_id + 1 && id - wake_max_id <= WAKE_GAP_SPAN_MAX) {
+        if(gaps == 1 && id > wake_max_id + 1) {
             long long now = wake_ms();
-            for(int g = wake_max_id + 1; g < id; g++)
-                wake_gap_add(g, now);
+            if(id - wake_max_id <= WAKE_GAP_SPAN_MAX) {
+                for(int g = wake_max_id + 1; g < id; g++)
+                    wake_gap_add(g, now);
+            } else
+                wake_range_add(wake_max_id, id, now);
         }
         if(gaps == 2)
             wake_gap_remove(id);
-        if(id > wake_max_id) wake_max_id = id;
+        if(gaps == 1 && id > wake_max_id) wake_max_id = id;
         // No drone (NULL): the queries' "c.agent_id % n = s" is not true
         if(!row[1] && heap->shards > 1) continue;
         int agent_id = row[1] ? atoi(row[1]) : 0;
@@ -187,7 +214,9 @@ static ErrorCode_t wake_max(DbConnection_t* connection, int* max_id)
     return ENGINE_OK;
 }
 
-/* Every command of this shard: at start, and every five minutes */
+/* Every command of this shard: at start, and every five minutes. The check
+   reads only the ids up to the highest seen: those above it are new, and
+   the read past the highest id takes them (#946) */
 static ErrorCode_t wake_load_all(DbConnection_t* connection, const char* why)
 {
     char columns[512], shard[64] = "", query[1024];
@@ -195,11 +224,11 @@ static ErrorCode_t wake_load_all(DbConnection_t* connection, const char* why)
     long long started = wake_ms();
     wake_columns(columns, sizeof(columns));
     if(engine_shards() > 1)
-        snprintf(shard, sizeof(shard), " WHERE c.agent_id %% %d = %d", engine_shards(), engine_shard());
-    snprintf(query, sizeof(query), "SELECT %s FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id%s",
-        columns, shard);
+        snprintf(shard, sizeof(shard), " AND c.agent_id %% %d = %d", engine_shards(), engine_shard());
+    snprintf(query, sizeof(query), "SELECT %s FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id "
+        "WHERE c.id <= %d%s", columns, wake_loaded ? wake_max_id : INT_MAX, shard);
     // The top id first: what is inserted while this reads, the next reads find
-    ErrorCode_t result = wake_max(connection, &top);
+    ErrorCode_t result = wake_loaded ? ENGINE_OK : wake_max(connection, &top);
     if(result == ENGINE_OK)
         result = wake_read(connection, query, &added, &rows, 0);
     if(result != ENGINE_OK)
@@ -247,19 +276,31 @@ static ErrorCode_t wake_read_gaps(DbConnection_t* connection, long long now)
             kept++;
         }
     wake_gap_n = kept;
-    if(!wake_gap_n)
+    kept = 0;
+    for(int i = 0; i < wake_range_n; i++)
+        if(now - wake_range_at[i] < WAKE_LAG_STEP_MS) {
+            wake_range_lo[kept] = wake_range_lo[i];
+            wake_range_hi[kept] = wake_range_hi[i];
+            wake_range_at[kept] = wake_range_at[i];
+            kept++;
+        }
+    wake_range_n = kept;
+    if(!wake_gap_n && !wake_range_n)
         return ENGINE_OK;
     char columns[512];
     wake_columns(columns, sizeof(columns));
-    size_t len = 1024 + (size_t)wake_gap_n * 12;
+    size_t len = 1024 + (size_t)wake_gap_n * 12 + (size_t)wake_range_n * 48;
     char* query = malloc(len);
     if(!query)
         return ENGINE_MEMORY_ALLOC_ERROR;
     char* end = query;
-    end += sprintf(end, "SELECT %s FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE c.id IN (", columns);
+    end += sprintf(end, "SELECT %s FROM commands c LEFT JOIN agents a ON a.agent_id = c.agent_id WHERE c.id IN (0", columns);
     for(int i = 0; i < wake_gap_n; i++)
-        end += sprintf(end, i ? ",%d" : "%d", wake_gap_ids[i]);
-    sprintf(end, ")");
+        end += sprintf(end, ",%d", wake_gap_ids[i]);
+    end += sprintf(end, ")");
+    // The wide skips (commands known already are left as they are)
+    for(int i = 0; i < wake_range_n; i++)
+        end += sprintf(end, " OR (c.id > %d AND c.id < %d)", wake_range_lo[i], wake_range_hi[i]);
     int added = 0;
     ErrorCode_t result = wake_read(connection, query, &added, NULL, 2);
     free(query);
@@ -542,10 +583,6 @@ ErrorCode_t db_wake_fill(DbConnection_t* connection, long long now, int* ids, in
     ErrorCode_t result = ENGINE_OK;
     if(!wake_loaded)
         result = wake_load_all(connection, "start");
-    else if(ms - wake_reconciled_at >= WAKE_RECONCILE_MS) {
-        result = wake_load_all(connection, "the five-minute check");
-        wake_reconciled_at = ms;
-    }
     // What others wrote. Each batch, as the queries saw it: the ids past
     // the highest seen (a primary-key range, usually empty), then the ids
     // that read skipped (not committed yet: usually none) and the untimed
@@ -568,6 +605,12 @@ ErrorCode_t db_wake_fill(DbConnection_t* connection, long long now, int* ids, in
         read_at = ms;
         if(ms - wake_swept_at >= WAKE_SWEEP_MS)
             result = wake_sweep(connection, ms);
+    }
+    // The five-minute check, once the reads above are in: what it finds
+    // now, no read has (#946)
+    if(result == ENGINE_OK && ms - wake_reconciled_at >= WAKE_RECONCILE_MS) {
+        result = wake_load_all(connection, "the five-minute check");
+        wake_reconciled_at = ms;
     }
     if(result != ENGINE_OK)
         return result;
