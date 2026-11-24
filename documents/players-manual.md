@@ -18,6 +18,8 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
 
 **The website's four steps.** The home page, Getting started and your account page show the same path: **make an account, code drones, invest, lend**, with the step you're on marked *next*. Coding drones is Parts I to III; investing is Part IV and [reading other companies' code](#part-v-finance) in Part V; lending is the rest of Part V. You need [5,000 credits](#part-v-finance) in your account to back a loan, and your account page shows how far you have to go.
 
+To see where it all leads, read the [afterword](#afterword-one-player-through-the-whole-game): one player through the whole game, from a first startup to a loan and a takeover.
+
 The reference material is at the back: [what an error or a failure code means](#appendix-a-when-your-script-fails), [every game function and question](#appendix-b-the-lua-reference), and a [glossary](#appendix-c-glossary).
 
 ## Table of Contents
@@ -132,6 +134,7 @@ The reference material is at the back: [what an error or a failure code means](#
     - [Before you buy: read the code](#before-you-buy-read-the-code)
   - [Chapter 23: Account trading scripts](#chapter-23-account-trading-scripts)
     - [Your trading script](#trading-script)
+- [Afterword: one player through the whole game](#afterword-one-player-through-the-whole-game)
 - [Appendix A: When Your Script Fails](#appendix-a-when-your-script-fails)
   - [Action failure codes](#action-failure-codes)
 - [Appendix B: The Lua reference](#appendix-b-the-lua-reference)
@@ -2543,6 +2546,20 @@ end
 **You've mastered this when** your trading script has run for a season and its log shows each action it took and why.
 
 **You've mastered Part V** when your loans and shares earn more than they lose over a season. The appendices follow: what an error means, every game function, and a glossary.
+
+## Afterword: one player through the whole game
+
+_A worked example of everything in this manual, with the numbers of a fresh startup. Each step links to where it is explained._
+
+1. **Priya founds a startup,** Rocket Co. The bank lends it a drone and 3,000 credits, so it owes 4,200. She loads the Miner starter and fixes it three times in her first evening, for free. It sells its metals to the planets ([Chapter 1](#chapter-1-getting-started-with-the-miner)).
+2. **After 40 game days** Rocket Co holds 4,700 credits, its debt plus 500. Priya matures it: it repays the 4,200, trades with everyone from now on, and its 100 shares are hers. She still owns it outright, so she can keep changing its code ([Maturing a startup](#maturing-a-startup)).
+3. **Its dividends** bring Priya her first credits: half of each day's profit, until her code says otherwise. Over the next 60 game days she founds two more startups and tunes Rocket Co to haul a far-away good ([Chapter 15](#chapter-15-dividends-and-payout), [Chapter 10](#chapter-10-hauling-far-away-goods)).
+4. **She offers 40 shares at 80,** against a close-out value of 50. The moment she offers them, Rocket Co's code is public. Ruth reads its [investor sheet](#investor-sheet) and its code, likes its exit routine, and buys 10 shares for 800. Now the code is locked and Rocket Co is public. Priya has 800 more credits, and she can't buy its shares back for 7 real days ([Chapter 17](#chapter-17-the-ipo-and-its-locked-code)).
+5. **Rocket Co's code asks for a loan** of 3,000 at 6% for 30 game days, to buy a second drone. Ruth and Marcus each hold over 5,000 credits, so they can back it: Ruth backs 1,000 and Marcus 2,000. On the due date Rocket Co repays Ruth 1,060 and Marcus 2,120 ([Chapter 21](#chapter-21-loan-requests)).
+6. **If it had paid only 2,000** on the due date, Ruth would get a third of it (667) and Marcus two thirds (1,333). Every credit Rocket Co earned afterwards would go to them in the same shares until they had their 3,180, and its dividends would stop meanwhile.
+7. **If it then went broke,** whatever credits were left would go to Ruth and Marcus first, then to its shareholders, and its drones would become wrecks for salvagers ([Chapter 11](#chapter-11-salvage)). There's a cheaper fate: Marcus buys all 100 shares cheaply, which makes the loans due at once. He repays them, rewrites the code and sells shares again ([Chapter 19](#chapter-19-takeovers)).
+
+None of it needs anything beyond coding drones until step 4. Steps 4 to 7 are for when you want them.
 
 ## Appendix A: When Your Script Fails
 
