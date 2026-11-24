@@ -201,10 +201,12 @@ class UserController extends Controller
             // The share of its profit its code pays as dividends (#930)
             $stats['dividend_percent'] = \App\Services\PlayerShares::dividendPermille((int) $id) / 10;
         }
+        // The investor sheet (#994): a matured company's price, payouts, obligations, insiders and founder
+        $sheet = \App\Services\InvestorSheet::of((int) $company->company_id);
         // The guided first mission (#932), for a startup's owner until they own a matured company
         $mission = $road && $road['owner'] ? \App\Services\FirstMission::for($company, $code['current']['script'] ?? null, (int) $company->owner_id) : null;
         return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'codeHidden', 'today', 'lineage',
-            'playerShares', 'dealings', 'owner', 'road', 'perf', 'mission'));
+            'playerShares', 'dealings', 'owner', 'road', 'perf', 'mission', 'sheet'));
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

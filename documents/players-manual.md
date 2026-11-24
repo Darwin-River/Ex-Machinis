@@ -2428,6 +2428,16 @@ Next, [Chapter 22](#chapter-22-reading-other-companies-code-to-invest-and-lend):
 
 _In this chapter:_ what to look for in a public company's code and page before you buy its shares or back its loans.
 
+<a name="investor-sheet"></a>**The investor sheet.** At the top of every matured company's page, the **Investor sheet** puts in one place what to weigh before you buy its shares or back its loans:
+
+- **Price and value:** its close-out value a share, the last price two players traded at (and how far above or below the value that is), and its idle credits as a share of what it's worth.
+- **What it pays out:** the share of each day's profit its code declares as dividends, what it actually paid over 30 game days, and the payouts its code asked for (`pay_out`) against what was paid.
+- **What it owes:** its open loans, each with its lender and due date, marked **insider** when the lender is its founder or one of its 5 biggest holders; its loan requests; and its open contracts.
+- **Insiders:** its founder and biggest holders, and any company of theirs it has traded with. A locked company that sells cheap to its founder's other company is worth knowing about.
+- **Its founder's record:** the founder's other companies, how many matured and ended, how each ended, and their loan defaults.
+
+The sheet tells you what happened. The code tells you what will happen next, so read that too.
+
 ### Before you buy: read the code
 
 A company's code is public from the moment its shares are offered (see [Who sees a company's code](#who-sees-code)). Once a share has sold its code can't change, unless one player buys every share, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
