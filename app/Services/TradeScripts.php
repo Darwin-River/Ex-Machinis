@@ -109,22 +109,61 @@ class TradeScripts
     public static function run(User $user): ?array
     {
         $row = self::available() ? DB::table('player_trade_scripts')->where('user_id', $user->user_id)->first() : null;
+        if (!$row) {
+            return null;
+        }
+        $ran = self::execute($user, (string) $row->code, (string) $row->memory, true);
+        if ($ran === null) {
+            return null;
+        }
+        [$out, $memory] = $ran;
+        $entry = json_encode(['when' => DronePage::when(World::gameNow()), 'lines' => $out ?: ['did nothing']]);
+        $log = array_slice(array_filter(explode("\n", (string) $row->log)), -(self::LOG_RUNS - 1));
+        $log[] = $entry;
+        DB::table('player_trade_scripts')->where('user_id', $user->user_id)->update(['memory' => $memory,
+            'last_run_t' => World::gameNow(), 'last_real_t' => time(), 'runs' => DB::raw('runs + 1'), 'log' => implode("\n", $log)]);
+        return $out;
+    }
+
+    /**
+     * A test drive (#1005): runs $code (the saved script when null) once
+     * against the market now and the account's memory, and says what each
+     * action would do, applying none and saving nothing (not its memory,
+     * not its log). Null without a script or the sandbox
+     */
+    public static function testDrive(User $user, ?string $code = null): ?array
+    {
+        $row = self::available() ? DB::table('player_trade_scripts')->where('user_id', $user->user_id)->first() : null;
+        $code ??= $row?->code;
+        if ($code === null || trim($code) === '') {
+            return null;
+        }
+        $ran = self::execute($user, $code, (string) ($row->memory ?? ''), false);
+        return $ran === null ? null : $ran[0];
+    }
+
+    /**
+     * Runs a script in lua-trade: [what it did or would do, in words; its
+     * memory after], or null without the sandbox. $apply false: a test
+     * drive, its actions described, none taken
+     */
+    private static function execute(User $user, string $code, string $memory, bool $apply): ?array
+    {
         $runner = config('forge.lua_trade');
-        if (!$row || !$runner || !is_executable($runner)) {
+        if (!$runner || !is_executable($runner)) {
             return null;
         }
         $dir = sys_get_temp_dir();
         $files = ['script' => tempnam($dir, 'trade'), 'market' => tempnam($dir, 'market'), 'memory' => tempnam($dir, 'memory')];
-        file_put_contents($files['script'], $row->code);
+        file_put_contents($files['script'], $code);
         file_put_contents($files['market'], 'return ' . self::lua(self::market($user)));
-        file_put_contents($files['memory'], (string) $row->memory);
+        file_put_contents($files['memory'], $memory);
         [$lines, $failed] = self::sandbox($runner, $files);
         foreach ($files as $f) {
             @unlink($f);
         }
 
         $out = [];
-        $memory = $row->memory;
         foreach ($lines as $line) {
             $f = explode("\t", $line);
             switch ($f[0]) {
@@ -138,18 +177,30 @@ class TradeScripts
                     $out[] = 'stopped: ' . ($f[1] ?? 'it failed');
                     break;
                 default:
-                    $out[] = self::apply($user, $f);
+                    $out[] = $apply ? self::apply($user, $f) : self::wouldDo($f);
             }
         }
         if ($failed && !$lines) {
             $out[] = 'stopped: ' . $failed;
         }
-        $entry = json_encode(['when' => DronePage::when(World::gameNow()), 'lines' => $out ?: ['did nothing']]);
-        $log = array_slice(array_filter(explode("\n", (string) $row->log)), -(self::LOG_RUNS - 1));
-        $log[] = $entry;
-        DB::table('player_trade_scripts')->where('user_id', $user->user_id)->update(['memory' => $memory,
-            'last_run_t' => World::gameNow(), 'last_real_t' => time(), 'runs' => DB::raw('runs + 1'), 'log' => implode("\n", $log)]);
-        return $out;
+        return [$out, $memory];
+    }
+
+    /** What an action would do, in words, without taking it (a test drive, #1005) */
+    private static function wouldDo(array $f): string
+    {
+        $c = (int) ($f[1] ?? 0);
+        $name = (string) (DB::table('companies')->where('company_id', $c)->value('name') ?? "company $c");
+        return 'would ' . match ($f[0]) {
+            'buy', 'sell' => "{$f[0]} " . (int) ($f[2] ?? 0) . " of $name at " . (int) ($f[3] ?? 0),
+            'buy_pegged', 'sell_pegged' => ($f[0] === 'buy_pegged' ? 'buy' : 'sell') . ' ' . (int) ($f[2] ?? 0) . " of $name at "
+                . ($f[3] ?? '') . ' ' . ($f[4] ?? '') . '%',
+            'cancel' => "cancel order $c",
+            'bank_sell' => 'sell ' . (int) ($f[2] ?? 0) . " of $name to the bank",
+            'bank_buy' => 'buy ' . (int) ($f[2] ?? 0) . " of $name from the bank",
+            'back_loan' => 'lend ' . (int) ($f[2] ?? 0) . " on loan request $c",
+            default => 'do something unknown (' . $f[0] . ')',
+        };
     }
 
     /** Runs lua-trade: [its output lines, why it failed or null] */

@@ -2494,7 +2494,7 @@ _In this chapter:_ how your account runs a Lua script every few real minutes tha
 
 ### <a name="trading-script"></a>Your trading script
 
-Your account can run one **trading script**: a Lua script that trades your shares while you're away. Write it in **Your trading script** on your account page (or `PUT /api/v1/account/trade-script` with `{code, enabled}`), tick **Run it every few real minutes**, and save. **Run it once now** runs it straight away. Your account page shows its last runs: what it said, and what each action did.
+Your account can run one **trading script**: a Lua script that trades your shares while you're away. Write it in **Your trading script** on your account page (or `PUT /api/v1/account/trade-script` with `{code, enabled}`), tick **Run it every few real minutes**, and save. **Run it once now** runs it straight away. Your account page shows its last runs: what it said, and what each action did. **Test drive (changes nothing)**, beside **Save**, runs what is in the editor once against the market now and your script's memory, and lists what it says and what each action *would* do ("would buy 5 of Vega Works at 77"), without taking any of them or saving anything: no trades, no orders, no memory, no log (#1005). Try a change that way before you save it. (`POST /api/v1/account/trade-script/test-drive` with an optional `code` does the same.)
 
 Every few real minutes the game calls its `trade(market)` once, with:
 

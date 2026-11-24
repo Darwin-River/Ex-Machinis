@@ -197,6 +197,30 @@ class PlayerShareController extends Controller
             : back()->withSuccess('Your trading script ran: ' . implode('; ', $out ?: ['it did nothing']) . '.');
     }
 
+    /** POST /account/trade-script/test-drive {code}: what the draft (or the saved script) would do, applying nothing (#1005) */
+    public function testDriveTradeScript(Request $request)
+    {
+        if (!$user = $this->webPlayer()) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        $code = $request->filled('code') ? str_replace("\r\n", "\n", (string) $request->input('code')) : null;
+        $out = TradeScripts::testDrive($user, $code);
+        return $out === null ? back()->with('error', 'There is no trading script to test drive.')->withInput()
+            : redirect('/account#trade-script')->with('test_drive', $out ?: ['it did nothing'])->withInput();
+    }
+
+    /** POST /api/v1/account/trade-script/test-drive {code?} (#1005) */
+    public function apiTestDriveTradeScript(Request $request): JsonResponse
+    {
+        $user = $this->apiPlayer($request);
+        if (!$user) {
+            return $this->unauthorized();
+        }
+        $out = TradeScripts::testDrive($user, $request->filled('code') ? (string) $request->input('code') : null);
+        return $out === null ? response()->json(['error' => 'There is no trading script to test drive.'], 404)
+            : response()->json(['lines' => $out, 'applied' => false]);
+    }
+
     public function apiTradeScript(Request $request): JsonResponse
     {
         $user = $this->apiPlayer($request);

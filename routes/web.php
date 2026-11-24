@@ -166,6 +166,8 @@ Route::middleware('new-rules')->group(function () {
     // "Since you last looked" (#771): seen
     Route::post('/account/seen', 'AccountController@seen');
     Route::post('/account/trade-script/run', 'PlayerShareController@runTradeScript');
+    // A test drive: what it would do, applying nothing (#1005)
+    Route::post('/account/trade-script/test-drive', 'PlayerShareController@testDriveTradeScript');
 });
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');
