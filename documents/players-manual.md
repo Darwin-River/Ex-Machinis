@@ -222,7 +222,7 @@ Your account has **credits** of its own, and starts with none: they are what you
 - **A drone of mine is wrecked**, with where and how, and a link to its page;
 - **A weekly digest**: each of your companies' net wealth, a startup's progress to maturing and its health, and your shares' cash-out value and the dividends they paid that week.
 
-For traders there are six more:
+For traders there are seven more:
 
 - **A startup of mine is past its credit cap** (how much went to the bank in the last real day). The credit cap was retired in November 2026, so this one no longer has anything to tell;
 - **A share order of mine fills** (who you traded with, the price and the cash-out then; at most one e-mail an hour);
@@ -230,6 +230,7 @@ For traders there are six more:
 - **The bank pays me for shares I sold it** (what it paid each, and whether that was less than at the sale);
 - **A company I hold shares in moves 15% or more in cash-out over 7 game days, or ends**;
 - **The House bids more than a price I set**: add up to 10 price alerts on the account page (a good, a place or anywhere, and a price), for example Pumps at the Moon over 850.
+- **A company offers its shares for the first time, or asks for a loan** (#996): what came new on the exchange since the last e-mail, leaving out your own companies, each linked to its investor sheet or the loan board.
 
 All but the digest and filled orders come together in one e-mail, at most one a real day, and each item says what to try next. Nothing from before you turned a notice on is told. Every e-mail has a link that turns them all off at once.
 
@@ -2125,6 +2126,8 @@ A company's **net wealth** on the company leaderboards is a different figure: wh
 **The bank also sells into players' bids.** Every few real seconds, the shares it holds sell into players' standing buy orders priced **above** cash-out value, best price first, at the order's price; never below cash-out. What the bank is paid leaves the game. A buyer who can't pay has their order removed; a buy that would break the ownership rules (the 7-day ban after selling, or a sixth company owned outright) is skipped; and a buy that makes one player its only holder makes the company's loans due at once, as any takeover does (see [Loans](#loans)).
 
 On a matured company's page (logged in): **Sell to the bank** and **Buy from the bank**, in whole shares. Through the API: `POST /api/v1/player-shares/{id}/bank/sell` and `.../bank/buy` with `units`.
+
+At the top of the **Stock exchange**, **New on the exchange** lists the companies that offered their shares for the first time in the last 7 game days, with their close-out value, and the loan requests posted then, each with what it asks, its rate and its due date (#996). Read a company's [investor sheet](#investor-sheet) and its code before you buy or lend.
 
 The **Stock exchange** (`/market/shares`) has a row for each matured company, best return first (below): a share's cash-out value and a sparkline of how it changed over 30 game days (every row on one scale, in percent from its first day, so a steady share is a flat line whatever its price), the dividends a share paid over 30 game days, the yield (those dividends against cash-out, over the same 30 days), the **last price between players** and how many game days ago it was, the bank's selling price, the **return over 30 game days** (the change in a share's cash-out value plus the dividends it paid, against its value 30 game days ago: most of what a share returns is growth, and the yield alone hid it), and whether the company is steady, at risk, stalled, failing or **dissolving** (counting down to dissolving, with the game days left), with the reason written under it. Best return first; a dissolving company last, whatever it paid. A refusal by the market (another drone's order changed first) doesn't count as failing. The last price counts only trades between two players, not the bank's. Its premium or discount on today's cash-out is shown only when that trade is 7 game days old or less, since an older price says little about today's (a trade with the bank 630 game days earlier read "−93% discount"). The old world's exchange is folded away under **Before the new rules**. The page is worked out again every few real minutes, and says how old it is, so a trade you just made can take a few minutes to show here; your account page and the company's page show it at once.
 

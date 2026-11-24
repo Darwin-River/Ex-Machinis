@@ -46,6 +46,21 @@
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
             @if($playerMarket !== null)
+                {{-- New on the exchange (#996): first offers of shares and loan requests, the last 7 game days --}}
+                <div id="new-on-exchange" style="background: #0f1424; border: 1px solid #4cc9f0; border-radius: 10px; padding: 12px 16px; margin: 0 0 1.5rem; white-space: normal">
+                    <h3 class="h5" style="margin: 0 0 6px">New on the exchange</h3>
+                    @php($ipos = collect($listings ?? [])->where('kind', 'ipo'))
+                    @php($asks = collect($listings ?? [])->where('kind', 'loan_request'))
+                    @if($ipos->isEmpty() && $asks->isEmpty())
+                        <p class="mb-0">No company has offered its shares for the first time, or asked for a loan, in the last 7 game days.</p>
+                    @else
+                        <ul class="mb-1" style="padding-left: 1.2rem; list-style: disc">
+                            @foreach($ipos as $l)<li class="new-ipo"><a href="{{ $l['link'] }}" v-pre>{{ $l['name'] }}</a> {{ \Illuminate\Support\Str::after($l['text'], $l['name'] . ' ') }} <span class="text-muted">({{ \App\Services\DronePage::when($l['when']) }})</span></li>@endforeach
+                            @foreach($asks as $l)<li class="new-loan-request"><a href="{{ url('companies/' . $l['company']) }}#investor-sheet" v-pre>{{ $l['name'] }}</a> {{ \Illuminate\Support\Str::after($l['text'], $l['name'] . ' ') }} <a href="{{ $l['link'] }}">Back it</a></li>@endforeach
+                        </ul>
+                    @endif
+                    <p class="mb-0"><small>Read a company's investor sheet and its code before you buy or lend.@auth Get these by e-mail: turn on <i>{{ \App\Services\Notices::KINDS['listings'] }}</i> under <a href="{{ url('account#notices') }}">E-mail notices</a>.@endauth</small></p>
+                </div>
                 {{-- The new rules (#666): matured companies' shares, traded by players and the bank --}}
                 <h3>Players' shares</h3>
                 <div style="white-space: normal; margin-bottom: 1em">Each matured company starts with {{ \App\Services\PlayerShares::COUNT }}
