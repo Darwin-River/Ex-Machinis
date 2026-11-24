@@ -284,10 +284,10 @@ class Players
     /** The account a token belongs to, or null */
     public static function byToken(?string $token): ?User
     {
-        if ($token === null || $token === '') {
-            return null;
-        }
-        return User::where('api_token', hash('sha256', $token))->whereNotNull('login')->first();
+        $user = $token === null || $token === '' ? null
+            : User::where('api_token', hash('sha256', $token))->whereNotNull('login')->first();
+        // Or a Claude player its operator's key acts for (#1030)
+        return $user ?? Bots::actingPlayer();
     }
 
     /**

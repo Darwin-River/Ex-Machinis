@@ -39,7 +39,8 @@ class RouteServiceProvider extends ServiceProvider
     /** Who a request counts against: its account, when its token is good, or its address */
     public static function caller(Request $request): string
     {
-        $user = \App\Services\Players::byToken($request->bearerToken());
+        $token = $request->bearerToken();
+        $user = ($token ? \App\Services\Players::byToken($token) : null) ?? \App\Services\Bots::actingPlayer($request);
         return $user ? 'user:' . $user->user_id : 'ip:' . $request->ip();
     }
 

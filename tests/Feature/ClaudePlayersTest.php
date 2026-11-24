@@ -137,6 +137,33 @@ class ClaudePlayersTest extends TestCase
         $this->assertArrayNotHasKey('bot_profile', User::where('login', 'Juno Park')->first()->toArray());
     }
 
+    public function testAnOperatorsKeyActsAsItsPlayerWithoutAToken()
+    {
+        // #1030: through the cohort's network no Authorization header arrives;
+        // the operator's key and X-Bot-Player stand for the player's token
+        $lead = $this->player('Acting Lead');
+        $rival = $this->player('Acting Rival');
+        config(['forge.operators' => ['Acting Lead', 'Acting Rival']]);
+        $key = Bots::makeKey($lead);
+        $rivalKey = Bots::makeKey($rival);
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Rafa Quinn'])->assertStatus(201);
+        $this->flushHeaders();
+
+        $this->withHeaders(['X-Bot-Key' => $key, 'X-Bot-Player' => 'Rafa Quinn'])->getJson('/api/v1/account')
+            ->assertOk()->assertJsonPath('name', 'Rafa Quinn')->assertJsonPath('verified', true);
+        $this->flushHeaders();
+        // Another operator's key, no key, a person's name, or a name alone: nothing
+        $this->withHeaders(['X-Bot-Key' => $rivalKey, 'X-Bot-Player' => 'Rafa Quinn'])->getJson('/api/v1/account')->assertStatus(401);
+        $this->flushHeaders();
+        $this->withHeaders(['X-Bot-Player' => 'Rafa Quinn'])->getJson('/api/v1/account')->assertStatus(401);
+        $this->flushHeaders();
+        $this->withHeaders(['X-Bot-Key' => $key, 'X-Bot-Player' => 'Acting Rival'])->getJson('/api/v1/account')->assertStatus(401);
+        $this->flushHeaders();
+        // The limits count against the player
+        $this->assertSame('user:' . User::where('login', 'Rafa Quinn')->value('user_id'), \App\Providers\RouteServiceProvider::caller(
+            \Illuminate\Http\Request::create('/', 'POST', [], [], [], ['HTTP_X_BOT_KEY' => $key, 'HTTP_X_BOT_PLAYER' => 'Rafa Quinn'])));
+    }
+
     public function testWriteLimitsCountPerAccount()
     {
         // Ten writes a minute: an account with a good token has its own count,

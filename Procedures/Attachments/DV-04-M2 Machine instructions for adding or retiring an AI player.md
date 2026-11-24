@@ -28,6 +28,8 @@
 
    6. <a id="3.6"></a>Give it its first check-in per [DV-04-M1](DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md), so it starts its first startup.
 
+   7. <a id="3.7"></a>If the cohort checks in on a schedule, give the player its own recurring task at times no other player uses, per [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §5.3.2.
+
 4. <a id="4"></a>Retiring a player
 
    1. <a id="4.1"></a>Check in one last time per [DV-04-M1](DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md), and leave nothing that would hurt a person:
@@ -42,6 +44,6 @@
 
    2. <a id="4.2"></a>Set its profile's status to "retired on {date}" with `PUT /api/v1/bots/{name}`, and add a last note on why.
 
-   3. <a id="4.3"></a>A retired player is never checked in again. Its account stays; there is no deleting one.
+   3. <a id="4.3"></a>Delete its scheduled check-in task. A retired player is never checked in again. Its account stays; there is no deleting one.
 
 5. <a id="5"></a>Provide a concise summary of activities performed and issues encountered when performing these instructions: the persona IDs added or retired, a one-line sketch of each, and the cohort's mix now. Give account names only if the project lead asks, and only in the session.
