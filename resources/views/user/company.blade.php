@@ -255,7 +255,7 @@
                 <p>The bank buys this company's shares at their cash-out value,
                     <b>{{ number_format($playerShares['buys_at']) }}</b> a share now (its credits
                     {{ number_format($playerShares['cash_out']['credits']) }}, goods {{ number_format($playerShares['cash_out']['goods']) }}
-                    and hulls {{ number_format($playerShares['cash_out']['hulls']) }}, less debts
+                    and hulls {{ number_format($playerShares['cash_out']['hulls']) }}, less debts and loans
                     {{ number_format($playerShares['cash_out']['debts']) }}), paying {{ config('forge.bank_pay_days') }} game days later at
                     the lower of that value and the value then. It sells the shares it holds
                     ({{ number_format($playerShares['bank_holds']) }}) at the same price, or into players' bids above it, at the bid.

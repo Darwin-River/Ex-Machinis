@@ -216,11 +216,17 @@ class PlayerShares
             }
         }
 
+        // What it still owes on open loans, repaid or not by the due date
+        // (#1015: without it, a borrower's credits counted in full, and its
+        // shares sold to the bank above their worth before it defaulted)
+        $loans = DB::table('loans')->whereIn('company_id', $live)->whereNull('closed_t')->groupBy('company_id')
+            ->selectRaw('company_id, SUM(GREATEST(owed - repaid, 0)) AS left_to_pay')->pluck('left_to_pay', 'company_id')->all();
+
         $counts = self::counts($live);
         foreach ($rows as $id => $c) {
             $id = (int) $id;
             $credits = (int) $c->credits;
-            $debts = (int) $c->compute_debt + (int) $c->debt;
+            $debts = (int) $c->compute_debt + (int) $c->debt + (int) ($loans[$id] ?? 0);
             $total = $credits + $goods[$id] + $hulls[$id] - $debts;
             $out[$id] = ['total' => $total, 'per_share' => max(0, intdiv(max(0, $total), $counts[$id])),
                 'credits' => $credits, 'goods' => $goods[$id], 'hulls' => $hulls[$id], 'debts' => $debts];

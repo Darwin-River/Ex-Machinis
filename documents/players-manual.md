@@ -2150,7 +2150,7 @@ A share's **cash-out value** is what the company would fetch if it were sold off
 - its **credits**,
 - plus its **goods and equipment**, each at its best House bid anywhere, averaged over the last 7 game days (so it doesn't depend on where the drones are, and one day's prices move it a seventh as much),
 - plus each working drone's **hull**: 1,000, falling to 0 over 365 game days (nothing for a drone with no fuel that has bought none in 3 game days),
-- less its **debts**,
+- less its **debts**: the processor tax it owes, and what it still owes on its loans (#1015: borrowing doesn't make its shares worth more),
 - all over 100.
 
 Say a matured company has 1,200 credits, goods and equipment the House would pay 1,500 for, and one working drone whose hull counts 900. Its cash-out value is (1,200 + 1,500 + 900) ÷ 100 = **36 credits a share**.
