@@ -135,6 +135,8 @@ Route::middleware('new-rules')->group(function () {
         ->middleware('signed:relative')->name('notices.unsubscribe');
     // Loans (#928)
     Route::post('/loans/{id}/back', 'LoanController@back')->whereNumber('id');
+    // A founder's note (#998)
+    Route::post('/companies/{id}/note', 'UserController@note')->whereNumber('id');
     // Startups (#637)
     Route::post('/startups/claim', 'StartupController@claim');
     Route::post('/startups/{id}/push', 'StartupController@reprogram')->whereNumber('id');

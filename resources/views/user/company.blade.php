@@ -129,6 +129,26 @@
                 <p class="stat-meta" id="startup">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}.{{ \App\Services\Ownership::owner((int) $user->user_id) === null ? ' Its code is locked: more than one holder owns its shares.' : ' One player owns all its shares, so its code can still change.' }}</p>
             @endif
 
+            {{-- The founder's note (#998): plain text, editable by the founder before and after the lock --}}
+            @if(($note ?? null) || ($canNote ?? false))
+                <div id="founder-note" style="border-left: 3px solid #ffb547; padding: 6px 12px; margin: 0 0 1rem; white-space: normal">
+                    @if($note)
+                        <b>Founder's note</b>@if($note['when']) <small class="text-muted">({{ $note['when'] }})</small>@endif:
+                        <span id="founder-note-text" v-pre>{{ $note['text'] }}</span>
+                    @else
+                        <b>Founder's note:</b> <span class="text-muted">none yet. Tell holders and lenders what they should know about it: a known issue, a plan. It changes nothing its drones do.</span>
+                    @endif
+                    @if($canNote ?? false)
+                        <details class="mt-1"><summary>{{ $note ? 'Edit your note' : 'Write a note' }}</summary>
+                            <form method="POST" action="{{ url('companies/' . $user->user_id . '/note') }}" class="mt-1">{{ csrf_field() }}
+                                <textarea v-pre class="form-control" name="note" rows="2" maxlength="{{ \App\Services\FounderNote::MAX }}">{{ $note['text'] ?? '' }}</textarea>
+                                <small class="text-muted">At most {{ \App\Services\FounderNote::MAX }} characters. Empty it to remove the note.</small><br>
+                                <button class="button button-secondary button-sm mt-1" type="submit">Save the note</button>
+                            </form>
+                        </details>
+                    @endif
+                </div>
+            @endif
             @if($sheet ?? null)
                 @include('partials.investor-sheet', ['sheet' => $sheet])
             @endif

@@ -203,10 +203,25 @@ class UserController extends Controller
         }
         // The investor sheet (#994): a matured company's price, payouts, obligations, insiders and founder
         $sheet = \App\Services\InvestorSheet::of((int) $company->company_id);
+        // The founder's note (#998), and whether this viewer may edit it
+        $note = \App\Services\FounderNote::of((int) $company->company_id);
+        $canNote = \App\Services\FounderNote::available() && \App\Services\FounderNote::canEdit(\Illuminate\Support\Facades\Auth::user(), $company);
         // The guided first mission (#932), for a startup's owner until they own a matured company
         $mission = $road && $road['owner'] ? \App\Services\FirstMission::for($company, $code['current']['script'] ?? null, (int) $company->owner_id) : null;
         return view('user.company', compact('user', 'spacecraft', 'shares', 'rank', 'pushes', 'stats', 'code', 'codeHidden', 'today', 'lineage',
-            'playerShares', 'dealings', 'owner', 'road', 'perf', 'mission', 'sheet'));
+            'playerShares', 'dealings', 'owner', 'road', 'perf', 'mission', 'sheet', 'note', 'canNote'));
+    }
+
+    /** POST /companies/{id}/note {note}: the founder's note (#998) */
+    public function note(\Illuminate\Http\Request $request, $id)
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if (!$user || $user->login === null) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        $r = \App\Services\FounderNote::save($user, (int) $id, (string) $request->input('note', ''));
+        return $r['ok'] ? redirect('/companies/' . (int) $id . '#founder-note')->withSuccess('Your note is saved.')
+            : back()->with('error', $r['error']);
     }
 
     /** Pushes new code to a company's working drones, with its password (#553) */

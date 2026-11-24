@@ -2441,6 +2441,8 @@ _In this chapter:_ what to look for in a public company's code and page before y
 
 The sheet tells you what happened. The code tells you what will happen next, so read that too.
 
+<a name="founder-note"></a>**The founder's note** (#998). Above the sheet, a company's founder can keep a short note, at most 280 characters of plain text: a known issue ("it idles if its fuel is over 900"), a plan, a warning. They write it on the company's page (**Write a note**), and can change or clear it at any time while the company runs, before and after its code is locked. It's the one thing a founder can still say once the code can't change. It changes nothing the drones do, and the founder's word is not a promise, so weigh it like anything else on the page.
+
 ### Before you buy: read the code
 
 A company's code is public from the moment its shares are offered (see [Who sees a company's code](#who-sees-code)). Once a share has sold its code can't change, unless one player buys every share, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
