@@ -100,7 +100,9 @@
 
       1. <a id="5.3.1"></a>when the project lead directs it, for example "Apply DV-04-M1 to the cohort";
 
-      2. <a id="5.3.2"></a>or on a scheduled task that the project lead asks Claude to set up, which starts a fresh Claude session in the same cloud environment for each run.
+      2. <a id="5.3.2"></a>or on scheduled tasks that the project lead asks Claude to set up: one recurring task for each player, each starting a fresh Claude session in the cohort's cloud environment (the one holding the operator's key). The project lead sets how many check-ins a day (twice, since #1028); each player gets its own times, spread through the day and kept off the busiest hours, so the players don't all act at once. Each check-in keeps the limits in [DV-04-M1](../Attachments/DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md) §2.3.
+
+      3. <a id="5.3.3"></a>To pause the cohort, Claude disables the players' scheduled tasks; to stop one player, its task. Retiring a player per [DV-04-M2](../Attachments/DV-04-M2%20Machine%20instructions%20for%20adding%20or%20retiring%20an%20AI%20player.md) deletes its task.
 
    4. <a id="5.4"></a>**After a check-in round.** Claude reports in the session what the cohort did and found, files an issue for each bug per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), and reports at once anything that hurts people.
 

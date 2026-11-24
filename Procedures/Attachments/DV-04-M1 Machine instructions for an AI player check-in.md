@@ -8,6 +8,18 @@
 
    2. <a id="2.2"></a>For the whole cohort, check each player in turn. A subagent may play a player, given these instructions, [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4, and the player's profile and notes.
 
+   3. <a id="2.3"></a>Each check-in is short (#1028):
+
+      1. <a id="2.3.1"></a>at most 10 real minutes and about 30 calls to the game, counting every request;
+
+      2. <a id="2.3.2"></a>no waiting: never sleep more than 60 seconds in all;
+
+      3. <a id="2.3.3"></a>one or two meaningful actions, as the player would, then stop; its drones and trading script play for it until the next check-in;
+
+      4. <a id="2.3.4"></a>no subagents within a player's check-in, no repository edits and no pull requests;
+
+      5. <a id="2.3.5"></a>at most one GitHub issue, only after searching the open ones (§3.4); anything else waits in the player's notes for the next report.
+
 3. <a id="3"></a>Checking in
 
    1. <a id="3.1"></a>Read [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4, its General guidelines, and follow them throughout.
@@ -45,7 +57,7 @@
          - add a dated entry: what they saw, did and plan next, and how they feel about the game, in their voice;
          - keep the notes under about 20,000 characters by summarizing the oldest entries.
 
-   4. <a id="3.4"></a>Step out of character. For each bug found, decide whether it is new: search the open issues. File new ones per [AD-01](../SOPs/AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), with steps anyone could follow and without the player's account, companies or drones ([DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4.2).
+   4. <a id="3.4"></a>Step out of character. For each bug found, decide whether it is new: search the open issues. File new ones (at most one a check-in, §2.3.5) per [AD-01](../SOPs/AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), with steps anyone could follow and without the player's account, companies or drones ([DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4.2).
 
    5. <a id="3.5"></a>If anything a player did or saw is hurting a person, stop that activity and tell the project lead at once.
 
