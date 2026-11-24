@@ -948,6 +948,16 @@ Query 650 ("My taxes") gives the sales tax rate and what the drone's company pai
 - **The Trader** buys at `where_to_buy(metals_a1, metals_for_a_short_load)` and sells by `price_board`, choosing again after each trip.
 - **Tests.** `SiteAgnosticStartersTest` fails if a starter's code, with comments and strings taken out, names a planet, moon or Ceres. The Miner's test drive checks that in a world with no sites or trips (the test database) it flies nowhere blind and says why it rests.
 - **Self-describing code.** Settings and functions are named for what they control and do (`refuel_below`, `metals_per_sale`, `sell_metals_when_hold_is_full`). Comments are kept for why: about one line in twenty, against one in four before. The project lead asked for "self descriptive code that minimizes the use of comments". The four starters fell from 55k to 40k characters, well inside the release limit each (then 16,000 characters; #1035 made memory the limit). `SiteAgnosticStartersTest` fails if more than a tenth of a starter's lines are comments. The Maker dropped its `-17` daily-cap handling: that cap was retired in #923.
+- **The company designs (#1037)** got the same treatment: no place in their logic, comments for why only. `SiteAgnosticStartersTest` covers `examples/companies/` too. Each keeps its idea and every name the manuals quote (`settle_up`, `fuel_for_voyage`, `best_wreck`, `copy_pays_back`, `nudge_of`, `spare`, `forge_rods` and the rest of `words.lua`).
+  - **Smith and the Machinist** buy where metals cost least (`where_to_buy`) and sell where their goods pay most (`where_to_sell`).
+  - **The Foundry** picks its base by where metals cost least, at launch and every 24 rounds.
+  - **The Systems shop** refuels at the cheapest House fuel after the trip, and moves when idle to where the House pays most for its products.
+  - **The Chemist** works where the House's polymer bid less its input prices pays most.
+  - **Electronics** works where the House bids most for its products.
+  - **The Hauler** sells at any exchange the House bids at.
+  - **The Salvager** looks for wrecks at the exchanges and mining sites the game lists.
+  - **The Borrower, Exit and Varied** mine wolfite where it yields most an hour, counting the trip (`choose_site`).
+  - **`words.lua`**'s `overstocked` counts sales everywhere (`sold_everywhere_yesterday`).
 - **Measurement.** PO-01 and PO-02 time unchanged starters, so their series restarts with these.
 
 <a name="Stalls"></a>**Downtime doesn't count (#837).** On 2 May 2038 every small matured starter company dissolved in the same minute: the world had stood still for about 100 game days (no drone acted), but game time follows the wall clock, so the dissolve timer kept counting and the next bill after the stall ended them all. Each hourly processor-tax bill (`db_compute_bill_due`) now notes the newest event id (`compute_clock.last_event_id`, migration 0091); when none is newer at the next bill, no drone acted that hour (the House's stations act whenever turns run), so every broke company's `broke_since` moves forward by the hour, and the stretch is kept in `world_stalls`. The wind-up (`WindUp::idleDays`) leaves those stretches out of a company's days without a sale. The tax itself is billed as before.

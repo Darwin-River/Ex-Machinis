@@ -1,183 +1,247 @@
--- Systems shop, in Lua (#380) (Farid's design
--- from economy round 33, the best in the starter-library race). Release it
--- with the Factory Kit.
--- Pumps, pistons and valves: every exchange bids for them. A pump or a
--- piston is a rod and a hose (2 Metals A1, 3 Organics A1, 3 Inorganics A1);
--- a valve is a rod and a pipe (8 Metals A1). Each round it prices the three
--- from the live market where it is, builds one of the best, sells it and
--- looks again. It brews its own fuel from the same organics and inorganics.
+-- Systems shop: a company design for Ex Machinis, in Lua, from a design
+-- that won the starter-library race. Release it with the Factory Kit.
+-- It produces pumps, pistons and valves, which every exchange buys. Each
+-- round it prices the three from the market where it is, builds the one
+-- that pays best, sells it and looks again; it brews its own fuel from the
+-- same organics and inorganics. When nothing pays where it is for a while,
+-- it moves to wherever the House pays most for systems after the trip.
 
-polys, hoses, pipes = 2051, 3301, 3311
+polymers, hoses, pipes = 2051, 3301, 3311
 pumps, pistons, valves = 4311, 4321, 4301
+products = {pumps, pistons, valves}
 
--- Settings
-cash_floor = 300   -- credits it keeps
-low_fuel = 50      -- brew or buy fuel below this
-min_score = 60     -- least profit per system worth building
-batch = 2          -- systems' worth of goods it buys at a time
+cash_floor = 300
+refuel_below = 50
+least_profit_a_system = 60
+systems_worth_of_inputs_per_purchase = 2
+credits_per_game_hour = 10
+idle_rounds_before_moving = 4
+
+local GAME_HOUR = 60
+local FUEL_FLOOR = 15
+local PRICE_WHEN_NOBODY_SELLS = 999
+local PERCENT_KEPT_AFTER_TAX = 95
+local LEAST_CREDITS_TO_BREW = 60
+local HIGHEST_FUEL_PRICE = 20
+local FUEL_TARGET = 75
+local FUEL_BID_PRICE = 12
+local FUEL_BID_UNITS = 60
+local FUEL_NEEDED_TO_MOVE = 25
+local HOURS_TO_WAIT_FOR_DELIVERY = 6
+local COPY_AT_CREDITS = 7000
+local LAST_DAY_TO_GROW = 24
+local FUEL_TO_LAUNCH = 90
+local LEAST_FUEL_TO_LAUNCH = 80
+local FUEL_AFTER_LAUNCH = 60
+local FUEL_FOR_COPY = 40
+local INVEST_ABOVE_WHILE_GROWING = 9000
+local INVEST_ABOVE_LATER = 3000
+local ROUNDS_BETWEEN_REPORTS = 3
+local UNREACHABLE = 999
+
+-- Globals survive a restart
+best_score = 0
+idle_rounds = 0
+invest_day = -1
+rounds = 0
 
 function spare() return math.max(credits() - cash_floor, 0) end
--- No seller: price it out
-function cost(res)
-  local p = buy_price(res)
-  if p == 0 then return 999 end
-  return p
-end
-function net(product) return sell_price(product) * 95 // 100 end
 
--- Profit per system, from the live prices here
-function scores()
-  local met, org, ino = cost(metals_a1), cost(organics_a1), cost(inorganics_a1)
-  local hose = met * 2 + org * 3 + ino * 3
+function cost_here(resource)
+  local price = buy_price(resource)
+  if price == 0 then return PRICE_WHEN_NOBODY_SELLS end
+  return price
+end
+
+function after_tax_here(product) return sell_price(product) * PERCENT_KEPT_AFTER_TAX // 100 end
+
+function profit_per_system()
+  local metal, organic, inorganic = cost_here(metals_a1), cost_here(organics_a1), cost_here(inorganics_a1)
+  local hose_and_rod = metal * 2 + organic * 3 + inorganic * 3
   return {
-    [pumps] = net(pumps) - hose,
-    [pistons] = net(pistons) - hose,
-    [valves] = net(valves) - met * 8,
+    [pumps] = after_tax_here(pumps) - hose_and_rod,
+    [pistons] = after_tax_here(pistons) - hose_and_rod,
+    [valves] = after_tax_here(valves) - metal * 8,
   }
 end
 
-best_score = 0
 function choose()
-  local best, all = nil, scores()   -- one look at the market a round
-  best_score = min_score
-  for _, product in ipairs({pumps, pistons, valves}) do
-    local score = all[product]
-    if score > best_score then best, best_score = product, score end
+  local best, profits = nil, profit_per_system()
+  best_score = least_profit_a_system
+  for _, product in ipairs(products) do
+    if profits[product] > best_score then best, best_score = product, profits[product] end
   end
   return best
 end
 
--- Goods one system needs: metals, organics, inorganics
-function needs(product)
+function inputs_for(product)
   if product == valves then return {[metals_a1] = 8} end
   return {[metals_a1] = 2, [organics_a1] = 3, [inorganics_a1] = 3}
 end
 
--- With fewer than per of a good aboard, buy up to batch systems' worth
-function stock_up(per, res)
-  if per == 0 or units(res) >= per then return end
-  local n = math.min(per * batch - units(res), spare() // cost(res))
-  if n > 0 then buy_here(n, res) end
+function stock_up(per_system, resource)
+  if per_system == 0 or units(resource) >= per_system then return end
+  local amount = math.min(per_system * systems_worth_of_inputs_per_purchase - units(resource), spare() // cost_here(resource))
+  if amount > 0 then buy_here(amount, resource) end
 end
 
-function have(need)
-  for res, n in pairs(need) do
-    if units(res) < n then return false end
+function have_all(inputs)
+  for resource, n in pairs(inputs) do
+    if units(resource) < n then return false end
   end
   return true
 end
 
--- Make something until n are aboard; false if a step fails
-function ensure(n, res)
-  while units(res) < n do
-    if make(res) ~= 0 then return false end
+function make_until_aboard(n, resource)
+  while units(resource) < n do
+    if make(resource) ~= 0 then return false end
   end
   return true
 end
-function rod_ok() return units(rods) > 0 or (ensure(1, alloys_a1) and make(rods) == 0) end
-function hose_ok() return units(hoses) > 0 or (ensure(3, polys) and make(hoses) == 0) end
-function pipe_ok() return units(pipes) > 0 or (ensure(3, alloys_a1) and make(pipes) == 0) end
+
+function have_a_rod() return units(rods) > 0 or (make_until_aboard(1, alloys_a1) and make(rods) == 0) end
+function have_a_hose() return units(hoses) > 0 or (make_until_aboard(3, polymers) and make(hoses) == 0) end
+function have_a_pipe() return units(pipes) > 0 or (make_until_aboard(3, alloys_a1) and make(pipes) == 0) end
+
 function build(product)
-  if not rod_ok() then return end
-  local part_ok
-  if product == valves then part_ok = pipe_ok() else part_ok = hose_ok() end
-  if part_ok then make(product) end
+  if not have_a_rod() then return end
+  local part_ready
+  if product == valves then part_ready = have_a_pipe() else part_ready = have_a_hose() end
+  if part_ready then make(product) end
 end
 
-function sell_goods()
-  for _, product in ipairs({pumps, pistons, valves}) do sell_all(product) end
+function sell_systems()
+  for _, product in ipairs(products) do sell_all(product) end
 end
 
--- Fuel: brew it (1 organics + 2 inorganics make 30) when the goods can be
--- had; else buy it here under 20; else fly to the Moon, where chemists sell
+-- Fuel
+
+function hours_to(place)
+  if place == location() then return 0 end
+  local trip = trip_to(place)
+  return trip and trip.hours or UNREACHABLE
+end
+
 function brew()
   if units(organics_a1) < 1 then buy_here(2, organics_a1) end
   if units(inorganics_a1) < 2 then buy_here(3, inorganics_a1) end
   if units(organics_a1) < 1 or units(inorganics_a1) < 2 then return false end
   return make(fuel) == 0
 end
+
+function cheapest_fuel_stop()
+  local best, least = nil, math.huge
+  for _, offer in ipairs(house_supply(fuel)) do
+    local hours = hours_to(offer.place)
+    if offer.price > 0 and offer.on_sale > 0 and hours < UNREACHABLE then
+      local cost = offer.price * FUEL_TARGET + hours * credits_per_game_hour
+      if cost < least then best, least = offer.place, cost end
+    end
+  end
+  return best
+end
+
+-- Only the House trades with a startup, so a startup's bid brings no courier
 function refuel()
-  if units(fuel) >= low_fuel then return end
-  if credits() >= 60 and brew() then return end
-  local p = buy_price(fuel)
-  if p > 0 and p < 20 then buy_here(75 - units(fuel), fuel); return end
-  if location() == moon then buy_order_if_changed(12, 60, fuel); wait(120); return end
-  if units(fuel) > 12 then go(moon) end
+  if units(fuel) >= refuel_below then return end
+  if credits() >= LEAST_CREDITS_TO_BREW and brew() then return end
+  local price = buy_price(fuel)
+  if price > 0 and price < HIGHEST_FUEL_PRICE then buy_here(FUEL_TARGET - units(fuel), fuel); return end
+  if not house_only() then buy_order_if_changed(FUEL_BID_PRICE, FUEL_BID_UNITS, fuel); wait(2 * GAME_HOUR) end
+  if units(fuel) >= refuel_below then return end
+  local stop = cheapest_fuel_stop()
+  if stop and units(fuel) > FUEL_NEEDED_TO_MOVE / 2 then go(stop) end
 end
 
-idle = 0
-function other_site() if location() == earth then return moon else return earth end end
+-- Moving when nothing pays here
+
+function place_paying_most_for_systems()
+  local best, most = nil, 0
+  for _, product in ipairs(products) do
+    for _, bid in ipairs(house_demand(product)) do
+      local hours = hours_to(bid.place)
+      local net = bid.price - hours * credits_per_game_hour
+      if bid.place ~= location() and bid.left > 0 and hours < UNREACHABLE and net > most then best, most = bid.place, net end
+    end
+  end
+  return best
+end
+
 function rest()
-  idle = idle + 1
-  if idle > 4 and units(fuel) > 25 then idle = 0; go(other_site()); return end
-  wait(120)
+  idle_rounds = idle_rounds + 1
+  if idle_rounds > idle_rounds_before_moving and units(fuel) > FUEL_NEEDED_TO_MOVE then
+    idle_rounds = 0
+    local place = place_paying_most_for_systems()
+    if place then
+      set_status("nothing pays here: moving to " .. place_name(place))
+      go(place)
+      return
+    end
+  end
+  wait(2 * GAME_HOUR)
 end
 
--- Growth: with 7,000 credits in its first 24 game days (company_age(), #549), at an exchange, buy a hull and
--- a Factory Kit, launch a copy of this drone and equip it
+-- Growing
+
 function get_one(resource)
   if units(resource) > 0 then return end
   buy_here(1, resource)
-  for _ = 1, 6 do
+  for _ = 1, HOURS_TO_WAIT_FOR_DELIVERY do
     if units(resource) > 0 then return end
-    wait(60)
+    wait(GAME_HOUR)
   end
 end
+
 function equip_clone()
   local clones = my_clones()
   local newest = clones[#clones]
   if not newest then return end
   push(1, factory_kit, newest.drone)
-  push(40, fuel, newest.drone)
+  push(FUEL_FOR_COPY, fuel, newest.drone)
 end
+
 function fill_to(n)
   local had = units(fuel)
-  local need = n - had
-  if need <= 0 then return end
-  buy_here(need, fuel)
-  for _ = 1, 6 do
+  if n <= had then return end
+  buy_here(n - had, fuel)
+  for _ = 1, HOURS_TO_WAIT_FOR_DELIVERY do
     if units(fuel) > had then return end
-    wait(60)
+    wait(GAME_HOUR)
   end
 end
+
 function fuel_to(n)
   while units(fuel) < n do
     if not brew() then fill_to(n); return end
   end
 end
+
 function reinvest()
-  if units(factory_kit) > 0 then equip_clone(); fuel_to(60); return end
+  if units(factory_kit) > 0 then equip_clone(); fuel_to(FUEL_AFTER_LAUNCH); return end
   if units(cruiser_kit) == 0 then
-    if company_age() >= 24 or credits() < 7000 then return end  -- its first 24 game days (#549)
-    if fleet_full() then return end   -- the company has all the drones it may have (#682)
+    if company_age() >= LAST_DAY_TO_GROW or credits() < COPY_AT_CREDITS or fleet_full() then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end
-  fuel_to(90)
-  if units(fuel) < 80 then return end
+  fuel_to(FUEL_TO_LAUNCH)
+  if units(fuel) < LEAST_FUEL_TO_LAUNCH then return end
   if launch(me(), cruiser_kit) ~= 0 then return end
   get_one(factory_kit)
   if units(factory_kit) > 0 then equip_clone() end
-  fuel_to(60)
+  fuel_to(FUEL_AFTER_LAUNCH)
 end
 
--- Spare credits into other companies' shares (#551), once a game day:
--- credits above what the next copy needs while it can still grow, else
--- above 3,000 (invest_surplus: the offerings and listed shares that pay
--- back soonest, within 40 days of a share's income). Round 58: a Foundry
--- sat on 11,000 credits while other companies' offerings went unbacked
-invest_day = -1
+-- Idle credits earn nothing: a Foundry once sat on 11,000 while other companies' offerings went unbacked
 function invest()
   if today() == invest_day then return end
   invest_day = today()
-  invest_surplus(company_age() > 24 and 3000 or 9000)
+  invest_surplus(company_age() > LAST_DAY_TO_GROW and INVEST_ABOVE_LATER or INVEST_ABOVE_WHILE_GROWING)
 end
 
-rounds = 0
-function tell(product)
+function report_now_and_then(product)
   rounds = rounds + 1
-  if rounds % 3 ~= 0 then return end
-  print("day " .. today() .. " at " .. location() .. " making " .. (product or 0) ..
+  if rounds % ROUNDS_BETWEEN_REPORTS ~= 0 then return end
+  print("day " .. today() .. " at " .. place_name(location()) .. " making " .. (product or 0) ..
         " score " .. best_score .. " credits " .. credits() .. " fuel " .. units(fuel))
   report()
 end
@@ -186,21 +250,19 @@ function work()
   invest()
   refuel()
   local product = choose()
-  if not product then tell(nil); rest(); return end
-  local need = needs(product)
-  for _, res in ipairs({metals_a1, organics_a1, inorganics_a1}) do stock_up(need[res] or 0, res) end
-  if not have(need) then tell(product); rest(); return end
-  idle = 0
+  if not product then report_now_and_then(nil); rest(); return end
+  local inputs = inputs_for(product)
+  for _, resource in ipairs({metals_a1, organics_a1, inorganics_a1}) do stock_up(inputs[resource] or 0, resource) end
+  if not have_all(inputs) then report_now_and_then(product); rest(); return end
+  idle_rounds = 0
   build(product)
-  sell_goods()
-  tell(product)
+  sell_systems()
+  report_now_and_then(product)
   reinvest()
 end
 
--- launched() may run again (after a crash, or if the engine restarts):
--- equip passes once the tools are unpacked
 function launched()
-  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
+  fuel_floor(FUEL_FLOOR)
+  equip(factory_kit)
   while true do work() end
 end

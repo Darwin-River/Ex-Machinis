@@ -1828,7 +1828,7 @@ end
 
 Small steps keep the drone responsive. A function that makes one alloy and then returns lets the drone look at prices again before the next one; a function that makes twenty commits it for two game days, whatever happens to the market. Each mode also needs a way out. Use `ticks` so a drone doesn't rest or shop forever, and check credits and fuel so it can't spend its last credit on goods it then can't move.
 
-The Adaptive design (`examples/companies/adaptive.lua`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.lua`), Electronics (`electronics.lua`) and Foundry (`foundry.lua`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
+The Adaptive design (`examples/companies/adaptive.lua`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under the best price rods fetched anywhere yesterday (`price_board`), where they cost least after the trip (`where_to_buy`). It sells its alloys where it works instead of making rods when they pay nearly as much there, and hauls rods to wherever they pay most after the trip (`where_to_sell`, or the House's best bid). Like every design in `examples/companies/` since #1037, it names no place: every "where" is a question to the game. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.lua`), Electronics (`electronics.lua`) and Foundry (`foundry.lua`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
 
 ### The economy dashboard
 
@@ -1885,7 +1885,7 @@ Each is found on only a few of those bodies at a time (its homes), and it's rich
 
 The exchanges don't sell Metals (A3), the minerals that refine to them, or the goods up to systems made with them, but they buy them all (Metals (A3) at about 80 a unit, Mars paying more). So a drone that hauls them back near Earth has a market, and a maker that needs them buys them from the drones that do. `best_sites(kunspar)` finds this season's homes, nearest first.
 
-**The hauler** ([`examples/companies/hauler.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/hauler.lua), Mining Kit) picks this season's best kunspar site within reach (`best_sites`), fills its tank for the whole voyage (nobody sells fuel out there), mines and refines until it holds 25 more Metals (A3), and sells them where the planets bid most for them (`house_demand`, `best_bid`).
+**The hauler** ([`examples/companies/hauler.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/hauler.lua), Mining Kit) picks this season's best kunspar site within reach (`best_sites`), fills its tank for the whole voyage (nobody sells fuel out there), mines and refines until it holds 25 more Metals (A3), and sells them wherever the House's bids for them pay most after the trip, at any exchange (`house_demand`).
 
 Nobody sells fuel out there, so a voyage starts with a full tank. The hauler works out what a whole voyage burns, two trips and every mining and refining run, before it sets out:
 
@@ -1954,7 +1954,7 @@ function strip()
 end
 ```
 
-**The salvager** ([`examples/companies/salvager.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/salvager.lua), Factory Kit, matured companies only) buys a Salvager (A1) from another drone or builds one (a Welder, then the Salvager), salvages the wreck in the best condition wherever it is (`wrecks()`, `salvage`), sells the modules and Scrap (A1) at an exchange, keeping its own tools, and moves on to the place with the most wrecks.
+**The salvager** ([`examples/companies/salvager.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/salvager.lua), Factory Kit, matured companies only) buys a Salvager (A1) from another drone or builds one (a Welder, then the Salvager), salvages the wreck in the best condition wherever it is (`wrecks()`, `salvage`), sells the modules and Scrap (A1) at an exchange, keeping its own tools, and moves on to the place with the most wrecks among the exchanges and mining sites the game lists (`house_supply`, `best_sites`, `wrecks_at`).
 
 It picks the freshest wreck with something left, since salvage gets a share equal to the wreck's condition:
 

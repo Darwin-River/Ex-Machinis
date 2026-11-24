@@ -1,57 +1,104 @@
--- Borrower: a public company that borrows to grow (#932). It mines wolfite
--- at the Moon (Mining Kit), refines it and sells the metals at the Moon
--- Depot. Once a game day it looks at its finances:
---   * it asks for a loan (request_loan) only to fund a copy of itself, and
---     only when a copy would earn the loan back, with interest, within the
---     term: it estimates that from what each drone earned a day over the
---     last 7 game days (earnings_per_day);
---   * it borrows only what it lacks: the copy's cost less its spare credits;
---   * when nobody backs its request for a few game days, it withdraws it
---     (cancel_request) and asks again a little dearer, up to a highest rate;
---   * it repays early (repay) as soon as it can spare the credits, which
---     costs less interest: only the interest due so far is paid;
---   * obligations() tells it what it owes and what it has asked for.
--- Lenders read a public company's code before they back it: a borrower
--- that only borrows what it can pay back is one they can trust.
---
--- request_loan returns -23 when the company isn't public: only a matured
--- company whose shares are held by more than one holder (the bank counts)
--- may borrow. A startup, or a company its player owns outright, gets -23;
--- this script then grows from its own credits only, and asks again every
--- 10 game days.
+-- Borrower: a public company that borrows to grow (#932). It produces metals
+-- with the Mining Kit, mining wolfite wherever it yields most an hour and
+-- selling wherever the House pays most. Once a game day it reads its
+-- finances: it asks for a loan only to fund a copy that would earn it back
+-- with interest within the term, asks dearer when nobody backs it, and
+-- repays early. Lenders read a public company's code before they back it.
+-- request_loan gives -23 to a company that isn't public; it then grows from
+-- its own credits and asks again every few game days.
 
--- Settings: borrowing
-start_rate = 4     -- percent interest for the whole loan it asks first
-rate_step = 1      -- how much dearer each new ask is when nobody backs it
-max_rate = 10      -- the dearest it will pay (percent for the whole loan)
-term = 30          -- game days until a loan is due
-wait_days = 3      -- game days unbacked before it withdraws and asks dearer
-ramp_days = 5      -- game days a new copy takes to start earning
-keep_per_drone = 1500  -- credits it keeps for each drone, never lent out or spent
+first_rate = 4                     -- percent for the whole loan
+rate_step = 1
+highest_rate = 10
+term = 30                          -- game days
+days_unbacked_before_asking_dearer = 3
+ramp_days = 5                      -- game days a new copy takes to start earning
+credits_kept_per_drone = 1500
+days_between_asks_when_not_public = 10
 
--- Settings: work
-hold_cap = 40      -- metals aboard at which it sells them
-low_fuel = 40      -- fuel below which it buys more
+metals_per_sale = 40
+refuel_below = 40
+hours_per_stay = 120               -- game hours it expects to stay at a site
+credits_per_game_hour = 4
 
-local LOAD = 18                 -- wolfite for one refining run
-local COPY_COST = 5000          -- a cruiser kit and a Mining Kit, roughly
-local goods = {metals_a1, metals_a2, inorganics_a2}
+ore = wolfite
+goods = {metals_a1, metals_a2, inorganics_a2}
 
--- Saved state
-rate = start_rate  -- the rate of its next ask
-asked_day = -1     -- the game day it last asked
-looked_day = -1    -- the game day it last looked at its finances
-not_public_day = -100   -- the game day it last got -23
+local ORE_PER_REFINING = 18
+local COPY_COST = 5000
+local GAME_HOUR = 60
+local CREDITS_FOR_FUEL = 150
+local FUEL_TOP_UP = 30
+local FUEL_TO_LAUNCH = 90
+local LEAST_FUEL_TO_LAUNCH = 80
+local FUEL_FOR_COPY = 40
+local HOURS_TO_WAIT_FOR_DELIVERY = 6
+local TRIP_FUEL_CREDITS = 30
+local UNREACHABLE = 999
+local NOT_PUBLIC = -23
 
--- --- Reading its finances --------------------------------------------------
+-- Globals survive a restart, and a copy inherits them
+rate = first_rate
+day_asked = -1
+day_finances_read = -1
+day_not_public = -100
+site, started = 0, 0
+
+function hours_to(place)
+  if place == location() then return 0 end
+  local trip = trip_to(place)
+  return trip and trip.hours or UNREACHABLE
+end
+
+function units_an_hour(place, yield)
+  local hours = hours_to(place)
+  if hours == UNREACHABLE then return 0 end
+  return yield * hours_per_stay / (hours_per_stay + hours)
+end
+
+-- Drones on this code split the good sites by drone number rather than all
+-- taking the best
+function choose_site()
+  local rates, top = {}, 0
+  for _, s in ipairs(best_sites(ore)) do
+    rates[s.place] = units_an_hour(s.place, s.yield)
+    top = math.max(top, rates[s.place])
+  end
+  local good = {}
+  for place, rate_here in pairs(rates) do
+    if top > 0 and rate_here * 10 >= top * 9 then table.insert(good, place) end
+  end
+  if #good == 0 then return location() end
+  table.sort(good)
+  return good[me() % #good + 1]
+end
+
+function house_value_of_goods()
+  local value = {}
+  for _, good in ipairs(goods) do
+    for _, bid in ipairs(house_demand(good)) do
+      if bid.price > 0 and bid.left > 0 then
+        value[bid.place] = (value[bid.place] or 0) + bid.price * math.min(units(good), bid.left)
+      end
+    end
+  end
+  return value
+end
+
+function best_market()
+  local best, best_net = location(), -math.huge
+  for place, value in pairs(house_value_of_goods()) do
+    local net = value - (place == location() and 0 or TRIP_FUEL_CREDITS + 2 * hours_to(place) * credits_per_game_hour)
+    if net > best_net then best, best_net = place, net end
+  end
+  return best
+end
 
 function drones() local f = fleet(); return math.max(f.drones + f.coming, 1) end
 
--- Credits above what its drones need to keep working
-function spare() return credits() - keep_per_drone * (drones() + 1) end
+function spare() return credits() - credits_kept_per_drone * (drones() + 1) end
 
--- The loans it owes ({request id = credits owed}) and its open request, if any
-function read_obligations()
+function loans_owed_and_open_request()
   local loans, request = {}, nil
   for _, o in ipairs(obligations()) do
     if o.kind == "loan" then loans[o.id] = (loans[o.id] or 0) + o.credits end
@@ -70,15 +117,13 @@ function copy_pays_back(amount, percent)
   return earns >= owed
 end
 
--- --- Borrowing and repaying ------------------------------------------------
-
--- Repays a loan as soon as it is owed less than what it can spare
+-- Repaying early pays only the interest due so far
 function repay_early(loans)
   for id, owed in pairs(loans) do
     if spare() >= owed then
-      repay(id)   -- all of this request's loans, with the interest due so far
+      repay(id)
       print("repaying loan " .. id .. ": " .. owed .. " credits")
-      rate = start_rate   -- the next loan starts cheap again
+      rate = first_rate
     end
   end
 end
@@ -87,101 +132,106 @@ function ask_for_loan()
   local amount = COPY_COST - spare()
   if amount < 1 or not copy_pays_back(amount, rate) then return end
   local id = request_loan(amount, rate, term)
-  if id == -23 then
-    not_public_day = today()
+  if id == NOT_PUBLIC then
+    day_not_public = today()
     set_status("not public: it grows from its own credits")
   elseif id > 0 then
-    asked_day = today()
+    day_asked = today()
     set_status(string.format("asked for %d at %d%% for %d game days", amount, rate, term))
   end
 end
 
--- Unbacked for wait_days: withdraw it and ask again, a little dearer
-function raise_rate(request)
-  if today() - asked_day < wait_days then return end
+function ask_dearer_when_unbacked(request)
+  if today() - day_asked < days_unbacked_before_asking_dearer then return end
   cancel_request(request.id)
-  if rate + rate_step > max_rate then
-    set_status("nobody lends at " .. max_rate .. "%: growing from its own credits")
-    asked_day = today()   -- try again later at the same rate
+  if rate + rate_step > highest_rate then
+    set_status("nobody lends at " .. highest_rate .. "%: growing from its own credits")
+    day_asked = today()
     return
   end
   rate = rate + rate_step
   ask_for_loan()
 end
 
--- Once a game day, by the first drone only: copies share the company's
--- loans, and two drones raising the same request would trip each other up
+-- Only the first drone: copies share the company's loans, and two drones
+-- raising the same request would trip each other up
 function finance()
-  if today() == looked_day or house_only() or lineage().generation > 0 then return end
-  looked_day = today()
-  local loans, request = read_obligations()
+  if today() == day_finances_read or house_only() or lineage().generation > 0 then return end
+  day_finances_read = today()
+  local loans, request = loans_owed_and_open_request()
   repay_early(loans)
-  if request then raise_rate(request); return end
-  if next(loans) == nil and today() - not_public_day >= 10 then ask_for_loan() end
+  if request then ask_dearer_when_unbacked(request); return end
+  if next(loans) == nil and today() - day_not_public >= days_between_asks_when_not_public then ask_for_loan() end
 end
 
--- --- Growing ---------------------------------------------------------------
+-- Growing
 
-function get_one(r)
-  if units(r) > 0 then return end
-  buy_here(1, r)
-  for _ = 1, 6 do
-    if units(r) > 0 then return end
-    wait(60)
+function buy_one(good)
+  if units(good) > 0 then return end
+  buy_here(1, good)
+  for _ = 1, HOURS_TO_WAIT_FOR_DELIVERY do
+    if units(good) > 0 then return end
+    wait(GAME_HOUR)
   end
 end
 
--- With the copy's cost spare (its own or borrowed), launch a copy
 function grow()
   if house_only() or fleet_full() then return end
   if spare() < COPY_COST and units(cruiser_kit) == 0 then return end
-  get_one(cruiser_kit)
+  buy_one(cruiser_kit)
   if units(cruiser_kit) == 0 then return end
-  buy_here(90 - math.min(units(fuel), 90), fuel)
-  if units(fuel) < 80 or launch(me(), cruiser_kit) ~= 0 then return end
-  get_one(mining_kit)
-  local clones = my_clones()
-  local newest = clones[#clones]
+  buy_here(FUEL_TO_LAUNCH - math.min(units(fuel), FUEL_TO_LAUNCH), fuel)
+  if units(fuel) < LEAST_FUEL_TO_LAUNCH or launch(me(), cruiser_kit) ~= 0 then return end
+  buy_one(mining_kit)
+  local copies = my_clones()
+  local newest = copies[#copies]
   if newest and units(mining_kit) > 0 then
     push(1, mining_kit, newest.drone)
-    push(40, fuel, newest.drone)
+    push(FUEL_FOR_COPY, fuel, newest.drone)
   end
 end
 
--- --- Work ------------------------------------------------------------------
+-- Work
 
 function refuel()
-  if units(fuel) >= low_fuel then return end
-  raise_cash(150)
-  buy_here(30, fuel)
-  wait(60)
+  if units(fuel) >= refuel_below then return end
+  raise_cash(CREDITS_FOR_FUEL)
+  buy_here(FUEL_TOP_UP, fuel)
+  wait(GAME_HOUR)
 end
 
 function goods_aboard()
   local n = 0
-  for _, r in ipairs(goods) do n = n + units(r) end
+  for _, good in ipairs(goods) do n = n + units(good) end
   return n
+end
+
+function sell_finance_and_grow()
+  go(best_market())
+  for _, good in ipairs(goods) do sell_all(good) end
+  refuel()
+  finance()
+  grow()
+  report()
+  go(site)
 end
 
 function work()
   refuel()
-  while units(wolfite) < LOAD do
-    local result = mine(wolfite)
+  while units(ore) < ORE_PER_REFINING do
+    local result = mine(ore)
     if result == -30 then refuel()
-    elseif result ~= 0 then wait(60); return end
+    elseif result ~= 0 then wait(GAME_HOUR); return end
   end
-  refine(wolfite)
-  if goods_aboard() >= hold_cap then
-    for _, r in ipairs(goods) do sell_all(r) end
-    finance()
-    grow()
-    report()
-  end
+  refine(ore)
+  if goods_aboard() >= metals_per_sale then sell_finance_and_grow() end
 end
 
+-- A copy inherits its parent's started, so it chooses a site of its own
 function launched()
   fuel_floor(15)
-  equip(mining_kit)   -- a copy waits for the kit it is handed
-  go(moon)
+  equip(mining_kit)
+  if started ~= me() then site, started = choose_site(), me() end
+  go(site)
   while true do work() end
 end

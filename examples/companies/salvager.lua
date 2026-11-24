@@ -1,83 +1,109 @@
--- Salvager: a company that lives on wrecks (#932). With a Salvager (A1)
--- module aboard (resource 5231), salvage(wreck) takes a wreck's modules,
--- one a run, and once they are gone up to 10 Scrap (A1) (resource 2071)
--- from its hull. Every exchange buys scrap; modules sell where someone bids
--- for them, or work in your own drones. Wrecks decay (2% of what is left a
--- game day), so the best wreck is the freshest one with something left.
--- Round after round it:
---   1. lists the wrecks where it is (wrecks(): drone, plundered, condition,
---      modules, scrap) and salvages the one in the best condition;
---   2. when nothing worth having is left, sells its modules and scrap at an
---      exchange (sell_here), keeping the tools it works with;
---   3. moves on to the place with the most wrecks (wrecks_at), refuelling
---      at an exchange on the way.
---
--- What it assumes:
---   * It runs in a matured company. A startup's drone salvages nothing (-16)
---     and a startup's wrecks can't be salvaged, so as a startup it only
---     waits and says why.
---   * It equips itself with the Factory Kit (Engine, Smelter, Chemical
---     Reactor, Spider). No exchange's planets sell a Salvager, so it first
---     tries to buy one from another company's drone (buy_here, at most
---     max_salvager_price); failing that it builds one: the Spider makes a
---     Welder (A1) from Arc Welders (A1), and the Welder makes a Salvager from
---     Heat Sinks (A1) and Torches (A1), a game day each. It buys those
---     inputs at Earth (recipe() says what each needs).
+-- Salvager: a company that lives on wrecks (#932). It produces modules and
+-- Scrap (A1) from other companies' wrecks: with a Salvager (A1) aboard,
+-- salvage(wreck) takes a wreck's modules one a run, then up to 10 scrap from
+-- its hull. Wrecks decay, so it salvages the freshest one with something
+-- left, sells its loot where the House pays most and moves on to wherever
+-- the game shows the most wrecks. A startup's drone can't salvage (-16).
 
--- Settings
-max_salvager_price = 4000   -- most it pays another drone for a Salvager
-min_condition = 300         -- worst wreck worth salvaging, in thousandths (1000 is new)
-low_fuel = 40               -- fuel below which it buys more at an exchange
-max_trip_hours = 48         -- farthest it flies to the next wrecks (game hours)
-skip_days = 5               -- game days it stays away from a place it emptied
+max_salvager_price = 4000    -- paid to another drone
+min_condition = 300          -- thousandths; 1000 is new
+refuel_below = 40
+max_trip_hours = 48
+days_to_skip_an_emptied_place = 5
+credits_per_game_hour = 4
 
--- Goods the library doesn't name
 local SALVAGER, SCRAP, WELDER = 5231, 2071, 5511
-local exchanges = {earth, moon, mars}
-local places = {earth, moon, mars, phobos, deimos}
+local FIRST_MODULE, LAST_MODULE = 5000, 5899
+local GAME_HOUR = 60
+local FUEL_TOP_UP = 60
+local FUEL_FLOOR = 10
+local LEAST_SPACE_LEFT = 100
+local REFUSALS_BEFORE_GIVING_UP = 3
+local STARTUP_CANT_SALVAGE = -16
+local WRECK_JUST_EMPTIED = -15
+local ORES_WHERE_DRONES_WORK = {wolfite, kunspar, yalspar, vladnium}
 
--- Saved state
-tools = {}       -- modules it keeps: tools[resource] = units (the rest it sells)
-emptied = {}     -- emptied[place] = the game day it left that place with nothing to salvage
+tools = {}       -- tools[module] = units it keeps; the rest is loot
+emptied = {}     -- emptied[place] = the game day it left there with nothing to salvage
 
--- --- Equipping -------------------------------------------------------------
+function hours_to(place)
+  if place == location() then return 0 end
+  local hours = trip(place)
+  return hours >= 0 and hours or math.huge
+end
 
--- Buys what a recipe uses (less what is aboard), then makes it
+function exchanges()
+  local list = {}
+  for _, offer in ipairs(house_supply(fuel)) do list[offer.place] = true end
+  return list
+end
+
+function is_exchange(place) return exchanges()[place] == true end
+
+-- Wrecks pile up where drones work: the exchanges and the mining sites
+function places_to_look()
+  local list = exchanges()
+  for _, ore in ipairs(ORES_WHERE_DRONES_WORK) do
+    for _, s in ipairs(best_sites(ore)) do list[s.place] = true end
+  end
+  return list
+end
+
+function market_paying_most_for_scrap()
+  local best, best_net = nil, 0
+  for _, bid in ipairs(house_demand(SCRAP)) do
+    local net = bid.price * math.max(units(SCRAP), 1) - hours_to(bid.place) * credits_per_game_hour
+    if bid.price > 0 and net > best_net then best, best_net = bid.place, net end
+  end
+  return best
+end
+
+function nearest_exchange()
+  local nearest, fewest = location(), math.huge
+  for place in pairs(exchanges()) do
+    if hours_to(place) < fewest then nearest, fewest = place, hours_to(place) end
+  end
+  return nearest
+end
+
+function go_to_cheapest_seller_of(r, n)
+  local best = where_to_buy(r, n, credits_per_game_hour)[1]
+  if best then go(best.place) end
+end
+
 function build(r)
   local rec = recipe(r)
   if not rec then return -1 end
   for input, n in pairs(rec.uses) do
-    if units(input) < n then buy_here(n - units(input), input); wait(60) end
+    if units(input) < n then
+      go_to_cheapest_seller_of(input, n - units(input))
+      buy_here(n - units(input), input); wait(GAME_HOUR)
+    end
   end
   return make(r)
 end
 
+-- No exchange sells a Salvager: it buys one from a drone, or builds one
+-- from a Welder it builds first
 function get_salvager()
   if units(SALVAGER) > 0 then return end
-  go(earth)
+  go_to_cheapest_seller_of(SALVAGER, 1)
   buy_here(1, SALVAGER, max_salvager_price)
-  wait(60)
+  wait(GAME_HOUR)
   while units(SALVAGER) == 0 do
-    if units(WELDER) == 0 then
-      set_status("building a Welder (A1), to build a Salvager")
-      if build(WELDER) ~= 0 then wait(240) end
-    else
-      set_status("building a Salvager (A1)")
-      if build(SALVAGER) ~= 0 then wait(240) end
-    end
+    local next_tool = units(WELDER) == 0 and WELDER or SALVAGER
+    set_status("building a " .. resource_name(next_tool))
+    if build(next_tool) ~= 0 then wait(4 * GAME_HOUR) end
   end
 end
 
--- The modules aboard now are its tools: remember how many of each. Only
--- once: after a restart, salvaged modules aboard are loot, not tools
+-- Only once: after a restart, salvaged modules aboard are loot, not tools
 function remember_tools()
   if next(tools) then return end
   for _, item in ipairs(hold()) do
-    if item.resource >= 5000 and item.resource < 5900 then tools[item.resource] = item.units end
+    if item.resource >= FIRST_MODULE and item.resource <= LAST_MODULE then tools[item.resource] = item.units end
   end
 end
-
--- --- Salvaging -------------------------------------------------------------
 
 -- The wreck here in the best condition that still has modules or scrap
 function best_wreck()
@@ -90,53 +116,43 @@ function best_wreck()
   return best
 end
 
--- Salvages here until nothing worth having is left (or the hold is full)
 function salvage_here()
   local refused = 0
-  while units(fuel) > 10 and space() > 100 and refused < 3 do
+  while units(fuel) > FUEL_FLOOR and space() > LEAST_SPACE_LEFT and refused < REFUSALS_BEFORE_GIVING_UP do
     local w = best_wreck()
     if not w then return end
     set_status(string.format("salvaging wreck %d (%d%%, %d modules, %d scrap)",
                              w.drone, w.condition // 10, w.modules, w.scrap))
     local result = salvage(w.drone)
-    if result == -16 then return end   -- a startup: it can't
-    if result == 0 then refused = 0 else refused = refused + 1 end   -- -15: just emptied (look again)
-    if result ~= 0 and result ~= -15 then wait(60) end
+    if result == STARTUP_CANT_SALVAGE then return end
+    if result == 0 then refused = 0 else refused = refused + 1 end
+    if result ~= 0 and result ~= WRECK_JUST_EMPTIED then wait(GAME_HOUR) end
   end
 end
 
--- --- Selling and moving ----------------------------------------------------
-
-function is_exchange(p)
-  for _, e in ipairs(exchanges) do if e == p then return true end end
-  return false
-end
-
--- Sells the scrap, and every module beyond the tools it keeps
+-- A module nobody bids for here is kept for the next exchange
 function sell_loot()
   for _, item in ipairs(hold()) do
     local r = item.resource
     if r == SCRAP then
       sell_all(SCRAP)
-    elseif r >= 5000 and r < 5900 and item.units > (tools[r] or 0) then
-      sell_here(item.units - (tools[r] or 0), r)   -- nobody bids here? kept for the next exchange
+    elseif r >= FIRST_MODULE and r <= LAST_MODULE and item.units > (tools[r] or 0) then
+      sell_here(item.units - (tools[r] or 0), r)
     end
   end
 end
 
 function refuel()
-  if units(fuel) < low_fuel then buy_here(60, fuel); wait(60) end
+  if units(fuel) < refuel_below then buy_here(FUEL_TOP_UP, fuel); wait(GAME_HOUR) end
 end
 
--- The place within reach with the most wrecks (not one it just emptied);
--- wrecks_at counts emptied wrecks too, so it is a guess
+-- wrecks_at counts emptied wrecks too, so the most wrecks is a guess
 function next_place()
   local best, most = nil, 0
-  for _, p in ipairs(places) do
-    local recently = emptied[p] and today() - emptied[p] < skip_days
-    local hours = trip(p)
-    if p ~= location() and not recently and hours >= 0 and hours <= max_trip_hours and wrecks_at(p) > most then
-      best, most = p, wrecks_at(p)
+  for place in pairs(places_to_look()) do
+    local emptied_lately = emptied[place] and today() - emptied[place] < days_to_skip_an_emptied_place
+    if place ~= location() and not emptied_lately and hours_to(place) <= max_trip_hours and wrecks_at(place) > most then
+      best, most = place, wrecks_at(place)
     end
   end
   return best
@@ -144,25 +160,25 @@ end
 
 function move_on()
   emptied[location()] = today()
-  if not is_exchange(location()) then go(moon) end   -- the nearest exchange to most places
+  if not is_exchange(location()) then go(market_paying_most_for_scrap() or nearest_exchange()) end
   sell_loot()
   refuel()
-  local p = next_place()
-  if p then
-    set_status("moving on to " .. place_name(p) .. ": " .. wrecks_at(p) .. " wrecks there")
-    go(p)
+  local place = next_place()
+  if place then
+    set_status("moving on to " .. place_name(place) .. ": " .. wrecks_at(place) .. " wrecks there")
+    go(place)
   else
     set_status("no wrecks worth salvaging within reach: waiting")
-    wait(240)
+    wait(4 * GAME_HOUR)
   end
 end
 
 function launched()
-  fuel_floor(10)
+  fuel_floor(FUEL_FLOOR)
   equip(factory_kit)
   while house_only() do
     set_status("a startup can't salvage (-16): this design needs a matured company")
-    wait(720)
+    wait(12 * GAME_HOUR)
   end
   get_salvager()
   remember_tools()
