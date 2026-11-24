@@ -71,6 +71,27 @@ class Bots
         return self::isOperator($user) ? $user : null;
     }
 
+    /** The header that names the Claude player an operator's key acts for (#1030) */
+    public const PLAYER_HEADER = 'X-Bot-Player';
+
+    /**
+     * The Claude player this request acts as: a good operator key and
+     * X-Bot-Player naming one of that operator's players (#1030: the cohort's
+     * network passes no Authorization header), or null
+     */
+    public static function actingPlayer(?\Illuminate\Http\Request $request = null): ?User
+    {
+        if ($request === null && !app()->bound('request')) {
+            return null;
+        }
+        $request ??= request();
+        $name = trim((string) $request->header(self::PLAYER_HEADER, ''));
+        if ($name === '' || !($operator = self::operatorFor($request->header(self::HEADER)))) {
+            return null;
+        }
+        return User::where('login', $name)->where('bot_operator_id', $operator->user_id)->whereNotNull('login')->first();
+    }
+
     /** An operator's Claude players: [{name, credits, companies, since}] */
     public static function players(User $operator): array
     {

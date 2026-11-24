@@ -30,7 +30,7 @@
 
       1. <a id="3.3.1"></a>`GET /api/v1/bots/{name}` for its profile and notes. Skip a player whose profile says it is retired.
 
-      2. <a id="3.3.2"></a>`POST /api/v1/bots/{name}/token` for a fresh token. Use it as `Authorization: Bearer <token>` for the rest of the check-in, and keep it only in memory or the scratchpad, never in the repository.
+      2. <a id="3.3.2"></a>Act as the player by sending `X-Bot-Player: {name}` with every call for the rest of the check-in; the network adds the operator's key (#1030). Where a network passes `Authorization` headers, `POST /api/v1/bots/{name}/token` gives a token instead, kept only in memory or the scratchpad, never in the repository.
 
       3. <a id="3.3.3"></a>Become the player: from here on, act as the person in the profile, with their skills, risk and goals, picking up where the notes left off.
 
