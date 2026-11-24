@@ -48,13 +48,15 @@ class Notices
         'bank_paid' => 'The bank pays me for shares I sold it',
         'cash_out' => 'A company I hold shares in moves 15% or more in cash-out over 7 game days, or ends',
         'price_alerts' => 'The House bids more than a price I set (my alerts, below)',
+        // New on the exchange (#996)
+        'listings' => 'A company offers its shares for the first time, or asks for a loan',
     ];
 
     /** The four a class gets (a teacher's summary) */
     public const CLASS_KINDS = ['can_mature', 'at_risk', 'wrecked'];
 
     /** What goes in the daily e-mail */
-    public const DAILY = ['can_mature', 'at_risk', 'wrecked', 'at_cap', 'orders', 'bank_paid', 'cash_out', 'price_alerts'];
+    public const DAILY = ['can_mature', 'at_risk', 'wrecked', 'at_cap', 'orders', 'bank_paid', 'cash_out', 'price_alerts', 'listings'];
 
     /** A move in a share's cash-out over CASH_OUT_DAYS game days that is told, in percent */
     public const CASH_OUT_MOVE = 15;
@@ -87,6 +89,7 @@ class Notices
         'bank_paid' => null,
         'cash_out' => 'Read the company\'s page (its health, drones and earnings) before you buy more or sell.',
         'price_alerts' => 'If a drone of yours makes or carries it, now is a good time to sell it there.',
+        'listings' => 'Open its investor sheet and read its code before you buy its shares or back its loan.',
     ];
 
     public static function available(): bool
@@ -135,6 +138,9 @@ class Notices
         }
         if ($row['cash_out'] && (!$was || !$was->cash_out)) {
             $row['holdings_since'] = World::gameNow();
+        }
+        if ($row['listings'] && (!$was || !$was->listings)) {
+            $row['listings_since'] = World::gameNow();
         }
         DB::table('notice_settings')->updateOrInsert(['user_id' => $user->user_id], $row);
     }
@@ -207,7 +213,8 @@ class Notices
                 DB::table('notice_settings')->where('user_id', $p->user_id)
                     ->update(['last_daily_at' => now()] + (in_array('wrecked', $kinds, true) ? ['wrecks_since' => $now] : [])
                         + (in_array('bank_paid', $kinds, true) ? ['bank_since' => $now] : [])
-                        + (in_array('cash_out', $kinds, true) ? ['holdings_since' => $now] : []));
+                        + (in_array('cash_out', $kinds, true) ? ['holdings_since' => $now] : [])
+                        + (in_array('listings', $kinds, true) ? ['listings_since' => $now] : []));
                 $out['daily']++;
                 $left--;
             }
@@ -421,6 +428,13 @@ class Notices
                 }
             }
         }
+        if (in_array('listings', $kinds, true)) {
+            // New on the exchange (#996): first offers of shares and loan requests since it last told, not the player's own
+            $since = (int) ($p->listings_since ?? $now);
+            foreach (self::listings($since, $user) as $l) {
+                $add('listings', $l['subject'], $l['company'], $l['text'], $l['link']);
+            }
+        }
         if (in_array('price_alerts', $kinds, true)) {
             foreach (DB::table('notice_alerts')->where('user_id', $user)->orderBy('id')->get() as $a) {
                 if (self::told($user, 'price_alerts', (int) $a->id, $dayAgo)) {
@@ -437,6 +451,40 @@ class Notices
             }
         }
         return $items;
+    }
+
+    /**
+     * New on the exchange since game time $since (#996): companies whose
+     * shares were first offered, and loan requests posted, leaving out
+     * $exceptOwner's own companies. [{kind, subject, company, name, text, link, when}]
+     */
+    public static function listings(int $since, ?int $exceptOwner = null): array
+    {
+        $out = [];
+        $ipos = DB::table('companies')->whereNotNull('code_public_t')->where('code_public_t', '>', $since)->whereNull('eliminated_at')
+            ->where('house', 0)->when($exceptOwner, fn ($q) => $q->where(fn ($w) => $w->whereNull('owner_id')->orWhere('owner_id', '<>', $exceptOwner)))
+            ->orderByDesc('code_public_t')->limit(20)->get(['company_id', 'name', 'code_public_t']);
+        foreach ($ipos as $c) {
+            $value = PlayerShares::prices((int) $c->company_id)['buys_at'];
+            $out[] = ['kind' => 'ipo', 'subject' => (int) $c->company_id, 'company' => (int) $c->company_id, 'name' => $c->name,
+                'text' => $c->name . ' offered its shares for the first time; its close-out value is ' . number_format($value) . ' a share.',
+                'link' => url('companies/' . $c->company_id . '#investor-sheet'), 'when' => (int) $c->code_public_t];
+        }
+        if (Schema::hasTable('loan_requests')) {
+            $reqs = DB::table('loan_requests as r')->join('companies as c', 'c.company_id', '=', 'r.company_id')
+                ->where('r.requested_t', '>', $since)->whereNull('r.cancelled_t')->whereColumn('r.backed', '<', 'r.amount')
+                ->where('r.due_t', '>', World::gameNow())->whereNull('c.eliminated_at')
+                ->when($exceptOwner, fn ($q) => $q->where(fn ($w) => $w->whereNull('c.owner_id')->orWhere('c.owner_id', '<>', $exceptOwner)))
+                ->orderByDesc('r.id')->limit(20)->get(['r.id', 'r.company_id', 'r.amount', 'r.backed', 'r.rate_bp', 'r.requested_t', 'r.due_t', 'c.name']);
+            foreach ($reqs as $r) {
+                $out[] = ['kind' => 'loan_request', 'subject' => (int) $r->id, 'company' => (int) $r->company_id, 'name' => $r->name,
+                    'text' => $r->name . ' asks to borrow ' . number_format((int) $r->amount - (int) $r->backed) . ' credits at '
+                        . rtrim(rtrim(number_format($r->rate_bp / 100, 2), '0'), '.') . '%, due ' . DronePage::when((int) $r->due_t) . '.',
+                    'link' => url('market/loans'), 'when' => (int) $r->requested_t];
+            }
+        }
+        usort($out, fn ($a, $b) => $b['when'] <=> $a['when']);
+        return $out;
     }
 
     /** A share's cash-out over the last CASH_OUT_DAYS game days: {from, to, percent}, or null without the history */
