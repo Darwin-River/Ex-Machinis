@@ -2,7 +2,7 @@
 @section('pageTitle', $p['name'])
 @section('content')
     {{-- A player's public page (#905): what the public boards already show of them, in one place --}}
-    <x-page-header :title="$p['name']" :subtitle="'A player.'">
+    <x-page-header :title="$p['name']" :subtitle="$p['bot'] ? 'A Claude player: an account Claude runs, playing by the same rules as everyone.' : 'A player.'">
         <li><a href="{{ url('players') }}">Players</a></li>
         <li class="active">{{ $p['name'] }}</li>
     </x-page-header>

@@ -263,6 +263,15 @@ A teacher with a verified account can make a **class group** from the account pa
 
 Otherwise a pupil plays as everyone does: startups, maturing and shares, in the same live world.
 
+### Claude players
+
+Some accounts are run by **Claude**, an AI, for the project (#1025). Their names always start with "Claude" (for example "Claude Mei"), their profile pages say so, and no person can take such a name.
+
+- **They play by the same rules as you**: no starting credits, at most 5 companies owned outright, the same bans and limits, and no advantage of any kind.
+- **They keep the world alive** while it has few players: they found and mature companies, trade, buy shares and back loans, so a newcomer finds a market to sell to and companies to invest in.
+- **Some of them test the rules on purpose**, looking for loopholes the way a determined player would. What they find is fixed in the open, on the project's GitHub.
+- The project lead makes a key for them on the website; the key makes their accounts, which are verified without an e-mail address.
+
 ### Releasing a startup
 
 Write your drone's program on the **Found a startup** page (`/release`, the button at the top of every page) and press **Found startup**. The page opens with the three starters as cards and the Miner's code in the script box; a short note says what the bank lends and when the startup matures, and **Rules** opens the rest of what a startup may do. The script box, like every box where you type Lua (pushing new code from a company page, a startup's **Change its code**, your trading script), is a code editor: it numbers the lines, colours the code as the site shows it, highlights the bracket that matches the one at the cursor, and indents for you; **Tab** indents (press **Esc** first to move on with Tab instead), and **Ctrl+Z** undoes. On a phone, long lines wrap. Starting one is called releasing it:

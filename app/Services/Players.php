@@ -34,10 +34,14 @@ class Players
     }
 
     /** Why a name can't be an account's, or null when it can */
-    public static function nameProblem(string $name): ?string
+    public static function nameProblem(string $name, bool $claude = false): ?string
     {
         if (!preg_match(self::NAME_PATTERN, $name)) {
             return 'A name is 3 to 32 letters, digits, spaces, dots, dashes or underscores, starting with a letter or digit.';
+        }
+        // Claude players' names start with "Claude", and only theirs (#1025)
+        if (!$claude && Bots::claudeName($name)) {
+            return 'Names starting with "Claude" are kept for the Claude players.';
         }
         if (User::where('login', $name)->exists()) {   // the column's collation ignores case
             return 'That name is taken.';
@@ -77,13 +81,13 @@ class Players
      * class group) has none and gets them at once. Throws
      * InvalidArgumentException with the reason when something won't do.
      */
-    public static function create(string $name, string $password, ?string $email, ?int $classGroup = null): User
+    public static function create(string $name, string $password, ?string $email, ?int $classGroup = null, ?int $botOperator = null): User
     {
         $name = trim(preg_replace('/\s+/', ' ', $name));
-        if ($problem = self::nameProblem($name) ?? self::passwordProblem($password)) {
+        if ($problem = self::nameProblem($name, $botOperator !== null) ?? self::passwordProblem($password)) {
             throw new \InvalidArgumentException($problem);
         }
-        if ($classGroup === null) {
+        if ($classGroup === null && $botOperator === null) {
             if ($problem = self::emailProblem((string) $email)) {
                 throw new \InvalidArgumentException($problem);
             }
@@ -99,14 +103,16 @@ class Players
             'credits' => 0,
             'share_credits' => $classGroup === null ? 0 : (int) config('forge.player_share_credits'),
             'class_group_id' => $classGroup,
+            // A Claude player (#1025) is verified without an address
+            'email_verified_at' => $botOperator !== null ? now() : null,
             // Its first digest starts now (#655)
             'last_seen_t' => World::gameNow(),
             'last_seen_trade' => (int) (DB::table('trades')->max('id') ?? 0),
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ] + ($botOperator !== null ? ['bot_operator_id' => $botOperator] : []));
         // A trial without mail (#642): verified at once
-        if ($classGroup === null && config('forge.trial_auto_verify')) {
+        if ($classGroup === null && $botOperator === null && config('forge.trial_auto_verify')) {
             self::verify($id, sha1($email));
         }
         return User::where('user_id', $id)->firstOrFail();
@@ -313,6 +319,7 @@ class Players
                 'notices' => (bool) ($g->notices ?? false)])->all();
         return [
             'name' => $row->login,
+            'bot' => ($row->bot_operator_id ?? null) !== null,
             'email' => $row->email,
             'verified' => $row->email_verified_at !== null || $row->class_group_id !== null,
             'credits' => (int) $row->credits,
@@ -395,7 +402,7 @@ class Players
     }
 
     /** A password a pupil can copy from a printed list: no 0/O, 1/l/I */
-    private static function readablePassword(): string
+    public static function readablePassword(): string
     {
         $chars = 'abcdefghjkmnpqrstuvwxyz23456789';
         $out = '';

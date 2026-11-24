@@ -124,6 +124,8 @@ Route::middleware('new-rules')->group(function () {
         ->middleware('signed:relative')->name('account.verify');
     Route::post('/account/verify', 'AccountController@resendVerification');
     Route::post('/account/classes', 'AccountController@createClassGroup');
+    Route::post('/account/bot-keys', 'AccountController@makeBotKey');
+    Route::post('/account/bot-keys/{id}/revoke', 'AccountController@revokeBotKey')->whereNumber('id');
     Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
     Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');
     // Opt-in e-mail notices (#761)

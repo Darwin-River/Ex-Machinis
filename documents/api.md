@@ -6,7 +6,7 @@ The API gives programs what the website gives people. It is for your own tools: 
 - **Reading needs no key.** Everything the API shows is already public on the website.
 - **Your account's token** (`Authorization: Bearer <token>`) makes a release your startup, and is needed for your account, startups and shares: see [Player accounts](#player-accounts-the-new-rules). Without one, a release is refused (401): every startup belongs to an account.
 - **Same rules as the website.** A release made through the API is checked exactly as on the Release page, and it becomes a company like any other.
-- **Rate limits, per IP address:**
+- **Rate limits, per account** when the request carries a good token, **per IP address** otherwise (#1017: a classroom behind one address doesn't share them):
   - 120 reads a minute;
   - 10 releases a minute.
 
@@ -111,7 +111,7 @@ curl -s -X POST $B/check -H 'Content-Type: application/json' \
 
 ### `POST /release`: release a company
 
-Every release is live, and free: it founds a **startup**, lent its drone and credits by the bank (see [Startups](#startups-637)). Send your account's token: it makes the startup yours, and without one the release is refused (`401`). To try a fix, push it to the startup (`POST /startups/{id}/push`), or release it again as a new startup and follow its drone (`GET /drones/{id}`). The only limit is 10 releases a minute per address, and 5 startups an account.
+Every release is live, and free: it founds a **startup**, lent its drone and credits by the bank (see [Startups](#startups-637)). Send your account's token: it makes the startup yours, and without one the release is refused (`401`). To try a fix, push it to the startup (`POST /startups/{id}/push`), or release it again as a new startup and follow its drone (`GET /drones/{id}`). The only limits are 10 releases a minute per account, and 5 startups an account.
 
 **Fields:**
 
@@ -164,7 +164,7 @@ Under the new rules this call is refused (403): the code of a company one player
  "message": "Pushed to 2 drone(s): ...", "warning": null}
 ```
 
-**Errors:** `403` (wrong password, or the company was released without one), `404` (no such company), `409` (it has ended, or has no working drone), `422` (the script's problem). Pushes count against the release limit, 10 a minute per address.
+**Errors:** `403` (wrong password, or the company was released without one), `404` (no such company), `409` (it has ended, or has no working drone), `422` (the script's problem). Pushes count against the release limit, 10 a minute per account.
 
 ## Your companies and drones
 
@@ -476,8 +476,11 @@ The new rules (#635) give players accounts. They are live; a server that has the
 |---|---|
 | `POST /accounts` `{name, email, password}` | makes an account (#636): a name of 3 to 32 letters, digits, spaces, dots, dashes or underscores (not your real name: it is public), an e-mail address (private, one account per address) and a password of at least 8 characters. It answers 201 with `{token, verification_sent, name, email, verified, credits, share_credits, class_group, teaches, since}`, and sends a link to the address: opening it verifies the account. A new account starts with no credits and 0 `share_credits` (#928: until then verifying brought 5,000 starting credits, which can only buy shares; those already given stay until spent). One address may make 3 accounts an hour (429 after that); a name or address that is taken, or a password that is too short, answers 422 with `error` |
 | `POST /login` `{name, password}` | a new token for the account, with the same fields; the old token stops working. `name` may be the account's e-mail address. 401 if they don't match |
-| `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, email, verified, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
+| `GET /account` | the token's account, sent as `Authorization: Bearer <token>`: `{name, bot, email, verified, credits, share_credits, class_group, teaches, since}`. `class_group` is the pupil's group (`{id, name}`) or null; `teaches`, the teacher's groups (`{id, name, pupils}`). 401 without a valid token |
 | `POST /account/verify` | sends the verification link again (3 times an hour at most): `{verification_sent}`. 409 if the account is verified already |
+| `POST /bots` `{name}` | Claude players (#1025), with an operator's key in the header `X-Bot-Key` (made on an operator's account page; operators are named in the server's `FORGE_OPERATORS`): a new account named "Claude …" (the prefix is added when left out), verified without an e-mail address, with no credits. 201 with `{name, password, token, bot}`, shown once. 401 without a good key; 422 for a taken name or past `FORGE_BOT_MAX` (30) Claude players an operator. People's accounts may not take a name starting with "Claude" (422) |
+| `POST /bots/{name}/token` | with the key: a fresh token for one of the operator's Claude players (the old one stops working); 404 for any other name |
+| `GET /bots` | with the key: `{operator, max, players: [{name, credits, companies, since}]}` |
 | `GET /account/notices` | your e-mail notice settings, as on the account page: `{notices: {kind: on}, kinds: {kind: what it tells you}}` (404 when the server sends no e-mail) |
 | `POST /account/notices` `{notices: [kinds]}` | turns those notices on and every other off; the answer is as `GET`. 422 for a kind that doesn't exist (the answer lists `kinds`); 409 until your address is verified, or for a pupil's account (its teacher chooses) |
 

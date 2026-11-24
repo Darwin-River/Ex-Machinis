@@ -64,6 +64,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('login', 'AccountApiController@login');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account', 'AccountApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/verify', 'AccountApiController@resendVerification');
+    // Claude players (#1025): made and listed with an operator's key, sent as X-Bot-Key
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('bots', 'BotApiController@make');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/{name}/token', 'BotApiController@token');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('bots', 'BotApiController@index');
     // The e-mail notice settings (#836)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/notices', 'AccountApiController@notices');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/notices', 'AccountApiController@notices');
