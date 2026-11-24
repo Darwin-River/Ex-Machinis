@@ -319,8 +319,8 @@ INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') ON DUPLICATE K
 
 -- Taxes and plunder (#324 step 12), placeholders to tune in step 20
 DELETE FROM `house_rules`;
-INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, plunder_share, start_credits, start_fuel, sales_tax_permille, compute_tax_per_million, dissolve_days) VALUES
-  (1, 0, 259200, 0, 5, 50, 3000, 100, 50, 15, 50);
+INSERT INTO `house_rules` (id, tax_period, tax_grace, tax_flat, tax_permille, plunder_share, start_credits, start_fuel, sales_tax_permille, compute_tax_per_million, dissolve_days, startup_buy_permille, startup_credit_cap_permille) VALUES
+  (1, 0, 259200, 0, 5, 50, 3000, 100, 50, 15, 50, 1000, 0);
 
 
 -- House drop stations (#324 step 10): what they trade. Their budgets
