@@ -126,6 +126,19 @@ int main(void)
     scenario(library, "a clone never buys", "t_parent = 5 t_buys = true",
              "return #t_printed == 0, t_printed[1] or ''");
 
+    /* depth(r) (#1009): the book here by price, both sides, best first,
+       units summed at a price, the drone's own and empty orders left out */
+    snprintf(setup, sizeof(setup), "%s local q = query\n"
+             "function query(id, ...)\n"
+             "  if id == 610 then return {{30, 0, 5, 1, 0, 0}, {28, 2, 6, 2, 1, 0}, {30, 0, 3, 3, 0, 0}, {25, 0, 9, 4, 0, 1}, {40, 4, 4, 5, 0, 0}} end\n"
+             "  if id == 600 then return {{20, 10, 4, 6, 1, 0}, {22, 3, 0, 7, 0, 0}, {20, 5, 5, 8, 0, 0}} end\n"
+             "  return q(id, ...) end", tools);
+    scenario(library, "depth sums the book by price, best first", setup,
+             "local d = depth(1100) "
+             "local s = '' for _, r in ipairs(d.asks) do s = s .. r.price .. 'x' .. r.units .. ' ' end "
+             "s = s .. '| ' for _, r in ipairs(d.bids) do s = s .. r.price .. 'x' .. r.units .. ' ' end "
+             "return s == '28x4 30x8 | 22x3 20x6 ', s");
+
     free(library);
     if(failures)
     {

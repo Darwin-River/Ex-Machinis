@@ -1575,6 +1575,15 @@ function inputs_ready(n)
 end
 ```
 
+<a name="depth"></a>**How deep is the book?** `depth(r)` sums the orders here by price, both sides, best first, leaving out your own (#1009): `depth(r).asks` is a list of `{price, units}` from the cheapest seller up, `depth(r).bids` from the best buyer down. A thin market shows at a glance: one ask of 2 units at 30, then 40 at 55, means a big order would cost far more than `buy_price` says.
+
+```lua
+function thin_market(r, n)
+  local asks = depth(r).asks
+  return #asks == 0 or asks[1].units < n
+end
+```
+
 ### Other exchanges
 
 `quotes(r)` gives the best prices for a good at every place where someone trades it. `quotes(r)[place]` is a record:
