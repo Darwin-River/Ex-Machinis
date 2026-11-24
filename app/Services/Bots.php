@@ -11,19 +11,14 @@ use Illuminate\Support\Str;
  * it and to keep the world alive while it has few human players. An
  * operator (an account named in forge.operators) makes a key on their
  * account page; whoever holds the key makes Claude players through the API.
- * A Claude player is verified without an e-mail address, its name starts
- * with "Claude", and it plays by every rule a person does.
+ * A Claude player is verified without an e-mail address and plays by every
+ * rule a person does. Only users.bot_operator_id marks it, which no player
+ * can see: its name, pages and API answers are like anyone's.
  */
 class Bots
 {
     /** The header that carries a key */
     public const HEADER = 'X-Bot-Key';
-
-    /** Does this name read as a Claude player's ("Claude", "Claude Mei", "claude-7")? */
-    public static function claudeName(string $name): bool
-    {
-        return (bool) preg_match('/^claude($|[ ._-])/i', trim($name));
-    }
 
     /** Is this account an operator? */
     public static function isOperator(?User $user): bool
@@ -85,16 +80,9 @@ class Bots
                 'since' => $u->created_at])->all();
     }
 
-    /**
-     * A new Claude player for an operator: {ok, error, name, password, token}.
-     * Its name starts with "Claude " (added when left out).
-     */
+    /** A new Claude player for an operator: {ok, error, name, password, token} */
     public static function make(User $operator, string $name): array
     {
-        $name = trim(preg_replace('/\s+/', ' ', $name));
-        if (!self::claudeName($name)) {
-            $name = 'Claude ' . $name;
-        }
         $max = (int) config('forge.bot_max');
         if (DB::table('users')->where('bot_operator_id', $operator->user_id)->count() >= $max) {
             return ['ok' => false, 'error' => "An operator may have at most $max Claude players."];

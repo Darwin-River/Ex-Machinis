@@ -52,7 +52,7 @@ class PlayerBoards
     public static function profile(string $name): ?array
     {
         $u = self::played(DB::table('users')->where('login', $name)->whereNull('class_group_id')->whereNotNull('email_verified_at'))
-            ->first(['user_id', 'login', 'created_at', 'bot_operator_id']);
+            ->first(['user_id', 'login', 'created_at']);
         if (!$u) {
             return null;
         }
@@ -76,7 +76,7 @@ class PlayerBoards
             ->where('s.user_id', $u->user_id)->where('s.units', '>', 0)->whereNull('c.eliminated_at')->orderByDesc('s.units')
             ->get(['c.company_id', 'c.name', 's.units'])->map(fn ($s) => ['company_id' => (int) $s->company_id, 'name' => $s->name,
                 'units' => (int) $s->units])->all();
-        return ['name' => $u->login, 'bot' => $u->bot_operator_id !== null, 'rank' => $rank, 'players' => count($board['wealth']), 'wealth' => $me['wealth'] ?? null,
+        return ['name' => $u->login, 'rank' => $rank, 'players' => count($board['wealth']), 'wealth' => $me['wealth'] ?? null,
             'season_percent' => $season['percent'] ?? null, 'companies' => $companies, 'shares' => $shares];
     }
 

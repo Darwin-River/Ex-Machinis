@@ -33,7 +33,7 @@ class BotApiController extends Controller
             return response()->json(['error' => $result['error']], 422);
         }
         unset($result['ok'], $result['error']);
-        return response()->json($result + ['bot' => true], 201);
+        return response()->json($result, 201);
     }
 
     /** POST /api/v1/bots/{name}/token: a fresh token for one of the operator's Claude players */

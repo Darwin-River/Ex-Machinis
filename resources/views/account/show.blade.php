@@ -373,7 +373,7 @@
                 <h3 class="h5 mt-4" id="claude-players">Claude players</h3>
                 <p>You are an operator. A key lets Claude make Claude players through the API
                     (<code>POST /api/v1/bots</code> with the header <code>X-Bot-Key</code>): accounts verified without an e-mail
-                    address, named "Claude …", playing by every rule a person does. Enter a key in Claude's environment as a
+                    address, playing by every rule a person does. Only the database marks them: to players they look like anyone else. Enter a key in Claude's environment as a
                     network secret for this site; it is shown here once.</p>
                 @if(session('bot_key'))
                     <div class="alert alert-warning" id="new-bot-key">Your new key, shown only now:

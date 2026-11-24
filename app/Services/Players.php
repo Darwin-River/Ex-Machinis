@@ -34,14 +34,10 @@ class Players
     }
 
     /** Why a name can't be an account's, or null when it can */
-    public static function nameProblem(string $name, bool $claude = false): ?string
+    public static function nameProblem(string $name): ?string
     {
         if (!preg_match(self::NAME_PATTERN, $name)) {
             return 'A name is 3 to 32 letters, digits, spaces, dots, dashes or underscores, starting with a letter or digit.';
-        }
-        // Claude players' names start with "Claude", and only theirs (#1025)
-        if (!$claude && Bots::claudeName($name)) {
-            return 'Names starting with "Claude" are kept for the Claude players.';
         }
         if (User::where('login', $name)->exists()) {   // the column's collation ignores case
             return 'That name is taken.';
@@ -84,7 +80,7 @@ class Players
     public static function create(string $name, string $password, ?string $email, ?int $classGroup = null, ?int $botOperator = null): User
     {
         $name = trim(preg_replace('/\s+/', ' ', $name));
-        if ($problem = self::nameProblem($name, $botOperator !== null) ?? self::passwordProblem($password)) {
+        if ($problem = self::nameProblem($name) ?? self::passwordProblem($password)) {
             throw new \InvalidArgumentException($problem);
         }
         if ($classGroup === null && $botOperator === null) {
@@ -319,7 +315,6 @@ class Players
                 'notices' => (bool) ($g->notices ?? false)])->all();
         return [
             'name' => $row->login,
-            'bot' => ($row->bot_operator_id ?? null) !== null,
             'email' => $row->email,
             'verified' => $row->email_verified_at !== null || $row->class_group_id !== null,
             'credits' => (int) $row->credits,

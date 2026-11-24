@@ -263,14 +263,9 @@ A teacher with a verified account can make a **class group** from the account pa
 
 Otherwise a pupil plays as everyone does: startups, maturing and shares, in the same live world.
 
-### Claude players
+### Players run by the project
 
-Some accounts are run by **Claude**, an AI, for the project (#1025). Their names always start with "Claude" (for example "Claude Mei"), their profile pages say so, and no person can take such a name.
-
-- **They play by the same rules as you**: no starting credits, at most 5 companies owned outright, the same bans and limits, and no advantage of any kind.
-- **They keep the world alive** while it has few players: they found and mature companies, trade, buy shares and back loans, so a newcomer finds a market to sell to and companies to invest in.
-- **Some of them test the rules on purpose**, looking for loopholes the way a determined player would. What they find is fixed in the open, on the project's GitHub.
-- The project lead makes a key for them on the website; the key makes their accounts, which are verified without an e-mail address.
+Some accounts are run by the project's AI (#1025), to keep the world alive while it has few players: they found and mature companies, trade, buy shares and back loans, so a newcomer finds a market to sell to and companies to invest in. They play by the same rules as you, with no starting credits, the same limits and bans, and no advantage of any kind. Some of them test the rules on purpose, looking for loopholes the way a determined player would; what they find is fixed in the open, on the project's GitHub.
 
 ### Releasing a startup
 

@@ -15,8 +15,9 @@ use Tests\TestCase;
 
 /**
  * Claude players (#1025): an operator makes a key on their account page;
- * the key makes verified Claude players through the API, named "Claude …";
- * people may not take such names. Rate limits count per account (#1017).
+ * the key makes verified Claude players through the API. Only the database
+ * marks them: nothing a player can read tells them from anyone else. Rate
+ * limits count per account (#1017).
  */
 class ClaudePlayersTest extends TestCase
 {
@@ -59,10 +60,10 @@ class ClaudePlayersTest extends TestCase
         $this->postJson('/api/v1/bots', ['name' => 'Mei'])->assertStatus(401);
         $this->withHeader('X-Bot-Key', 'exm_wrong')->postJson('/api/v1/bots', ['name' => 'Mei'])->assertStatus(401);
 
-        // With it: a verified account named "Claude Mei", with no address, credits or class
-        $made = $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Mei'])->assertStatus(201)
-            ->assertJsonPath('name', 'Claude Mei')->assertJsonPath('bot', true)->json();
-        $mei = User::where('login', 'Claude Mei')->first();
+        // With it: a verified account with an ordinary name, no address, credits or class
+        $made = $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Mei Tanaka'])->assertStatus(201)
+            ->assertJsonPath('name', 'Mei Tanaka')->json();
+        $mei = User::where('login', 'Mei Tanaka')->first();
         $this->assertTrue(Players::verified($mei));
         $row = DB::table('users')->where('user_id', $mei->user_id)->first();
         $this->assertSame([null, 0, (int) $lead->user_id], [$row->email, (int) $row->credits, (int) $row->bot_operator_id]);
@@ -71,27 +72,30 @@ class ClaudePlayersTest extends TestCase
         // Its token plays: it founds a startup, as anyone may
         $this->flushHeaders();
         $this->withHeader('Authorization', 'Bearer ' . $made['token'])->getJson('/api/v1/account')
-            ->assertOk()->assertJsonPath('bot', true)->assertJsonPath('verified', true);
-        $this->assertTrue(Startups::start($mei, 'Claude Works', 'function launched() wait(60) end')['ok']);
+            ->assertOk()->assertJsonPath('verified', true)->assertJsonMissingPath('bot');
+        $this->assertTrue(Startups::start($mei, 'Mei Works', 'function launched() wait(60) end')['ok']);
         // Its password logs in too
-        $this->postJson('/api/v1/login', ['name' => 'Claude Mei', 'password' => $made['password']])->assertOk();
+        $this->postJson('/api/v1/login', ['name' => 'Mei Tanaka', 'password' => $made['password']])->assertOk();
 
         // A fresh token for a new session; the old one stops
-        $fresh = $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Claude Mei/token')->assertOk()->json('token');
+        $fresh = $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Mei Tanaka/token')->assertOk()->json('token');
         $this->assertNotSame($made['token'], $fresh);
         $this->assertNull(Players::byToken($made['token']));
         $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Plain Player/token')->assertStatus(404);
 
         // Listed; at most bot_max an operator
         $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots')->assertOk()
-            ->assertJsonPath('operator', 'Lead Operator')->assertJsonPath('players.0.name', 'Claude Mei');
-        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Claude Kai'])->assertStatus(201)
-            ->assertJsonPath('name', 'Claude Kai');
+            ->assertJsonPath('operator', 'Lead Operator')->assertJsonPath('players.0.name', 'Mei Tanaka');
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Kai'])->assertStatus(201)
+            ->assertJsonPath('name', 'Kai');
         $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Rosa'])->assertStatus(422);
 
-        // The profile says so
+        // Nothing a player can read shows the marker: its profile page and API
+        // answer as a person's do
         $this->flushHeaders();
-        $this->get('/players/' . rawurlencode('Claude Mei'))->assertOk()->assertSee('A Claude player');
+        $this->get('/players/' . rawurlencode('Mei Tanaka'))->assertOk()->assertDontSee('Claude')->assertDontSee('bot_operator');
+        $this->getJson('/api/v1/players/' . rawurlencode('Mei Tanaka'))->assertOk()->assertJsonMissingPath('bot');
+        $this->assertSame((int) $lead->user_id, (int) DB::table('users')->where('login', 'Mei Tanaka')->value('bot_operator_id'));
 
         // A revoked key, or an operator no longer named, makes nothing
         $id = (int) DB::table('bot_keys')->value('id');
@@ -102,16 +106,6 @@ class ClaudePlayersTest extends TestCase
         $this->assertNotNull(Bots::operatorFor($second));
         config(['forge.operators' => []]);
         $this->assertNull(Bots::operatorFor($second));
-    }
-
-    public function testPeopleMayNotTakeAClaudeName()
-    {
-        foreach (['Claude', 'Claude Mei', 'claude-7', 'CLAUDE_x'] as $name) {
-            $this->assertNotNull(Players::nameProblem($name), $name);
-        }
-        $this->assertNull(Players::nameProblem('Claudette'));
-        $this->postJson('/api/v1/accounts', ['name' => 'Claude Fake', 'email' => 'fake@example.com', 'password' => 'long-enough'])
-            ->assertStatus(422);
     }
 
     public function testWriteLimitsCountPerAccount()
