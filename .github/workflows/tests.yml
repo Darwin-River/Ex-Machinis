@@ -50,8 +50,8 @@ jobs:
           DB_USER=root DB_NAME=exmachinis MYSQL_PWD=secret game-engine/sql/migrate.sh
           mysql -h 127.0.0.1 -uroot -psecret < tests/database/fixtures.sql
 
-      - name: Build the Lua tools the website runs (lua-check, lua-trade)
-        run: make -C game-engine/src bin/lua-check bin/lua-trade
+      - name: Build the Lua tools the website runs (lua-check, lua-trade, lua-drive)
+        run: make -C game-engine/src bin/lua-check bin/lua-trade bin/lua-drive
 
       - name: Run tests
         run: vendor/bin/phpunit

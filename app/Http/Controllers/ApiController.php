@@ -542,7 +542,7 @@ class ApiController extends Controller
     {
         // Any length: the check says how long it is against the limit (#557)
         $validator = Validator::make($request->all(), ['script' => 'required|string|max:200000',
-            'company' => 'nullable|integer']);
+            'company' => 'nullable|integer', 'drive' => 'nullable|boolean', 'drone' => 'nullable|integer']);
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()->first(),
                 'errors' => $validator->errors()->toArray()], 422);
@@ -575,6 +575,25 @@ class ApiController extends Controller
         // A push preview (#558): what pushing this to the company would cost now
         if ($request->filled('company')) {
             $out['push'] = \App\Services\CodePush::preview((int) $request->input('company'));
+        }
+        // A test drive (#1007): what the company's first working drone (or
+        // `drone`) would do with this script, run against the world now,
+        // changing nothing. Its owner's alone: it shows the drone's state
+        if ($request->boolean('drive')) {
+            if (!$request->filled('company')) {
+                return response()->json(['error' => 'A test drive needs the company whose drone runs it: send company.'], 422);
+            }
+            $company = (int) $request->input('company');
+            if (!\App\Services\DroneTestDrive::mayDrive(\App\Services\Players::byToken($request->bearerToken()), $company)) {
+                return response()->json(['error' => 'Only the company\'s owner can test drive its drones: send your API token.'], 403);
+            }
+            $drive = \App\Services\DroneTestDrive::run($company, $script,
+                $request->filled('drone') ? (int) $request->input('drone') : null);
+            if ($drive === null) {
+                return response()->json(['error' => $request->filled('drone') ? 'That is not one of the company\'s working drones.'
+                    : 'The company has no working drone to test drive.'], 404);
+            }
+            $out['drive'] = $drive;
         }
         return response()->json($out);
     }

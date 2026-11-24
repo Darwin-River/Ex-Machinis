@@ -141,6 +141,8 @@ Route::middleware('new-rules')->group(function () {
     // Startups (#637)
     Route::post('/startups/claim', 'StartupController@claim');
     Route::post('/startups/{id}/push', 'StartupController@reprogram')->whereNumber('id');
+    // A test drive of the draft: what its first drone would do, changing nothing (#1007)
+    Route::post('/startups/{id}/test-drive', 'StartupController@testDrive')->whereNumber('id');
     Route::post('/startups/{id}/close', 'StartupController@close')->whereNumber('id');
     Route::post('/startups/{id}/mature', 'StartupController@mature')->whereNumber('id');
     // Player boards (#640)

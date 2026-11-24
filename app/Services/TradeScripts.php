@@ -158,7 +158,7 @@ class TradeScripts
         file_put_contents($files['script'], $code);
         file_put_contents($files['market'], 'return ' . self::lua(self::market($user)));
         file_put_contents($files['memory'], $memory);
-        [$lines, $failed] = self::sandbox($runner, $files);
+        [$lines, $failed] = self::sandbox([$runner, $files['script'], $files['market'], $files['memory']]);
         foreach ($files as $f) {
             @unlink($f);
         }
@@ -203,11 +203,13 @@ class TradeScripts
         };
     }
 
-    /** Runs lua-trade: [its output lines, why it failed or null] */
-    private static function sandbox(string $runner, array $files): array
+    /**
+     * Runs a sandbox binary (lua-trade; lua-drive too, #1007) with a timeout
+     * of TIMEOUT real seconds: [its output lines, why it failed or null]
+     */
+    public static function sandbox(array $command): array
     {
-        $process = proc_open([$runner, $files['script'], $files['market'], $files['memory']],
-            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (!is_resource($process)) {
             return [[], 'the sandbox didn\'t start'];
         }
