@@ -46,7 +46,7 @@ class StartupRaceTest extends TestCase
         $kit = fn (int $company, int $t) => DB::table('trades')->insert(['resource' => \App\Services\Release::KITS['mining'], 'units' => 1,
             'credits' => 2000, 'tax' => 0, 'seller' => $other, 'buyer' => DB::table('agents')->where('company_id', $company)->value('agent_id'),
             'location' => 3, 'game_t' => $t]);
-        $kit($id, $born + 600);
+        $kit($id, $born);   // at founding: on its founding day whatever the time of day (#1002)
         // One that never bought a kit isn't racing (#863: Mei 77-4 sat at 2,893, far ahead of everyone)
         $kitless = Startups::start($p, 'Racer Kitless', 'function launched() wait(60) end')['company'];
         DB::table('companies')->where('company_id', $kitless)->update(['founded_t' => $born]);
@@ -75,7 +75,7 @@ class StartupRaceTest extends TestCase
         $done = Startups::start($p, 'Racer Two', 'function launched() wait(60) end')['company'];
         $maturedT = $epoch + ($day0 + 2) * 86400 + 3600;   // on its third day's row, which is after repaying
         DB::table('companies')->where('company_id', $done)->update(['founded_t' => $born, 'startup' => 0, 'matured_t' => $maturedT]);
-        $kit($done, $born + 600);
+        $kit($done, $born);
         foreach ([0 => 3000, 1 => 4000, 2 => 4800] as $age => $credits) {
             DB::table('company_days')->insert(['company_id' => $done, 'day' => $day0 + $age, 'credits' => $credits, 'net_wealth' => 0]);
         }
