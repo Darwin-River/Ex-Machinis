@@ -26,9 +26,9 @@ local CASH_FOR_FUEL = 150 -- credits raised before buying fuel
 local REFUEL_AFTER_HAUL = 60 -- fuel: below this it buys where it sold
 local CREDITS_FOR_METALS = 60 -- spare credits that buy two metals
 local GUESSED_METALS_PRICE = 30 -- credits a metal when no price is known
-local HOUSE_CAP_SHARE = 10 -- a startup buys 1/10 of the House's stock a day,
+local HOUSE_CAP_SHARE = 10 -- it buys at most 1/10 of the House's stock at a time,
 local HOUSE_CAP_MIN = 5 -- but at least this many
-local HOUSE_CAP_REACHED = -17 -- buy_here's result at that cap
+local HOUSE_CAP_REACHED = -17 -- the old daily cap's result (retired, #923: kept so old copies still run)
 local TRIP_FUEL_COST = 30 -- credits: 10 fuel at about 3, there and back
 local HOUR_AWAY_COST = 10 -- credits a game hour of travel costs
 local KEPT_AFTER_TAX = 95 -- percent of a sale (5% sales tax)
@@ -90,8 +90,8 @@ end
 -- Buying metals
 
 function house_lets_me_buy(offer)
-  local daily_cap = math.max(HOUSE_CAP_MIN, offer.on_sale // HOUSE_CAP_SHARE)
-  return math.min(batch, offer.on_sale, daily_cap)
+  local share_of_stock = math.max(HOUSE_CAP_MIN, offer.on_sale // HOUSE_CAP_SHARE)
+  return math.min(batch, offer.on_sale, share_of_stock)
 end
 
 -- The House exchange where a metal costs least, with the trip shared over

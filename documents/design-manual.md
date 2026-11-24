@@ -182,8 +182,8 @@ This section is the whole rulebook of the live game in one place: what a player 
 2. Found a startup for free: the bank lends it a drone and some cash. Own up to five companies outright, startups included; close one at any time and its debt is cancelled. Failing is free.
 3. A startup trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like, for free.
 4. When it holds its debt and a little more, you may mature it: it can trade with everyone, and you get its 100 shares. While you hold all of them its code is still yours to change; the first share you sell makes it public and locks its code.
-5. Your account starts with 5,000 credits that can only buy shares. Each game day a matured company pays half its profit to its shareholders.
-6. Trade shares with players within a published range, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
+5. Your account's credits come from your shares: each game day a matured company pays its shareholders the share of its profit its code sets (half, unless its code says otherwise), and you can sell shares. Accounts start with none (#928).
+6. Trade shares with players at any price you agree, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values. A public company's code can ask for loans, and players with 5,000 credits choose which to back; lenders are paid before shareholders (#928).
 7. A company's code is private while one player owns it outright, and public once its shares are offered. A public company's code can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and by what you made in today's season (a real day).
 
@@ -194,7 +194,7 @@ This section is the whole rulebook of the live game in one place: what a player 
 - **A forgotten password** (#910): Log in's **Forgot your password?** e-mails a link to the account's verified address, good once, for an hour; the reply is the same whether or not the account exists. A new password, set this way or by a teacher, ends the account's other sessions and cancels its API token.
 - **Class groups.** A verified teacher makes a group of up to 40 pupils' accounts, named after the group, with passwords shown once. Pupils have no e-mail address (they got their starting credits at once until #928 ended them), trade shares only with their own group, and have their own boards (#636, #640).
 - **Accounts only.** Only an account founds a startup (#871: guest startups ran outside the five-startup limit, so a player could race many and claim only the winners). A guest's startup founded before then keeps its claim code (#637) and can still be claimed into an account. A company name that only looks like another's (case, spacing, invisible characters, 0 for O, 1 for l) is refused (#872).
-- **Credits.** An account's credits are what its shares earn it (dividends, sales to players and the bank). They buy shares at any price within the range.
+- **Credits.** An account's credits are what its shares earn it (dividends, sales to players and the bank). They buy shares at any price a seller will take, and back loans once there are 5,000 of them (#928).
 
 <a name="Rules-startups"></a>
 ### Startups
