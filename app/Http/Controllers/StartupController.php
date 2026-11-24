@@ -45,6 +45,27 @@ class StartupController extends Controller
             . ' drone(s), for free.' : '');
     }
 
+    /**
+     * POST /startups/{id}/test-drive {script}: the draft run read-only against
+     * the world now on the company's first working drone (#1007). Its
+     * owner's alone: the snapshot shows the drone's holdings
+     */
+    public function testDrive(Request $request, int $id)
+    {
+        if (!$user = $this->player()) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length')]);
+        if (!\App\Services\DroneTestDrive::mayDrive($user, $id)) {
+            return redirect('/account#startups')->with('error', 'Only a company\'s owner can test drive its drones.');
+        }
+        $drive = \App\Services\DroneTestDrive::run($id, str_replace("\r\n", "\n", (string) $request->input('script')));
+        if ($drive === null) {
+            return back()->with('error', 'This company has no working drone to test drive.')->withInput();
+        }
+        return redirect('/companies/' . $id . '#drone-test-drive')->with('drone_test_drive', $drive)->withInput();
+    }
+
     public function close(int $id)
     {
         if (!$user = $this->player()) {

@@ -9,6 +9,8 @@ return [
     // The account trading script's sandbox (#768), and how often it may run (real seconds)
     'lua_trade' => env('LUA_TRADE', base_path('game-engine/src/bin/lua-trade')),
     'trade_script_every' => (int) env('FORGE_TRADE_SCRIPT_EVERY', 120),
+    // A drone script's test drive (#1007): runs it against a snapshot of the world, changing nothing
+    'lua_drive' => env('LUA_DRIVE', base_path('game-engine/src/bin/lua-drive')),
 
     // Fuel in a new drone's hold (#324 step 8): actions burn it
     'starting_fuel' => 100,
@@ -51,6 +53,10 @@ return [
     'player_signups_per_hour' => (int) env('FORGE_PLAYER_SIGNUPS_PER_HOUR', 3),
     // Most pupils' accounts in one class group
     'class_group_max' => (int) env('FORGE_CLASS_GROUP_MAX', 40),
+    // Claude players (#1025): the accounts that may make keys for them (names,
+    // comma-separated), and the most Claude players each operator may have
+    'operators' => array_values(array_filter(array_map('trim', explode(',', (string) env('FORGE_OPERATORS', ''))))),
+    'bot_max' => (int) env('FORGE_BOT_MAX', 30),
 
     // Startups (#637): every company starts as one, lent its hull and its
     // starting credits (starting_credits) by the bank, plus a fee; it owes all

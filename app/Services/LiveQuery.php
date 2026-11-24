@@ -101,6 +101,116 @@ class LiveQuery
         return ['code' => $stored, 'bytes' => base64_encode($bytes), 'rows' => $shown];
     }
 
+    /** A query's own way of saying "the drone's place" (#1007: a test drive asks it of another place) */
+    public const HERE = '(SELECT object_id FROM agents WHERE agent_id = [drone_id])';
+
+    /** The queries that read the drone's place by HERE */
+    public static function hereQueries(): array
+    {
+        return DB::table('queries')->where('script', 'like', '%' . self::HERE . '%')->orderBy('id')->pluck('id')
+            ->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * Runs query $id as a Lua drone's query(id, ...) does (l_query in
+     * lua_drone.c, #1007): $args in the order the script passes them (the
+     * last is [value_1]; a [dvalue_k] is one number; strings for
+     * [string_k]), whole numbers as they are (not 16-bit cells). Returns
+     * ['code' => 0, 'rows' => rows] or ['code' => negative, 'rows' => []]
+     * (-3 unknown, -1 too few arguments, -2 failed), each row a list of
+     * ['name' => column (a d_ column without its d_), 'value' => int,
+     * float, string or false for NULL]. No rows is an empty list, not a
+     * failure. With $place, HERE is that place instead of the drone's.
+     */
+    public static function lua(int $id, int $drone, array $args, ?int $place = null): array
+    {
+        $query = DB::table('queries')->where('id', $id)->first();
+        if (!$query) {
+            return ['code' => self::UNKNOWN, 'rows' => []];
+        }
+        $sql = (string) $query->script;
+        $n = count($args);
+        // Cell k (1: the top) -> which argument from the top, a double covering two cells
+        $double = [];
+        for ($k = 1; $k <= 4; $k++) {
+            $double[$k] = str_contains($sql, "[dvalue_$k]");
+        }
+        $argOfCell = [];
+        $cell = 1;
+        $logical = 0;
+        while ($cell <= (int) $query->parameters && $cell < 11) {
+            $logical++;
+            $argOfCell[$cell] = $logical;
+            if ($double[$cell] ?? false) {
+                $argOfCell[$cell + 1] = $logical;
+                $cell += 2;
+            } else {
+                $cell++;
+            }
+        }
+        if ($logical > $n) {
+            return ['code' => self::NOT_ENOUGH_PARAMETERS, 'rows' => []];
+        }
+        $arg = fn (int $a) => $args[$n - $a];   // the a-th from the top
+        $tags = [];
+        foreach ($argOfCell as $k => $a) {
+            foreach (["[value_$k]", "[dvalue_$k]"] as $tag) {
+                if (str_contains($sql, $tag) && !isset($tags[$tag])) {
+                    if (!preg_match('/^-?\d+$/', (string) $arg($a))) {
+                        return ['code' => self::FAILED, 'rows' => []];
+                    }
+                    $tags[$tag] = (string) (int) $arg($a);
+                }
+            }
+            if ($k <= 4 && str_contains($sql, "[string_$k]")) {
+                $s = (string) $arg($a);
+                if (!preg_match('/^[A-Za-z0-9 ._-]*$/', $s) || strlen($s) > 255) {
+                    return ['code' => self::FAILED, 'rows' => []];
+                }
+                $tags["[string_$k]"] = $s;
+            }
+        }
+        if ($place !== null) {
+            $sql = str_replace(self::HERE, (string) $place, $sql);
+        }
+        $tags += ['[drone_id]' => (string) $drone, '[game_now]' => (string) World::gameNow(), '[time_delay]' => '0'];
+        $sql = strtr($sql, $tags);
+        if (preg_match('/\[(value|dvalue|string)_\d\]/', $sql)) {
+            return ['code' => self::NOT_ENOUGH_PARAMETERS, 'rows' => []];
+        }
+        try {
+            $statement = DB::connection()->getPdo()->query($sql);
+            $names = [];
+            for ($i = 0; $i < $statement->columnCount(); $i++) {
+                $name = (string) ($statement->getColumnMeta($i)['name'] ?? '');
+                $names[] = str_starts_with($name, 'd_') ? substr($name, 2) : $name;
+            }
+            $rows = [];
+            foreach ($statement->fetchAll(\PDO::FETCH_NUM) as $row) {
+                $rows[] = array_map(fn ($name, $v) => ['name' => $name, 'value' => self::luaValue($v)], $names, $row);
+            }
+        } catch (\Throwable $e) {
+            return ['code' => self::FAILED, 'rows' => []];
+        }
+        return ['code' => 0, 'rows' => $rows];
+    }
+
+    /** A field as l_query hands it to Lua: NULL false, a whole number an integer, a number a float, else text */
+    private static function luaValue($v)
+    {
+        if ($v === null) {
+            return false;
+        }
+        $text = (string) $v;
+        if (preg_match('/^[+-]?\d+$/', $text)) {
+            return (int) $text;
+        }
+        if (is_numeric($text)) {
+            return (float) $text;
+        }
+        return $text;
+    }
+
     /** The query's script with its tags filled in, as vm_get_new_tag_value does */
     private static function fill(string $sql, int $drone, array $values, array $strings): ?string
     {

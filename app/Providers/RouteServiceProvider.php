@@ -26,12 +26,22 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // The JSON API's limits (#380), each with its own count per address:
-        // reading, and releasing
-        RateLimiter::for('api-read', fn (Request $request) => Limit::perMinute(120)->by('read|' . $request->ip()));
-        RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(10)->by('write|' . $request->ip()));
+        // The JSON API's limits (#380): reading, and releasing. Counted per
+        // account for a request with a good token, so a classroom or several
+        // Claude players behind one address don't share them (#1017); per
+        // address otherwise (a made-up token counts as none)
+        RateLimiter::for('api-read', fn (Request $request) => Limit::perMinute(120)->by('read|' . self::caller($request)));
+        RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(10)->by('write|' . self::caller($request)));
 
         parent::boot();
+    }
+
+    /** Who a request counts against: its account, when its token is good, or its address */
+    public static function caller(Request $request): string
+    {
+        $token = $request->bearerToken();
+        $user = ($token ? \App\Services\Players::byToken($token) : null) ?? \App\Services\Bots::actingPlayer($request);
+        return $user ? 'user:' . $user->user_id : 'ip:' . $request->ip();
     }
 
     /**

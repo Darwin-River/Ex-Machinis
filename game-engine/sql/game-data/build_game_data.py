@@ -1566,7 +1566,13 @@ queries.append((630, 'Station goods',
 # daily tax is off (tax_period 0).
 SALES_TAX_PERMILLE = 50
 # start_credits 3,000 and no kit since #506 (forge.starting_credits)
-HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE, COMPUTE_TAX_PER_MILLION, DISSOLVE_DAYS)]
+# A startup's buying share and credit cap were retired (#923): the game data
+# says so itself, since it reloads this row on every deploy after the
+# migrations (#1013: the row without them took the old defaults, 100 and 2000)
+STARTUP_BUY_PERMILLE = 1000      # a startup may buy all the House has on sale
+STARTUP_CREDIT_CAP_PERMILLE = 0  # no credit cap
+HOUSE_RULES = [(1, 0, 3 * DAY, 0, 5, 50, 3000, 100, SALES_TAX_PERMILLE, COMPUTE_TAX_PER_MILLION, DISSOLVE_DAYS,
+                STARTUP_BUY_PERMILLE, STARTUP_CREDIT_CAP_PERMILLE)]
 MY_COMPANY = "(SELECT company_id FROM agents WHERE agent_id = [drone_id])"
 queries.append((650, 'My taxes',
                 '[R L 650 query]: The sales tax: the share of each sale the seller pays, in thousandths (50 is 5%); '
@@ -2383,7 +2389,8 @@ lines.append("INSERT INTO `event_types` (id, name) VALUES (11, 'Plunder wreck') 
 lines.append('')
 lines.append('-- Taxes and plunder (#324 step 12), placeholders to tune in step 20')
 table('house_rules', ['id', 'tax_period', 'tax_grace', 'tax_flat', 'tax_permille', 'plunder_share',
-                      'start_credits', 'start_fuel', 'sales_tax_permille', 'compute_tax_per_million', 'dissolve_days'], HOUSE_RULES)
+                      'start_credits', 'start_fuel', 'sales_tax_permille', 'compute_tax_per_million', 'dissolve_days',
+                      'startup_buy_permille', 'startup_credit_cap_permille'], HOUSE_RULES)
 lines.append('')
 lines.append('-- House drop stations (#324 step 10): what they trade. Their budgets')
 lines.append('-- (station_state) are kept: a new station starts with a full budget.')

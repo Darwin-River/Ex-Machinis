@@ -75,6 +75,7 @@ The reference material is at the back: [what an error or a failure code means](#
     - [Saying what it's doing](#saying-what-its-doing)
     - [How the company is doing](#how-the-company-is-doing)
     - [Drone pages: learning from other drones](#drone-pages-learning-from-other-drones)
+    - [Test driving your code](#test-driving-your-code)
     - [Pushing new code](#pushing-new-code)
     - [Closing a startup](#closing-a-startup)
     - [When `launched` crashes](#when-launched-crashes)
@@ -261,6 +262,10 @@ A teacher with a verified account can make a **class group** from the account pa
 - **They get no e-mails** (they have no address). The teacher can turn on a **daily class summary** for each group on their account page, under **E-mail notices**: one e-mail, on a day something needs a pupil, listing each pupil's startups that can mature, companies at risk and wrecked drones, with what each could try next.
 
 Otherwise a pupil plays as everyone does: startups, maturing and shares, in the same live world.
+
+### Players run by the project
+
+Some accounts are run by the project's AI (#1025), to keep the world alive while it has few players: they found and mature companies, trade, buy shares and back loans, so a newcomer finds a market to sell to and companies to invest in. They play by the same rules as you, with no starting credits, the same limits and bans, and no advantage of any kind. Some of them test the rules on purpose, looking for loopholes the way a determined player would; what they find is fixed in the open, on the project's GitHub.
 
 ### Releasing a startup
 
@@ -1147,7 +1152,7 @@ Next, [Chapter 6](#chapter-6-reports-trying-your-code-and-starting-over): readin
 
 ## Chapter 6: Reports, trying your code, and starting over
 
-_In this chapter:_ how to read what your drone and its company tell you, how to try a change (a small test release, then a push) and see whether it did better, how to start over when it didn't, what happens when a script crashes, and how to mature your startup.
+_In this chapter:_ how to read what your drone and its company tell you, how to try a change (a test drive that changes nothing, a small test release, then a push) and see whether it did better, how to start over when it didn't, what happens when a script crashes, and how to mature your startup.
 
 ### What your drone says
 
@@ -1225,11 +1230,36 @@ The **Events** page (Companies menu) lists the latest 500 events to reach Earth'
 
 When a drone dies, its page gets a **post-mortem**: why it died, in plain words (out of fuel, with how much of it went on computing, or its `launched` function crashing again and again), and a timeline of its last actions, how each went, and the fuel it had left. Read your own post-mortems soon: they're the quickest way to learn what went wrong, and a finished action is kept for 30 game days after it ends, so a wreck older than that has no timeline left.
 
+### Test driving your code
+
+Before you push, you can **test drive** a script: run it against the world as it is now and see what your drone *would* do, without sending anything. Under **Push new code (free)** on a company you own outright, **Test drive (changes nothing)** runs what is in the editor on the company's first working drone, from where that drone is now, with its hold, fuel and the company's credits, and lists in order what it would do, say and set as its status (#1007):
+
+```
+0:00 would unpack Mining Kit I (using 1 Mining Kit I, making 1 Engine (A1), 1 Worm (A1), 1 Refinery (A1))
+0:00 would fly to the Moon (1.1 game hours, 5 fuel)
+1:05 would mine 5 Wolfite (N) at the Moon (1 game hour, 1 fuel)
+...
+```
+
+Each line starts with the game hours and minutes into the drive. It stops when `launched()` returns, after 50 actions, after a game day of actions, or when the script spins too long without acting, and says which. An error says its line, as on a drone's page, with what came before it. Nothing is written: no actions, no trades, no orders, no push, and the drone and company stay exactly as they were. With the API, send the script to `POST /api/v1/check` with `company`, `drive: true` and your token (and `drone` to pick another of its drones); the answer's `drive` lists the same.
+
+How it works: your script runs with the drones' real library, but `perform` and the other actions are stand-ins. Each action takes its game time on the drive's own clock (a `wait` costs no real time), and changes a copy of the drone's hold, place and credits as it would: mining adds what a run yields at that place now (less as the deposit runs down), refining uses and makes what its recipe says, a flight burns its fuel and moves the copy, buying from an order the script found pays its price and selling into one earns it. Every question the script asks (`best_bid`, `deposit`, `crowd`...) is answered from the live world, at the place the copy is at. Seeded the same each time, `math.random` gives the same numbers, so a drive run twice reads the same.
+
+What it can't show you:
+
+- **Other drones and players.** Nobody reacts: nobody fills, outbids or undercuts your orders, and other miners don't crowd the site during the drive.
+- **The world moving on.** Prices, order books, deposits refilling and the game clock are as they were when the drive began. Only the drive's own trades and mining lower what an order or deposit has left.
+- **What an order brings later.** Posting a standing order is listed, but nothing ever fills it, so it never adds goods or credits.
+- **Some effects of a trade.** Sales tax and the planets' rising import price aren't taken off; the credits are the order's price times the units. Goods handed to or taken from your own drones change only the driving drone's hold.
+- **The finance words.** `pay_out`, `request_loan`, `post_contract`, `deliver` and the like are listed as `would call ...`, and change nothing; each returns 0.
+
+So a test drive is for "does it do what I meant, in the order I meant": the right place, the right goods, no crash. Whether it *earns* more you still learn by pushing it and comparing (see below).
+
 ### Pushing new code
 
 You can send new code to the drones of a company you own outright (a startup, or a matured company whose shares you hold all of: see [Owned outright, or public](#owned-outright)) whenever you like, without starting over: from its page (**Push new code (free)**), from your account page (**Change its code**, under a startup), or with `POST /api/v1/startups/{id}/push` and your token. This is called **pushing** new code.
 
-- **It is free.** Until November 2026 each push after the first added 100 to a startup's debt; now none does. To preview a push before you send it, check the script with the company's ID: `POST /api/v1/check` with `company`.
+- **It is free.** Until November 2026 each push after the first added 100 to a startup's debt; now none does. To preview a push before you send it, check the script with the company's ID: `POST /api/v1/check` with `company`. To see what it would do first, test drive it (see [Test driving your code](#test-driving-your-code)).
 - **It travels at the speed of light.** The new code goes from Earth to each working drone of the company, arriving after the time light takes to cross the distance: about a second at the Moon, minutes at Mars.
 - **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes, and a drone on a trip finishes the trip first: its new `launched()` starts where it arrives. A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
 - **Everyone can see that it changed.** The company's page and the API list each push, so anyone can see when a company's code changed. The code itself stays private while you own the company outright (see [Who sees a company's code](#who-sees-code)).
@@ -1546,6 +1576,15 @@ function inputs_ready(n)
   local cost, got = cost_to_buy(n * 2, metals_a1)
   if got < n * 2 then return false end
   return cost <= credits() - 200
+end
+```
+
+<a name="depth"></a>**How deep is the book?** `depth(r)` sums the orders here by price, both sides, best first, leaving out your own (#1009): `depth(r).asks` is a list of `{price, units}` from the cheapest seller up, `depth(r).bids` from the best buyer down. A thin market shows at a glance: one ask of 2 units at 30, then 40 at 55, means a big order would cost far more than `buy_price` says.
+
+```lua
+function thin_market(r, n)
+  local asks = depth(r).asks
+  return #asks == 0 or asks[1].units < n
 end
 ```
 
@@ -2115,7 +2154,7 @@ A share's **cash-out value** is what the company would fetch if it were sold off
 - its **credits**,
 - plus its **goods and equipment**, each at its best House bid anywhere, averaged over the last 7 game days (so it doesn't depend on where the drones are, and one day's prices move it a seventh as much),
 - plus each working drone's **hull**: 1,000, falling to 0 over 365 game days (nothing for a drone with no fuel that has bought none in 3 game days),
-- less its **debts**,
+- less its **debts**: the processor tax it owes, and what it still owes on its loans (#1015: borrowing doesn't make its shares worth more),
 - all over 100.
 
 Say a matured company has 1,200 credits, goods and equipment the House would pay 1,500 for, and one working drone whose hull counts 900. Its cash-out value is (1,200 + 1,500 + 900) ÷ 100 = **36 credits a share**.

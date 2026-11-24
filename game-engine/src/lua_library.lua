@@ -708,6 +708,26 @@ local function buy_orders(r)                                                    
   for _, o in ipairs(list) do o.units = math.max(o.want - o.held, 0) end
   return list
 end
+-- The book here (#1009): units at each price, both sides, best first, the
+-- planets' orders with the rest and this drone's own left out. A global, not
+-- a local: the library is at Lua's 200 locals
+_G.depth = function(r)
+  local function side(orders, better)
+    local at, prices = {}, {}
+    for _, o in ipairs(orders) do
+      if o.mine ~= 1 and o.units > 0 and o.price > 0 then
+        if not at[o.price] then at[o.price] = 0 prices[#prices + 1] = o.price end
+        at[o.price] = at[o.price] + o.units
+      end
+    end
+    table.sort(prices, better)
+    local rows = {}
+    for _, p in ipairs(prices) do rows[#rows + 1] = {price = p, units = at[p]} end
+    return rows
+  end
+  return {asks = side(sell_orders(r), function(a, b) return a < b end),
+          bids = side(buy_orders(r), function(a, b) return a > b end)}
+end
 local function volume_here(r, hours)                                              -- 620
   return record(ask(620, r, hours or 24), {"units", "credits", "trades"})
 end

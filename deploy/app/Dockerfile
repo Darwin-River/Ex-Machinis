@@ -18,9 +18,12 @@ RUN apt-get update \
 COPY game-engine/lua54 /lua54
 COPY game-engine/src/lua_check.c /lua_check.c
 COPY game-engine/src/lua_trade.c /lua_trade.c
+COPY game-engine/src/lua_drive.c /lua_drive.c
 RUN gcc -std=c99 -O2 -DLUA_USE_POSIX -I/lua54 -o /lua-check /lua_check.c \
         $(ls /lua54/*.c | grep -v -e '/lua.c$' -e '/luac.c$') -lm \
  && gcc -std=c99 -O2 -DLUA_USE_POSIX -I/lua54 -o /lua-trade /lua_trade.c \
+        $(ls /lua54/*.c | grep -v -e '/lua.c$' -e '/luac.c$') -lm \
+ && gcc -std=c99 -O2 -DLUA_USE_POSIX -I/lua54 -o /lua-drive /lua_drive.c \
         $(ls /lua54/*.c | grep -v -e '/lua.c$' -e '/luac.c$') -lm
 
 FROM php:8.3-apache
@@ -38,6 +41,7 @@ WORKDIR /var/www
 COPY --from=vendor /app /var/www
 COPY --from=luacheck /lua-check /var/www/game-engine/src/bin/lua-check
 COPY --from=luacheck /lua-trade /var/www/game-engine/src/bin/lua-trade
+COPY --from=luacheck /lua-drive /var/www/game-engine/src/bin/lua-drive
 RUN php artisan package:discover \
  && mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views \
  && chown -R www-data:www-data storage bootstrap/cache

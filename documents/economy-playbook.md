@@ -355,6 +355,24 @@ After each newcomer round, race the newcomers' best scripts: release each once i
 
 ## Round log
 
+### Round 78: the whole pipeline, from a first startup to lending (#380, #921, #1012)
+
+Eight adult newcomer personas played the redesign (#921, the funnel #987, the first mission #932, test drives #1005 and #1007) in a fresh local world, a game day every 24 real seconds, for an hour:
+
+| Starter, unchanged until it matured | Startups | Game days to mature | Round 73 |
+|---|---|---|---|
+| Miner | 6 | 27.6 to 47.6 (median 34) | 68 to 77 |
+| Refiner | 1 (and 1 with one number changed) | 52.8 (55) | 59 to 60 |
+| Maker | 0 | stalled on the startup buy cap (#1013) | 29 to 33 |
+
+- **Every persona matured a company in 11 to 22 real minutes**, including June, a nurse who has never programmed, who changed the one number her first mission named. The first mission, the strip under the menu and the test drive carried the two newest programmers.
+- **Every deploy brought back the retired startup caps** (#1013): `game_data.sql` reloads `house_rules` with migration 0087's defaults, so the Maker stalls on the buy cap and pages show a credit cap of 8,400. The game data must carry a rule's values itself, not only a migration.
+- **The money layer works, and breaks at its seams:** cash-out ignored loans, so a borrower's shares sold to the bank above their worth (#1015); a contract to one's own private company tunnelled 1,500 credits out of a public one, unseen by the investor sheet (#1020); class groups gave one person extra accounts round the 7-day ban (#1019). Each rule held on its own; the holes were where two systems met.
+- **Idle cash fell to 39%** (93% in round 73, 99% live) and 26% of trades were between players' companies: young companies that borrow and pay out keep credits at work. The return (PO-18) ran at 63% in 30 game days, far above its band, because young companies pay out fast.
+- **A release drops the script's last newline**, so nothing recognised an unchanged starter and PO-01 and PO-02 read n=0 (#1016). Time starters from the database until it is fixed.
+- **Rate limits by address** hurt a whole room behind one address (#1017).
+- Ratings (eight): fun 7.25, clarity 6.1, depth 8, feedback 6.4, API 6.9, again 7.6, overall 7.1; Lua 7 to learn, 7.6 for fit.
+
 ### Round 73: the starters' times after the buying floor (#380, #777)
 
 Juno, Bram and Mei each started an unchanged Miner, Maker and Refiner in the first five minutes (game day 6084, 48 s a game day, the whole hour at full pace):

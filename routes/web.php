@@ -124,6 +124,8 @@ Route::middleware('new-rules')->group(function () {
         ->middleware('signed:relative')->name('account.verify');
     Route::post('/account/verify', 'AccountController@resendVerification');
     Route::post('/account/classes', 'AccountController@createClassGroup');
+    Route::post('/account/bot-keys', 'AccountController@makeBotKey');
+    Route::post('/account/bot-keys/{id}/revoke', 'AccountController@revokeBotKey')->whereNumber('id');
     Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
     Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');
     // Opt-in e-mail notices (#761)
@@ -141,6 +143,8 @@ Route::middleware('new-rules')->group(function () {
     // Startups (#637)
     Route::post('/startups/claim', 'StartupController@claim');
     Route::post('/startups/{id}/push', 'StartupController@reprogram')->whereNumber('id');
+    // A test drive of the draft: what its first drone would do, changing nothing (#1007)
+    Route::post('/startups/{id}/test-drive', 'StartupController@testDrive')->whereNumber('id');
     Route::post('/startups/{id}/close', 'StartupController@close')->whereNumber('id');
     Route::post('/startups/{id}/mature', 'StartupController@mature')->whereNumber('id');
     // Player boards (#640)

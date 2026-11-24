@@ -73,6 +73,28 @@ class LoansTest extends TestCase
             'rate_bp' => $rateBp, 'requested_t' => World::gameNow(), 'due_t' => World::gameNow() + $days * 86400]);
     }
 
+    /** #1015: cash-out counts what a company still owes on its loans, so borrowing doesn't raise its shares' price */
+    public function testCashOutSubtractsWhatTheLoansStillOwe()
+    {
+        $owner = $this->player('Cash Owner');
+        $ruth = $this->player('Cash Lender', 20000);
+        $id = $this->publicCompany($owner, 'Cash Co');
+        $before = PlayerShares::cashOut($id);
+        $req = $this->request($id, 5000, 1000, 20);
+        $this->assertTrue(Loans::back($ruth, $req, 5000)['ok']);
+        $owed = (int) DB::table('loans')->where('company_id', $id)->value('owed');
+        $this->assertGreaterThan(5000, $owed);
+        $after = PlayerShares::cashOut($id);
+        $this->assertSame($before['credits'] + 5000, $after['credits']);
+        $this->assertSame($before['debts'] + $owed, $after['debts']);
+        $this->assertLessThanOrEqual($before['total'], $after['total'], 'borrowing must not make the company look richer');
+        // Part repaid: only what is left counts; closed: nothing
+        DB::table('loans')->where('company_id', $id)->update(['repaid' => 2000]);
+        $this->assertSame($before['debts'] + $owed - 2000, PlayerShares::cashOut($id)['debts']);
+        DB::table('loans')->where('company_id', $id)->update(['closed_t' => World::gameNow()]);
+        $this->assertSame($before['debts'], PlayerShares::cashOut($id)['debts']);
+    }
+
     public function testPlayersBackALoanAndItIsRepaidOnTheDueDate()
     {
         $owner = $this->player('Borrow Owner');
