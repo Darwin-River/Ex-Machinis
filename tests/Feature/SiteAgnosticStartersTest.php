@@ -42,21 +42,32 @@ class SiteAgnosticStartersTest extends TestCase
             $this->assertStringContainsString('function choose_site(except)', $src, $name);
             // Spread by drone number, not math.random (a rebuilt drone would roll differently)
             $this->assertStringContainsString('good[me() % #good + 1]', $src, $name);
-            $this->assertStringNotContainsString('math.random', $src, $name);
+            $this->assertStringNotContainsString('math.random', self::logic($src), $name);
             // Moves only for a clear gain, and chooses again when a site runs dry
-            $this->assertMatchesRegularExpression('/^move_margin = \d+/m', $src, $name);
+            $this->assertMatchesRegularExpression('/^percent_better_to_move = \d+/m', $src, $name);
             $this->assertStringContainsString('choose_site(site)', $src, $name);
-            $this->assertStringContainsString('function fuel_stop()', $src, $name);
+            $this->assertStringContainsString('function cheapest_fuel_stop()', $src, $name);
         }
     }
 
     public function testTheMakerAndTraderFindTheirMarketsFromTheGame()
     {
         $maker = (string) file_get_contents(base_path('examples/starters/maker.lua'));
-        $this->assertStringContainsString('where_to_buy(metals_a1, batch, HOUR_AWAY_COST)', $maker);
+        $this->assertStringContainsString('where_to_buy(metals_a1, metals_per_purchase, CREDITS_PER_HOUR_AWAY)', $maker);
         $this->assertStringContainsString('where_to_sell(rods,', $maker);
         $trader = (string) file_get_contents(base_path('examples/starters/trader.lua'));
         $this->assertStringContainsString('price_board(metal)', $trader);
         $this->assertStringContainsString('buying_at = choose_buying_place()', $trader);
+    }
+
+    /** The names say what the code does; comments are kept for why (#1034) */
+    public function testTheStartersAreSelfDescribing()
+    {
+        foreach (glob(base_path('examples/starters/*.lua')) as $file) {
+            $lines = array_filter(explode("\n", (string) file_get_contents($file)), fn ($l) => trim($l) !== '');
+            $comments = array_filter($lines, fn ($l) => str_starts_with(ltrim($l), '--'));
+            $this->assertLessThanOrEqual(0.1, count($comments) / count($lines),
+                basename($file) . ': ' . count($comments) . ' of ' . count($lines) . ' lines are comments');
+        }
     }
 }

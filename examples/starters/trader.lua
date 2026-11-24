@@ -1,43 +1,37 @@
--- Trader: a starter drone for Ex Machinis. Its objective is margin on
--- metals: it buys an Engine, then buys metals from the miners wherever they
--- are on sale cheapest, whenever another place paid enough more for them
--- over the last game day, hauls them to whichever paid most, sells them and
--- comes back. It names no place: the price board and the order books say
--- where to buy and sell, so it follows the miners wherever they go. Change
--- the settings below to make it your own.
+-- Trader: a starter drone for Ex Machinis. It produces a margin on metals.
+-- It buys metals from miners wherever they are on sale cheapest, when
+-- another place paid enough more for them over the last game day, hauls
+-- them there and sells them. It names no place: the order books and the
+-- price board say where, so it follows the miners wherever they go.
 
--- Settings
-cargo_goal = 150   -- metals to gather before setting off (units)
-min_load = 40      -- metals it sets off with once it has run out of patience (units)
-patience = 24      -- looks at the market before it sets off with less than a full load
-trip_fuel = 25     -- fuel to have aboard before each trip (units)
-trip_cost = 200    -- what a round trip costs in fuel and time, spread over a load (credits)
-min_margin = 2     -- least profit a metal must make after the trip and the tax (credits a unit)
-nap = 120          -- rest when nothing is worth buying (game minutes)
-cash_floor = 200   -- credits kept for fuel: spent on metals, it would be stranded (credits)
+-- Settings: change these to make it your own
+metals_for_a_full_load = 150
+metals_for_a_short_load = 40
+looks_before_a_short_load = 24
+fuel_for_a_trip = 25
+trip_cost_spread_over_a_load = 200    -- credits
+least_profit_a_metal = 2              -- credits, after the trip and the tax
+minutes_to_rest_when_nothing_pays = 120
+credits_kept_for_fuel = 200
+credits_per_game_hour = 4             -- what a game hour of its time is worth when it chooses where to buy
 
-traded = {metals_a1, metals_a2, metals_a3}   -- the metals it buys and sells
-hour_value = 4                               -- credits a game hour of its time is worth, choosing where to buy
+traded = {metals_a1, metals_a2, metals_a3}
 
--- Other numbers it uses
-share_kept_after_sales_tax = 95   -- percent of a sale a seller keeps (the tax is 5%)
-most_sold_per_metal_an_hour = 15  -- buyers bid less as they stock up, so it sells slowly (units)
-selling_hours = 6                 -- hours it sells for; what is left goes on the next trip
-selling_pause = 60                -- between hours of selling (game minutes)
-refuel_pause = 120                -- after buying fuel (game minutes)
-engine_shopping_pause = 60        -- between tries to buy an Engine (game minutes)
-nearly_broke = 20                 -- spare credits under which it sets off with what it has
-report_every = 4                  -- rounds of work between reports home
-startup_recheck_pause = 1440     -- between checks on whether it may trade: a game day (game minutes)
-fuel_reserve = 15                 -- make, mine, refine and push stop here, to keep fuel to buy more (units)
+local PERCENT_KEPT_AFTER_TAX = 95
+local MOST_SOLD_A_METAL_AN_HOUR = 15
+local HOURS_SELLING_AT_ONE_PLACE = 6
+local GAME_HOUR = 60
+local MINUTES_TO_WAIT_FOR_FUEL = 120
+local NEARLY_BROKE = 20
+local ROUNDS_BETWEEN_REPORTS = 4
+local GAME_DAY = 1440
+local FUEL_FLOOR = 15
+local STARTUP_STATUS = "A startup trades only with the House: nothing to trade. Release a Miner instead"
 
--- Its status line as a startup (a status line holds 80 characters)
-startup_message = "A startup trades only with the House: nothing to trade. Release a Miner instead"
-
--- What it has been doing (kept if the engine restarts)
+-- Globals survive a restart
 looks_since_last_trip = 0
-rounds_worked = 0
-buying_at = 0   -- where it buys (0: not chosen yet)
+rounds = 0
+buying_at = 0
 
 function metals_aboard()
   local total = 0
@@ -45,156 +39,137 @@ function metals_aboard()
   return total
 end
 
-function spare_credits() return math.max(credits() - cash_floor, 0) end
+function spare_credits() return math.max(credits() - credits_kept_for_fuel, 0) end
 
--- The place (not where it buys) where a metal sold for most over the last
--- game day, and that price less the sales tax (0 where it didn't trade)
-function best_market_for(metal)
-  local best_market, best_price = nil, 0
+function best_price_elsewhere_after_tax(metal)
+  local best = 0
   for _, board in ipairs(price_board(metal)) do
-    local price = board.price * share_kept_after_sales_tax // 100
-    if board.place ~= buying_at and price > best_price then best_market, best_price = board.place, price end
+    if board.place ~= buying_at then best = math.max(best, board.price * PERCENT_KEPT_AFTER_TAX // 100) end
   end
-  return best_market, best_price
+  return best
 end
 
--- What it fetches, less this unit's share of the trip and the margin
 function highest_price_worth_paying(metal)
-  local _, worth = best_market_for(metal)
-  return worth - trip_cost // cargo_goal - min_margin
+  return best_price_elsewhere_after_tax(metal) - trip_cost_spread_over_a_load // metals_for_a_full_load - least_profit_a_metal
 end
 
--- Buys what the cheapest seller here offers of a metal, if the price is
--- right and the load and spare credits have room. True if it bought any
-function buy_metal_if_worth_it(metal)
+function buy_metal_if_it_pays(metal)
   local price, seller, available = best_offer(metal)
   if available == 0 or price > highest_price_worth_paying(metal) then return false end
-  local room_in_load = cargo_goal - metals_aboard()
+  local room = metals_for_a_full_load - metals_aboard()
   local affordable = spare_credits() // math.max(price, 1)
-  local amount = math.min(available, room_in_load, affordable)
+  local amount = math.min(available, room, affordable)
   if amount <= 0 then return false end
   return pull(amount, metal, seller) == 0
 end
 
--- Tops up the tank here, from the cheapest seller
 function fuel_up()
-  if units(fuel) < trip_fuel then
-    buy_here(trip_fuel, fuel)
-    wait(refuel_pause)
+  if units(fuel) < fuel_for_a_trip then
+    buy_here(fuel_for_a_trip, fuel)
+    wait(MINUTES_TO_WAIT_FOR_FUEL)
   end
 end
 
-function sell_load_here()
-  for hour = 1, selling_hours do
+-- Buyers bid less as they stock up; what is left goes on the next trip
+function sell_load_here_a_little_an_hour()
+  for _ = 1, HOURS_SELLING_AT_ONE_PLACE do
     if metals_aboard() == 0 then return end
     for _, metal in ipairs(traded) do
-      local amount = math.min(units(metal), most_sold_per_metal_an_hour)
+      local amount = math.min(units(metal), MOST_SOLD_A_METAL_AN_HOUR)
       if amount > 0 then sell_here(amount, metal) end
     end
-    wait(selling_pause)
+    wait(GAME_HOUR)
   end
 end
 
--- The place (not where it buys) where the load aboard sold for most over
--- the last game day; nil if it traded nowhere else
-function market_paying_most_for_load()
+function place_paying_most_for_load()
   local load_value = {}
   for _, metal in ipairs(traded) do
     local amount = units(metal)
-    if amount > 0 then
-      for _, board in ipairs(price_board(metal)) do
-        if board.place ~= buying_at then
-          load_value[board.place] = (load_value[board.place] or 0) + amount * board.price
-        end
+    for _, board in ipairs(price_board(metal)) do
+      if amount > 0 and board.place ~= buying_at then
+        load_value[board.place] = (load_value[board.place] or 0) + amount * board.price
       end
     end
   end
-  local best_market, best_value = nil, 0
+  local best, best_value = nil, 0
   for place, value in pairs(load_value) do
-    if value > best_value then best_market, best_value = place, value end
+    if value > best_value then best, best_value = place, value end
   end
-  return best_market
+  return best
 end
 
--- Where a load of metals costs least to buy, counting the trip; here if
--- none is on sale anywhere
 function choose_buying_place()
-  local best = where_to_buy(metals_a1, min_load, hour_value)[1]
+  local best = where_to_buy(metals_a1, metals_for_a_short_load, credits_per_game_hour)[1]
   return best and best.place or location()
 end
 
--- Each look counts toward setting off with a smaller load
 function shop_for_metals()
   fuel_up()
   local bought_any = false
   for _, metal in ipairs(traded) do
-    if buy_metal_if_worth_it(metal) then bought_any = true end
+    if buy_metal_if_it_pays(metal) then bought_any = true end
   end
   looks_since_last_trip = looks_since_last_trip + 1
-  if not bought_any then wait(nap) end
+  if not bought_any then wait(minutes_to_rest_when_nothing_pays) end
 end
 
--- If no other place traded its metals, it sells where it is; then it
--- chooses afresh where to buy, as the miners move
-function haul_load_and_return()
+-- The miners move, so it chooses afresh where to buy after every trip
+function haul_load_and_come_back()
   fuel_up()
-  local market = market_paying_most_for_load()
+  local market = place_paying_most_for_load()
   if market then go(market) end
-  sell_load_here()
+  sell_load_here_a_little_an_hour()
   fuel_up()
   buying_at = choose_buying_place()
   go(buying_at)
   looks_since_last_trip = 0
 end
 
--- A full load, or a smaller one after waiting long enough, or whatever it
--- has once its money is spent
 function ready_to_set_off()
   local load = metals_aboard()
-  return load >= cargo_goal
-    or (load >= min_load and looks_since_last_trip >= patience)
-    or (load > 0 and spare_credits() < nearly_broke)
+  return load >= metals_for_a_full_load
+    or (load >= metals_for_a_short_load and looks_since_last_trip >= looks_before_a_short_load)
+    or (load > 0 and spare_credits() < NEARLY_BROKE)
 end
 
-function report_home_now_and_then()
-  rounds_worked = rounds_worked + 1
-  if rounds_worked % report_every ~= 0 then return end
+function report_now_and_then()
+  rounds = rounds + 1
+  if rounds % ROUNDS_BETWEEN_REPORTS ~= 0 then return end
   print("day " .. today() .. " credits " .. credits() .. " fuel " .. units(fuel) .. " metals " .. metals_aboard())
   report()
 end
 
-function work_one_round()
-  if ready_to_set_off() then haul_load_and_return() else shop_for_metals() end
-  report_home_now_and_then()
+function work()
+  if ready_to_set_off() then haul_load_and_come_back() else shop_for_metals() end
+  report_now_and_then()
 end
 
--- The House's prices leave a trader no margin, and a startup may trade
--- only with the House: say so, rather than nap for ever
+-- The House's prices leave a trader no margin, and a startup trades only with the House
 function wait_while_a_startup()
   while house_only() do
-    set_status(startup_message)
-    wait(startup_recheck_pause)
+    set_status(STARTUP_STATUS)
+    wait(GAME_DAY)
   end
 end
 
--- An Engine is all it needs to fly; the rest of its credits are for trading
 function get_an_engine()
   while units(engine_module) == 0 do
     if units(mining_kit) > 0 or units(factory_kit) > 0 then
       unpack()
     else
       buy_here(1, engine_module)
-      wait(engine_shopping_pause)
+      wait(GAME_HOUR)
     end
   end
 end
 
--- May run again after a crash or an engine restart: each step is safe to repeat
+-- launched() runs again after a crash or a restart: each step is safe to repeat
 function launched()
   wait_while_a_startup()
-  fuel_floor(fuel_reserve)
+  fuel_floor(FUEL_FLOOR)
   get_an_engine()
   if buying_at == 0 then buying_at = choose_buying_place() end
   go(buying_at)
-  while true do work_one_round() end
+  while true do work() end
 end

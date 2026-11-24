@@ -34,14 +34,14 @@ class RoundSeventyFixesTest extends TestCase
         foreach (['starters/miner'] as $name) {
             $src = $this->source("examples/$name.lua");
             $this->assertStringNotContainsString('if units(fuel) < 15 then wait(rest); return end', $src, $name);
-            $this->assertStringContainsString('if units(fuel) < low_fuel then refuel(); return end', $src, $name);
+            $this->assertStringContainsString('if units(fuel) < refuel_below then refuel(); return end', $src, $name);
         }
         $miner = $this->source('examples/starters/miner.lua');
         $this->assertStringContainsString('function best_market(except)', $miner);
         $this->assertStringContainsString('house_demand(metal)', $miner);
         // #1034: every exchange the House bids at counts, not a list of places
         $this->assertStringContainsString('for place, value in pairs(house_value_of_metals()) do', $miner);
-        $this->assertMatchesRegularExpression('/^haul_at = 60/m', $miner);
+        $this->assertMatchesRegularExpression('/^unsold_to_haul_onward = 60/m', $miner);
         $this->assertStringContainsString('local where = best_market() or nearest_market()', $miner);
     }
 
