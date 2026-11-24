@@ -66,7 +66,7 @@
 
    5. <a id="5.5"></a>**Measure it.**
 
-      1. <a id="5.5.1"></a>Run the live measure about a real day after the deploy and again about a real week after, and post each table on the tuning issue.
+      1. <a id="5.5.1"></a>Run the live measure about a real day after the deploy and again about a real week after, and post each table on the tuning issue. While the daily balance check of [DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) runs, it posts these.
 
       2. <a id="5.5.2"></a>Run a playtest round aimed at the change, per [DV-02](DV-02%20Running%20playtest%20rounds.md), and score its playtest objectives.
 
@@ -86,7 +86,7 @@
 
       3. <a id="5.7.3"></a>Close the tuning issue when the pull request that records the result is merged.
 
-   8. <a id="5.8"></a>**Review the balance.** Every five playtest rounds, or once a month if sooner, Claude posts a balance review on #962: every objective's latest value and trend, the guards, the targets furthest from their bands, and a proposed order for the backlog. The project lead reorders the backlog and revises objectives or bands through tuning issues.
+   8. <a id="5.8"></a>**Review the balance.** Every five playtest rounds, or once a month if sooner, Claude posts a balance review on #962: every objective's latest value and trend, the guards, the targets furthest from their bands, and a proposed order for the backlog. The project lead reorders the backlog and revises objectives or bands through tuning issues. Between reviews, the routine of [DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) checks the live game daily and proposes changes weekly.
 
 6. # <a id="6"></a>References
 
@@ -102,7 +102,9 @@
 
    6. <a id="6.6"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   7. <a id="6.7"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   7. <a id="6.7"></a>[DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md): Monitoring and balancing the live game
+
+   8. <a id="6.8"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
 
 7. # <a id="7"></a>Attachments
 

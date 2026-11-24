@@ -6,6 +6,7 @@ The tools behind [DV-03, Tuning gameplay parameters](../../Procedures/SOPs/DV-03
 |---|---|
 | `objectives.json` | The playability objectives (`PO-nn`): metric, measure (static, live or playtest), target band, guard or target. The only place a band is written. |
 | `static_check.py` | Works out the static objectives from the game data and writes [`documents/balance-report.md`](../../documents/balance-report.md). `--check` (run in CI) fails when a guard is broken or the report is stale. `--json` prints the figures. |
+| `watch.py` | The signals a daily balance check reads beside the live objectives ([DV-05](../../Procedures/SOPs/DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md), #1031): crowding at the near sites, the House's bids at each exchange, the frontier exchanges' traffic and premium, and newcomers counted (never named). Same options as `measure_live.py`, about 30 reads. |
 | `measure_live.py` | Works out the live objectives from a world's public API: `/clock`, `/dashboard`, `/places`, `/startups/race`. It needs no key or login. `--base URL` for another world, `--save DIR` keeps what it read, and `--from DIR` reads saved files offline. |
 
 ## Running them
@@ -14,6 +15,7 @@ The tools behind [DV-03, Tuning gameplay parameters](../../Procedures/SOPs/DV-03
 python3 tools/balance/static_check.py            # after any change to game-engine/sql/game-data/
 python3 tools/balance/static_check.py --check    # what CI runs
 python3 tools/balance/measure_live.py            # the live game, as a Markdown table
+python3 tools/balance/watch.py                   # the daily balance check's other signals (DV-05)
 ```
 
 ## The static model
