@@ -1,48 +1,56 @@
--- Varied: copies that vary (#932). A miner-refiner company (Mining Kit)
--- whose three tuning numbers live in one table, `tune`. It mines wolfite at
--- the Moon, refines it, and sells the metals at the Moon Depot. Each copy it
--- launches starts from the numbers of the drone that is earning most, then
--- nudges each one a step or two, up or down. The nudge comes from who the
--- copy is (`lineage()`: its parent and generation, and its own drone ID), so
--- it is the same every time the copy restarts, and no two copies are alike.
--- Why? Copies that are all the same fail at the same moment: one price
--- slump and the whole fleet waits, or sells cheap, together. Copies that
--- differ spread the risk, and the fleet keeps what works: the best earner's
--- numbers are the ones the next copy starts from.
---
--- How a drone knows which copy earns most: there is no per-drone earnings
--- word (`earnings(hours)` is the whole company's), so each drone adds up what
--- its own sales fetched (`sale_value` just before it sells: close enough) and
--- broadcasts it once a game day with its numbers. Messages are private to
--- the company, so a parent reads its fleet's messages before it launches.
+-- Varied: copies that vary. A miner-refiner (Mining Kit) producing metals,
+-- whose three tuning numbers live in one table, `tune`. Each copy starts
+-- from the numbers of the drone earning most, then nudges each a step or
+-- two by who it is (lineage() and its drone ID), so copies differ and one
+-- slump can't stop the whole fleet at once. Each drone counts what its own
+-- sales fetched and broadcasts it with its numbers once a game day. It
+-- names no place: it mines and sells where the game says pays most.
 
--- Settings: the numbers each copy varies
 tune = {
-  sell_at = 20,    -- least bid for Metals (A1) it sells into (it waits up to 6 game hours for one)
-  hold_cap = 40,   -- metals aboard at which it flies to the Moon Depot to sell them
-  low_fuel = 40,   -- fuel below which it buys more
+  least_bid_to_sell = 20,
+  metals_per_sale = 40,
+  refuel_below = 40,
 }
-steps = {sell_at = 2, hold_cap = 5, low_fuel = 5}         -- one nudge, for each number
-lowest = {sell_at = 8, hold_cap = 20, low_fuel = 25}      -- nudges never go below these
-highest = {sell_at = 60, hold_cap = 120, low_fuel = 90}   -- or above these
+step_of = {least_bid_to_sell = 2, metals_per_sale = 5, refuel_below = 5}
+lowest = {least_bid_to_sell = 8, metals_per_sale = 20, refuel_below = 25}
+highest = {least_bid_to_sell = 60, metals_per_sale = 120, refuel_below = 90}
+-- pairs(tune) may visit the names in any order; a nudge's salt must not change
+tune_names = {"least_bid_to_sell", "metals_per_sale", "refuel_below"}
 
--- Settings that stay the same in every copy
-grow_at = 7000     -- credits at which a matured company launches a copy
-work_cash = 1500   -- credits it keeps per drone, so copies don't starve it
+copy_at_credits = 7000
+credits_kept_per_drone = 1500
+hours_per_stay = 120
+percent_from_best_still_good = 10
+credits_per_game_hour = 4
 
-local LOAD = 18                 -- wolfite for one refining run
-local COPY_FUEL = 40            -- fuel handed to each new copy
-local metals = {metals_a1, metals_a2, inorganics_a2}   -- what refining wolfite makes
+ore = wolfite
+metals_sold = {metals_a1, metals_a2, inorganics_a2}
 
--- Saved state: a copy inherits its parent's globals, so it can tell it's new
-started = 0        -- the drone this state belongs to
-copy = false       -- set just before launching: the copy starts as a copy
-parent_tune = nil  -- the numbers the parent hands its copy
-takings = 0        -- what this drone's own sales fetched
-born_day = 0       -- the game day it started
-told_day = -1      -- the game day it last broadcast its numbers
+local GAME_HOUR = 60
+local FUEL_FLOOR = 15
+local ORE_PER_REFINING = 18
+local CREDITS_FOR_FUEL = 150
+local FUEL_TOP_UP = 30
+local AT_FUEL_FLOOR = -30
+local HOURS_WAITING_FOR_A_BID = 6
+local HOURS_TO_WAIT_FOR_DELIVERY = 6
+local COPY_COST = 5000
+local FUEL_TO_LAUNCH = 90
+local LEAST_FUEL_TO_LAUNCH = 80
+local FUEL_FOR_COPY = 40
+local FLEET_MESSAGES_READ = 60
+local UNREACHABLE = 999
 
--- --- Varying ---------------------------------------------------------------
+-- Globals survive a restart, and a copy inherits them
+started = 0
+copy = false
+parent_tune = nil
+site = 0
+takings = 0
+born_day = 0
+told_day = -1
+
+-- Varying
 
 -- A whole number from -2 to 2, never 0, that depends only on who this drone
 -- is: the same after a restart, different for every copy. salt makes each
@@ -53,135 +61,195 @@ function nudge_of(salt)
   return ({-2, -1, 1, 2})[k + 1]
 end
 
--- (A list, not pairs(tune): pairs may visit the names in any order)
-local NAMES = {"sell_at", "hold_cap", "low_fuel"}
 function vary()
-  for salt, name in ipairs(NAMES) do
-    local v = tune[name] + nudge_of(salt) * steps[name]
-    tune[name] = math.max(lowest[name], math.min(highest[name], v))
+  for salt, name in ipairs(tune_names) do
+    local nudged = tune[name] + nudge_of(salt) * step_of[name]
+    tune[name] = math.max(lowest[name], math.min(highest[name], nudged))
   end
 end
 
--- What this drone has earned a game day, on average
 function earned_a_day() return takings // math.max(1, today() - born_day) end
 
--- Once a game day, tell the fleet its numbers and what they earn (1 fuel)
 function tell_fleet()
   if today() == told_day then return end
   told_day = today()
-  broadcast(string.format("tune %d %d %d earned %d", tune.sell_at, tune.hold_cap, tune.low_fuel, earned_a_day()))
+  broadcast(string.format("tune %d %d %d earned %d",
+    tune.least_bid_to_sell, tune.metals_per_sale, tune.refuel_below, earned_a_day()))
 end
 
--- The numbers of the drone that earns most a day, from the fleet's
--- messages (newest first; its own included), or its own if none says more
 function best_tune()
   local best, most = tune, earned_a_day()
   for i, id in ipairs(events_earth(message_event)) do
-    if i > 60 then break end
-    local s, h, f, e = string.match(message(id) or "", "^tune (%d+) (%d+) (%d+) earned (%d+)")
-    if s and tonumber(e) > most then
-      best, most = {sell_at = tonumber(s), hold_cap = tonumber(h), low_fuel = tonumber(f)}, tonumber(e)
+    if i > FLEET_MESSAGES_READ then break end
+    local bid, per_sale, refuel_at, earned = string.match(message(id) or "", "^tune (%d+) (%d+) (%d+) earned (%d+)")
+    if bid and tonumber(earned) > most then
+      best = {least_bid_to_sell = tonumber(bid), metals_per_sale = tonumber(per_sale), refuel_below = tonumber(refuel_at)}
+      most = tonumber(earned)
     end
   end
   return best
 end
 
--- --- Work ------------------------------------------------------------------
+-- Where to mine and sell
+
+function hours_to(place)
+  if place == location() then return 0 end
+  local trip = trip_to(place)
+  return trip and trip.hours or UNREACHABLE
+end
+
+function units_an_hour(place, yield)
+  local hours = hours_to(place)
+  if hours == UNREACHABLE then return 0 end
+  return yield * hours_per_stay / (hours_per_stay + hours)
+end
+
+-- Copies split the good sites by drone number rather than all taking the best
+function choose_site()
+  local rates, top = {}, 0
+  for _, s in ipairs(best_sites(ore)) do
+    rates[s.place] = units_an_hour(s.place, s.yield)
+    top = math.max(top, rates[s.place])
+  end
+  local good = {}
+  for place, rate in pairs(rates) do
+    if top > 0 and rate * 100 >= top * (100 - percent_from_best_still_good) then table.insert(good, place) end
+  end
+  if #good == 0 then return location() end
+  table.sort(good)
+  return good[me() % #good + 1]
+end
+
+function best_market()
+  local value = {}
+  for _, metal in ipairs(metals_sold) do
+    local aboard = units(metal)
+    for _, bid in ipairs(house_demand(metal)) do
+      if aboard > 0 and bid.price > 0 and bid.left > 0 then
+        value[bid.place] = (value[bid.place] or 0) + bid.price * math.min(aboard, bid.left)
+      end
+    end
+  end
+  local best, best_net = location(), -math.huge
+  for place, credits_there in pairs(value) do
+    local hours = hours_to(place)
+    local net = credits_there - hours * credits_per_game_hour
+    if hours < UNREACHABLE and net > best_net then best, best_net = place, net end
+  end
+  return best
+end
+
+-- Work
 
 function refuel()
-  if units(fuel) >= tune.low_fuel then return end
-  raise_cash(150)
-  buy_here(30, fuel)
-  wait(60)
+  if units(fuel) >= tune.refuel_below then return end
+  raise_cash(CREDITS_FOR_FUEL)
+  buy_here(FUEL_TOP_UP, fuel)
+  wait(GAME_HOUR)
 end
 
 function metals_aboard()
   local n = 0
-  for _, r in ipairs(metals) do n = n + units(r) end
+  for _, metal in ipairs(metals_sold) do n = n + units(metal) end
   return n
 end
 
--- Sells all of a good here, and counts what it fetched as this drone's
-function sell_counted(r)
-  local n = units(r)
+-- sale_value just before selling stands in for a per-drone earnings figure, which the game doesn't give
+function sell_counted(metal)
+  local n = units(metal)
   if n == 0 then return end
-  local value = sale_value(n, r)
-  if sell_here(n, r) == 0 then takings = takings + value end
+  local value = sale_value(n, metal)
+  if sell_here(n, metal) == 0 then takings = takings + value end
 end
 
--- At the Moon Depot: wait up to 6 game hours for a bid of at least sell_at
--- for Metals (A1), then sell everything
 function sell_trip()
-  set_status("selling " .. metals_aboard() .. " metals at the Moon Depot")
-  go(moon)
-  for _ = 1, 6 do
-    if sell_price(metals_a1) >= tune.sell_at then break end
-    wait(60)
+  local market = best_market()
+  set_status("selling " .. metals_aboard() .. " metals at " .. place_name(market))
+  go(market)
+  for _ = 1, HOURS_WAITING_FOR_A_BID do
+    if sell_price(metals_a1) >= tune.least_bid_to_sell then break end
+    wait(GAME_HOUR)
   end
-  for _, r in ipairs(metals) do sell_counted(r) end
+  for _, metal in ipairs(metals_sold) do sell_counted(metal) end
+  go(site)
+end
+
+function mine_a_load()
+  while units(ore) < ORE_PER_REFINING do
+    local result = mine(ore)
+    if result == AT_FUEL_FLOOR then refuel()
+    elseif result ~= 0 then wait(GAME_HOUR) end
+  end
 end
 
 function work()
   refuel()
-  while units(wolfite) < LOAD do
-    local result = mine(wolfite)
-    if result == -30 then refuel()               -- -30: at the fuel floor
-    elseif result ~= 0 then wait(60) end         -- anything else: wait and try again
-  end
-  refine(wolfite)
-  if metals_aboard() >= tune.hold_cap then
+  mine_a_load()
+  refine(ore)
+  if metals_aboard() >= tune.metals_per_sale then
     sell_trip()
     grow()
   end
   tell_fleet()
 end
 
--- --- Growing ---------------------------------------------------------------
+-- Growing
 
-function get_one(r)
-  if units(r) > 0 then return end
-  buy_here(1, r)
-  for _ = 1, 6 do
-    if units(r) > 0 then return end
-    wait(60)
+function get_one(resource)
+  if units(resource) > 0 then return end
+  buy_here(1, resource)
+  for _ = 1, HOURS_TO_WAIT_FOR_DELIVERY do
+    if units(resource) > 0 then return end
+    wait(GAME_HOUR)
   end
 end
 
--- A copy runs this program with its parent's globals: copy and parent_tune
--- are set just before launch, so it starts from the best numbers
-function grow()
-  if house_only() or fleet_full() then return end   -- a startup saves for its debt
+function credits_needed_to_grow()
   local health = company_health()
-  local need = math.max(grow_at, 5000 + work_cash * ((health and health.working or 1) + 1))
-  if credits() < need and units(cruiser_kit) == 0 then return end
-  get_one(cruiser_kit)
-  if units(cruiser_kit) == 0 then return end
-  buy_here(90 - math.min(units(fuel), 90), fuel)
-  if units(fuel) < 80 then return end
-  copy, parent_tune = true, best_tune()
-  if launch(me(), cruiser_kit) ~= 0 then return end
-  get_one(mining_kit)
+  local drones = health and health.working or 1
+  return math.max(copy_at_credits, COPY_COST + credits_kept_per_drone * (drones + 1))
+end
+
+function hand_newest_copy_its_kit()
   local clones = my_clones()
   local newest = clones[#clones]
   if newest and units(mining_kit) > 0 then
     push(1, mining_kit, newest.drone)
-    push(COPY_FUEL, fuel, newest.drone)
+    push(FUEL_FOR_COPY, fuel, newest.drone)
   end
 end
 
--- launched() runs again after a restart: only a new drone takes its
--- parent's numbers and varies them
+-- A startup saves for its debt. copy and parent_tune are set just before
+-- launching, so the copy starts from the best numbers
+function grow()
+  if house_only() or fleet_full() then return end
+  if credits() < credits_needed_to_grow() and units(cruiser_kit) == 0 then return end
+  get_one(cruiser_kit)
+  if units(cruiser_kit) == 0 then return end
+  buy_here(FUEL_TO_LAUNCH - math.min(units(fuel), FUEL_TO_LAUNCH), fuel)
+  if units(fuel) < LEAST_FUEL_TO_LAUNCH then return end
+  copy, parent_tune = true, best_tune()
+  if launch(me(), cruiser_kit) ~= 0 then return end
+  get_one(mining_kit)
+  hand_newest_copy_its_kit()
+end
+
+-- Only a new drone takes its parent's numbers and varies them: one that
+-- varied them at every restart would wander
 function launched()
-  fuel_floor(15)
-  equip(mining_kit)   -- a copy waits for the kit it is handed
+  fuel_floor(FUEL_FLOOR)
+  equip(mining_kit)
   if started ~= me() then
     if copy and parent_tune then
-      tune = {sell_at = parent_tune.sell_at, hold_cap = parent_tune.hold_cap, low_fuel = parent_tune.low_fuel}
+      tune = {least_bid_to_sell = parent_tune.least_bid_to_sell, metals_per_sale = parent_tune.metals_per_sale,
+              refuel_below = parent_tune.refuel_below}
       vary()
     end
     started, takings, born_day = me(), 0, today()
-    set_status(string.format("sells at %d, hauls %d, refuels below %d", tune.sell_at, tune.hold_cap, tune.low_fuel))
+    site = choose_site()
+    set_status(string.format("sells at %d, hauls %d, refuels below %d",
+      tune.least_bid_to_sell, tune.metals_per_sale, tune.refuel_below))
   end
-  go(moon)
+  go(site)
   while true do work() end
 end

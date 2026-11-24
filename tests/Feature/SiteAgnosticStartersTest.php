@@ -13,6 +13,12 @@ class SiteAgnosticStartersTest extends TestCase
 {
     private const PLACES = ['mercury', 'venus', 'earth', 'moon', 'mars', 'phobos', 'deimos', 'ceres'];
 
+    /** The starters and, since #1037, the company designs */
+    private static function designs(): array
+    {
+        return array_merge(glob(base_path('examples/starters/*.lua')), glob(base_path('examples/companies/*.lua')));
+    }
+
     /** The code with its comments and strings taken out */
     private static function logic(string $src): string
     {
@@ -21,9 +27,9 @@ class SiteAgnosticStartersTest extends TestCase
         return preg_replace('/--[^\n]*/', '', $src);
     }
 
-    public function testNoStarterNamesAPlace()
+    public function testNoStarterOrDesignNamesAPlace()
     {
-        $files = glob(base_path('examples/starters/*.lua'));
+        $files = self::designs();
         $this->assertNotEmpty($files);
         foreach ($files as $file) {
             $logic = self::logic((string) file_get_contents($file));
@@ -61,9 +67,9 @@ class SiteAgnosticStartersTest extends TestCase
     }
 
     /** The names say what the code does; comments are kept for why (#1034) */
-    public function testTheStartersAreSelfDescribing()
+    public function testTheStartersAndDesignsAreSelfDescribing()
     {
-        foreach (glob(base_path('examples/starters/*.lua')) as $file) {
+        foreach (self::designs() as $file) {
             $lines = array_filter(explode("\n", (string) file_get_contents($file)), fn ($l) => trim($l) !== '');
             $comments = array_filter($lines, fn ($l) => str_starts_with(ltrim($l), '--'));
             $this->assertLessThanOrEqual(0.1, count($comments) / count($lines),

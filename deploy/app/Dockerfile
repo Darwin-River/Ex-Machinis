@@ -17,9 +17,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY game-engine/lua54 /lua54
 COPY game-engine/src/lua_check.c /lua_check.c
+COPY game-engine/src/include/lua_limits.h /lua_limits.h
 COPY game-engine/src/lua_trade.c /lua_trade.c
 COPY game-engine/src/lua_drive.c /lua_drive.c
-RUN gcc -std=c99 -O2 -DLUA_USE_POSIX -I/lua54 -o /lua-check /lua_check.c \
+RUN gcc -std=c99 -O2 -DLUA_USE_POSIX -I/lua54 -I/ -o /lua-check /lua_check.c \
         $(ls /lua54/*.c | grep -v -e '/lua.c$' -e '/luac.c$') -lm \
  && gcc -std=c99 -O2 -DLUA_USE_POSIX -I/lua54 -o /lua-trade /lua_trade.c \
         $(ls /lua54/*.c | grep -v -e '/lua.c$' -e '/luac.c$') -lm \

@@ -22,8 +22,12 @@ return [
     // had and the 2,000 a kit costs at the House; it buys its own equipment)
     'starting_credits' => 3000,
 
-    // Longest script the Release page accepts (characters)
-    'max_script_length' => 16000,
+    // Longest script a release or push takes (characters). A drone's real
+    // limit is memory (#1035): once loaded, a script must leave 64 KB of its
+    // 256 KB for data (lua-check reports it; Release::scriptProblem refuses a
+    // script that doesn't), and comments take none. This only bounds what is
+    // stored and shown. It was 16,000, the FORTH engine's command buffer.
+    'max_script_length' => 64000,
 
     // Code pushes (#553): each costs this many thousandths of the company's
     // credits times the push's number (5%, 10%, 15%...), at most the cap

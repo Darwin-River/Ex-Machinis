@@ -1,147 +1,151 @@
--- Smith: a company design for Public Forge, in Lua (economy rounds 2, 4,
--- 6, 9, 12; #380). It equips itself with the Factory Kit (Engine, Smelter,
--- Chemical Reactor and Spider).
--- It turns Metals (A1) into rods (two metals make an alloy, an alloy makes
--- a rod, which has sold for several times its metals). It can't mine
--- (#380: the mining gear is too big to carry with the factory tools): it
--- buys its metals, and its fuel, wherever they are cheapest, from any
--- drone's sell orders (the miners', the station drone's). Copies spread
--- out: a third work the Moon and sell their rods at Earth, a short hop
--- away; the rest work Mars orbit, where metals and rods both trade at the
--- Mars Exchange. It sells rods 4 an hour: buyers tend to bid less as they
--- stock up.
+-- Smith: a company design for Ex Machinis, in Lua. Release it with the
+-- Factory Kit. It produces rods: it buys Metals (A1) wherever they cost
+-- least after the trip, makes them into alloys and the alloys into rods,
+-- and sells the rods wherever they pay most after the trip. It can't mine:
+-- the mining gear is too big to carry with the factory tools.
+-- It names no place: every "where" is a question to the game.
 
--- Settings
-rod_load = 12      -- rods it takes to market (4 cargo each)
-low_fuel = 40      -- buy fuel below this
-batch = 20         -- metals it buys at a time
-cash_floor = 300   -- credits it keeps (for fuel)
+rods_per_selling_trip = 12
+refuel_below = 40
+metals_per_purchase = 20
+cash_floor = 300
+credits_per_game_hour = 10
 
--- The site: 0 the Moon, else Mars orbit (by drone number); its rod market
-site_no = 0
-function site() if site_no == 0 then return moon else return mars end end
-function rod_market() if site() == moon then return earth else return mars end end
+local GAME_HOUR = 60
+local FUEL_FLOOR = 15
+local FUEL_TOP_UP = 30
+local LEAST_FUEL_TO_MAKE = 10
+local HIGHEST_METAL_PRICE = 30
+local CREDITS_FOR_TWO_METALS = 60
+local METALS_PER_ROD = 2
+local RODS_SOLD_AN_HOUR = 4
+local HOURS_SELLING_AT_ONE_PLACE = 6
+local REFUEL_AT_MARKET_BELOW = 60
+local HOURS_TO_WAIT_FOR_DELIVERY = 6
+local COPY_AT_CREDITS = 7000
+local FUEL_TO_LAUNCH = 90
+local LEAST_FUEL_TO_LAUNCH = 80
+local FUEL_AFTER_LAUNCH = 60
+local FUEL_FOR_COPY = 40
 
--- Fuel from the cheapest sellers here (buy_here: any drone's sell orders,
--- the station drone's too)
 function refuel()
-  if units(fuel) < low_fuel then buy_here(30, fuel); wait(60) end
+  if units(fuel) < refuel_below then buy_here(FUEL_TOP_UP, fuel); wait(GAME_HOUR) end
 end
 
--- Credits above cash_floor
 function spare() return math.max(credits() - cash_floor, 0) end
 
--- Metals for a batch, as many as the spare credits pay for (at most 30 a
--- unit), from the cheapest sellers here
+function cheapest_metals_after_trip()
+  local best = where_to_buy(metals_a1, metals_per_purchase, credits_per_game_hour)[1]
+  return best and best.place
+end
+
+function best_rod_market()
+  local best = where_to_sell(rods, math.max(units(rods), 1), credits_per_game_hour)[1]
+  if best and best.net > 0 then return best.place end
+  local house_best, most = nil, 0
+  for _, bid in ipairs(house_demand(rods)) do
+    if bid.price > most and bid.left > 0 then house_best, most = bid.place, bid.price end
+  end
+  return house_best
+end
+
 function stock_up()
-  if units(metals_a1) >= 2 then return end
-  local n = math.min(batch, spare() // 30)
-  if n > 0 then buy_here(n, metals_a1); wait(60) end
+  if units(metals_a1) >= METALS_PER_ROD then return end
+  if buy_price(metals_a1) == 0 then
+    local place = cheapest_metals_after_trip()
+    if place then go(place) end
+  end
+  local amount = math.min(metals_per_purchase, spare() // HIGHEST_METAL_PRICE)
+  if amount > 0 then buy_here(amount, metals_a1); wait(GAME_HOUR) end
 end
 
--- Out of metals and of money to buy them, with rods aboard: go and sell
--- them, however few (else it would wait for a full load for ever)
+-- Out of metals and money, it sells whatever rods it has rather than wait for a full load for ever
 function stuck()
-  return units(metals_a1) < 2 and spare() < 60 and units(rods) > 0
+  return units(metals_a1) < METALS_PER_ROD and spare() < CREDITS_FOR_TWO_METALS and units(rods) > 0
 end
 
--- Metals (A1) into rods, two at a time; stop at the first failure
 function forge_rods()
-  while units(metals_a1) > 1 and units(fuel) > 10 do
+  while units(metals_a1) >= METALS_PER_ROD and units(fuel) > LEAST_FUEL_TO_MAKE do
     if make(alloys_a1) ~= 0 then return end
     if make(rods) ~= 0 then return end
   end
 end
 
--- Sell at most 4 rods an hour, for up to 6 hours (buyers here tend to bid
--- less as they stock up, and bid again later); the rest go next time
+-- Buyers bid less as they stock up, and bid again later
 function sell_rods()
-  for _ = 1, 6 do
+  for _ = 1, HOURS_SELLING_AT_ONE_PLACE do
     if units(rods) == 0 then return end
-    sell_here(math.min(units(rods), 4), rods)
-    wait(60)
+    sell_here(math.min(units(rods), RODS_SOLD_AN_HOUR), rods)
+    wait(GAME_HOUR)
   end
 end
 
--- Growth (#380): with 7,000 credits or more, at an exchange, buy a Mining
--- Cruiser kit and a Factory Kit I, launch a clone of this drone (it runs
--- this same program), and hand it the kit and 40 fuel
-
--- Buy one of a good here unless one is aboard, and wait (up to 6 game
--- hours) for it, in case nobody here has one for sale yet
 function get_one(resource)
   if units(resource) > 0 then return end
   buy_here(1, resource)
-  for _ = 1, 6 do
+  for _ = 1, HOURS_TO_WAIT_FOR_DELIVERY do
     if units(resource) > 0 then return end
-    wait(60)
+    wait(GAME_HOUR)
   end
 end
 
--- Hand the newest clone a factory kit and 40 fuel
 function equip_clone()
   local clones = my_clones()
   local newest = clones[#clones]
   if not newest then return end
   push(1, factory_kit, newest.drone)
-  push(40, fuel, newest.drone)
+  push(FUEL_FOR_COPY, fuel, newest.drone)
 end
 
--- Top the tank up to n here, cheapest first, waiting (up to 6 game hours)
--- (Waits for the fuel, not for n: the pull itself burns a unit, so the
--- tank can end just short of n, and waiting for n then sat out all 6 hours)
+-- Waits for the fuel to arrive, not for n: the pull burns a unit, so the tank can end just short
 function fill_to(n)
   local had = units(fuel)
-  local need = n - had
-  if need <= 0 then return end
-  buy_here(need, fuel)
-  for _ = 1, 6 do
+  if n <= had then return end
+  buy_here(n - had, fuel)
+  for _ = 1, HOURS_TO_WAIT_FOR_DELIVERY do
     if units(fuel) > had then return end
-    wait(60)
+    wait(GAME_HOUR)
   end
 end
 
--- One kit at a time. A hull already bought is launched whenever the fuel
--- allows; after equipping the clone the tank is refilled (round 19 lost 8
--- parents that left with 20 fuel)
+-- Refills after equipping a copy: parents that left with 20 fuel were lost
 function reinvest()
-  if units(factory_kit) > 0 then equip_clone(); fill_to(60); return end
+  if units(factory_kit) > 0 then equip_clone(); fill_to(FUEL_AFTER_LAUNCH); return end
   if units(cruiser_kit) == 0 then
-    if credits() < 7000 then return end
-    if fleet_full() then return end   -- the company has all the drones it may have (#682)
+    if credits() < COPY_AT_CREDITS or fleet_full() then return end
     get_one(cruiser_kit)
     if units(cruiser_kit) == 0 then return end
   end
-  fill_to(90)
-  if units(fuel) < 80 then return end
+  fill_to(FUEL_TO_LAUNCH)
+  if units(fuel) < LEAST_FUEL_TO_LAUNCH then return end
   if launch(me(), cruiser_kit) ~= 0 then return end
   get_one(factory_kit)
   if units(factory_kit) > 0 then equip_clone() end
-  fill_to(60)
+  fill_to(FUEL_AFTER_LAUNCH)
 end
 
--- Fuel first: every action at the market burns a unit
 function haul()
-  go(rod_market())
-  if units(fuel) < 60 then buy_here(30, fuel); wait(120) end
+  local market = best_rod_market()
+  if not market then wait(2 * GAME_HOUR); return end
+  go(market)
+  if units(fuel) < REFUEL_AT_MARKET_BELOW then buy_here(FUEL_TOP_UP, fuel); wait(2 * GAME_HOUR) end
   sell_rods()
   reinvest()
-  go(site())
+  local metals_place = cheapest_metals_after_trip()
+  if metals_place then go(metals_place) end
 end
 
 function work()
   refuel()
   stock_up()
   forge_rods()
-  if units(rods) >= rod_load or stuck() then haul() end
+  if units(rods) >= rods_per_selling_trip or stuck() then haul() end
 end
 
--- launched() may run again (after a crash, or if the engine restarts):
--- equip passes once the tools are unpacked
 function launched()
-  fuel_floor(15)   -- make, mine, refine and push stop at 15 fuel: it keeps enough to buy more (#496)
-  equip(factory_kit)   -- buys a kit at Earth and unpacks it (a copy waits for the one it is handed; #506)
-  if me() % 3 == 0 then site_no = 0 else site_no = 1 end
-  go(site())
+  fuel_floor(FUEL_FLOOR)
+  equip(factory_kit)
+  local metals_place = cheapest_metals_after_trip()
+  if metals_place then go(metals_place) end
   while true do work() end
 end

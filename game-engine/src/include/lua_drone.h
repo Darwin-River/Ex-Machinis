@@ -26,8 +26,7 @@
    comparator); past that it stops with an error */
 #define LUA_UNPAUSABLE_INSTRUCTIONS 2000000
 
-/* The most memory a drone's Lua may hold */
-#define LUA_MEMORY_CAP (256 * 1024)
+#include "lua_limits.h"   /* LUA_MEMORY_CAP, LUA_DATA_HEADROOM */
 
 /* What a run of a Lua drone was for */
 typedef enum {
