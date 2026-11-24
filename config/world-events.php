@@ -78,4 +78,9 @@ return [
         'label' => 'Ceres Station opens',
         'text' => 'A fourth exchange opened at Ceres, in the asteroid belt: it pays more for refined goods and parts, sells fuel dear and little of it, and sells no hulls or kits, so trade began to reach beyond Mars.',
     ],
+    [
+        'key' => 'site-agnostic-starters', 'kind' => 'rule', 'migration' => '0110_site_agnostic_starters', 'issue' => 1034,
+        'label' => 'Starters choose their sites',
+        'text' => 'The starter scripts stopped naming places: they ask the game where their ores pay most an hour, counting the trip, split the good sites between drones, and sell and buy wherever pays best, so new startups spread out and the starters\' times to mature start afresh.',
+    ],
 ];

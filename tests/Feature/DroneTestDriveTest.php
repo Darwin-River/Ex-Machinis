@@ -98,10 +98,11 @@ class DroneTestDriveTest extends TestCase
         $texts = array_column($drive['actions'], 'text');
         $this->assertGreaterThan(5, count($texts));
         $this->assertStringStartsWith('would unpack', strtolower($texts[0]));
-        $this->assertSame('would fly to the Moon', preg_replace('/ \(.*$/', '', $texts[1]));
-        $mines = array_filter($texts, fn ($t) => preg_match('/^would mine \d+ [\w ()]+ at the Moon \(1 game hour, 1 fuel\)$/', $t));
-        $this->assertNotEmpty($mines, implode("\n", $texts));
-        $this->assertNotEmpty(array_filter($texts, fn ($t) => str_starts_with($t, 'would refine')), implode("\n", $texts));
+        // #1034: it names no place, so it goes only where the game says its ores
+        // are found and how to get there. The test world lists no sites and no
+        // trips: it flies nowhere blind, and says why it waits
+        $this->assertEmpty(array_filter($texts, fn ($t) => str_contains($t, 'fly to')), implode("\n", $texts));
+        $this->assertContains('dry here and nowhere better: resting', $drive['status'] ?? [], implode("\n", $drive['lines']));
 
         // Nothing written: the engine's tables, the company's credits and the drone's hold are as they were
         $this->assertSame($before, $this->counts());

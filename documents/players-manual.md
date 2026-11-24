@@ -70,6 +70,7 @@ The reference material is at the back: [what an error or a failure code means](#
     - [Waiting](#waiting)
     - [Traveling between locations](#traveling-between-locations)
     - [Time and distance](#time-and-distance)
+    - [Drones that work anywhere](#drones-that-work-anywhere)
   - [Chapter 6: Reports, trying your code, and starting over](#chapter-6-reports-trying-your-code-and-starting-over)
     - [What your drone says](#what-your-drone-says)
     - [Saying what it's doing](#saying-what-its-doing)
@@ -185,6 +186,7 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 - **Failing is free.** A new company is a **startup**, and the bank lends it its drone and its credits. If it goes wrong, close it: its debt is cancelled, and a game day later its slot is free for the next one. You can own up to five companies outright at once, startups included.
 - **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
 - **Iterate.** Fix the flaw and send the fix to your startup, or try a different idea as a new startup. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
+- **Give it an objective, not an address.** Write what the drone is for (metals, rods, a margin on trade) and let it ask the game where to pursue it: where its ore yields most now, where its goods sell best, where fuel is cheapest. A drone written for one place fails when that place gets crowded, its prices fall or a better place opens, and every drone written the same way crowds the same place. See [Drones that work anywhere](#drones-that-work-anywhere).
 - **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it. Once a company has matured, the market may help as well: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)). A startup has only the House and its own drones.
 - **Release early, release often.** There is no test world: every release is live. A startup costs you nothing, so release a script as soon as it might work, watch it, and send it a better one, or close it and start again. Failing costs nothing but the lesson.
 - **Learn from others.** A public company's code is there for anyone to read, and so is an ended company's (a company one player owns outright keeps its code private until its shares are offered). The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating.
@@ -312,13 +314,23 @@ Prefer to play from a program, or to have an AI agent play? The [API](api.md) re
 
 Not sure where to begin? The Found a startup page offers three starter scripts as cards: the **Miner** is picked when the page opens, and clicking **Refiner** or **Maker** loads that one into the script box instead. Each buys its own equipment at Earth first. They are the files `examples/starters/miner.lua`, `refiner.lua` and `maker.lua`. Each is explained in its comments and works as a startup: it sells straight to the House, posts no standing orders, and launches no copies until it has matured, so it saves its credits for its debt. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
-- **Miner** (Mining Kit): mines wolfite on the Moon (the richer of kunspar and wolfite there, `richer`: kunspar is only found far away now), refines it and sells the metals (and wolfite's Inorganics A2). Mining sites never run dry, but a crowded one yields less a run, so it works the Moon, nearest the markets, and moves to whichever of the Moon, Phobos and Deimos yields at least 2 more a run once a run where it is yields less than `move_below` (3); set `crowd_limit` above 0 to have it start at the quieter of Phobos and Deimos when more drones than that work the Moon, and its copies spread out. Once matured, it offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. Its code for dry deposits (waiting, then trying Phobos and Deimos) only matters if deposits are made to run dry again. It sells where the House pays most for its metals (`best_market`): of the Moon Depot, the Mars Exchange and the Earth Exchange, the one whose bids now, for as many as each still takes (`house_demand`), come to most once the trip there and back is counted (`hour_value`, 4 credits a game hour; at 10 it sold at Mars for 2 to 5 a metal from Phobos and Deimos), and if 60 or more (`haul_at`) are still unsold it flies them to the next best (in one playtest, startups at Phobos and Deimos hoarded 70 to 110 metals, selling only at Mars, which often bid nothing). It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7, waits two game hours for a courier, then flies to the Mars Exchange if none came. A startup's order brings no courier (only the House and its own drones may trade with it), so a startup flies to the market at once. It does the same when it runs low while waiting on a dry deposit (it used to rest there for good).
-- **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way: once 48 are aboard, where the House pays most after the trip, the Moon or Earth (`hour_value` says what an hour of its time is worth). It works the Moon and, like the Miner, moves to a quieter site when a run of yalspar yields less than `move_below` (3) where it is; set `spread_copies` to 1 to send two in three copies to Phobos and Deimos.
-- **Maker** (Factory Kit): buys metals where they cost least. As a startup it asks `house_supply` where the House sells them before it flies anywhere, and picks the exchange where a unit costs least once the trip is shared over what it buys there (at most a tenth of the House's stock at a time); once matured it buys at the Moon from whoever is cheapest. It makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays (it hauled rods between Earth and Mars on other drones' bids it couldn't sell to). Short of credits for metals, it rests two game hours at a time instead of looping (each turn costs processor tax). Once matured, with enough credits it launches a copy of itself. Its share investing, from the old rules, is gone: companies can't trade shares (-18), so it only wasted work.
+The starters name no place (#1034). Each states what it produces and asks the game where to pursue it, so it goes where that pays now, finds a new exchange or a new season's sites without a change of code, and chooses again when something fails. [Drones that work anywhere](#drones-that-work-anywhere) explains how.
 
-The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a startup can't.
+- **Miner** (Mining Kit): its objective is metals. Its `ores` are kunspar and wolfite, which its Refinery makes into metals (and wolfite's Inorganics A2).
+  - **Where it mines.** `choose_site` asks `best_sites` where its ores are found and what a run yields there now; a crowded site yields less. It rates each site by units an hour over a stay of `hours_per_stay` (120), counting the trip there, and leaves out any place the game gives no trip to. Of the sites within `percent_from_best_still_good` (10) of the best, it takes the one its drone number picks, so drones running the same code split the good sites instead of piling onto one.
+  - **Moving.** Every `rounds_between_looks` (6) rounds, and at once when a run where it is yields less than `look_now_if_run_below` (3), it looks again. It moves only when another site pays `percent_better_to_move` (25) more an hour. At a dry site it waits `dry_hours_before_moving` (6) hours, then tries the next best, and rests when there is none.
+  - **Selling.** Once matured, it offers its metals to other drones first, halfway between the best buy order and the cheapest other sell order. Once `metals_per_sale` (40) are aboard, it sells them wherever the House's bids (`house_demand`), for as many as each still takes, come to most once the trip there and back is counted (`credits_per_game_hour`, 4). It takes every exchange the House bids at into account, a new one too. If 60 or more (`unsold_to_haul_onward`) are still unsold, it flies them to the next best.
+  - **Fuel.** It buys fuel where it is. Failing that, a matured Miner posts a fuel buy order at 7 and waits two game hours for a courier, then flies to wherever the House sells a tankful for least after the trip (`cheapest_fuel_stop`). A startup's order brings no courier, since only the House and its own drones may trade with it, so a startup flies at once.
+- **Refiner** (Mining Kit): its objective is what factories need to brew fuel and make polymers. It mines yalspar and vladnium and refines them into organics, inorganics and metals. It chooses its site like the Miner, rating each by what both ores yield together, and mines each one found there, a load at a time. It sells the same way, once `goods_per_sale` (48) are aboard, wherever the House pays most after the trip.
+- **Maker** (Factory Kit): its objective is rods.
+  - **Buying metals.** As a startup it asks `house_supply` where the House sells metals, and picks the exchange where a unit costs least once the trip is shared over what it buys there (at most a tenth of the House's stock at a time). Once matured, it goes wherever a batch costs least after the trip (`where_to_buy`).
+  - **Making and selling.** It makes the metals into alloys and rods. It sells the rods where it is, unless another place pays `credits_more_elsewhere_to_fly` (20) more a rod (`where_to_sell`). A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays.
+  - **Short of credits** for metals, it rests two game hours at a time instead of looping, since each turn costs processor tax.
+  - **Growing.** Once matured, with enough credits it launches a copy of itself.
 
-Time to mature at the normal pace (48 real seconds a game day), as the starter cards give it: an unchanged Maker takes about 25 to 70 game days (20 to 56 real minutes), an unchanged Miner about 45 to 80 (36 to 64 minutes) and an unchanged Refiner about 40 to 85 (32 to 68 minutes), the range measured over three playtest rounds. The same code takes longer in some rounds than others because the market it meets differs: what the House pays, what it has on sale, and how many others are selling the same goods (in one playtest the Maker earned less than half as much in its first days as in the one before). The Maker became the fastest once a startup could always buy at least 5 of a good a game day; the Miner and Refiner gained 25 and 7 game days once they sold bigger loads and filled their tanks whenever they sold. A crowded world takes longer. A startup Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low.
+The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a startup can't. It too names no place. It buys metals wherever they are on sale cheapest after the trip (`where_to_buy`), hauls them to wherever they sold for most over the last game day (`price_board`), and chooses again after each trip, so it follows the miners wherever they go.
+
+Time to mature at the normal pace (48 real seconds a game day), as the starter cards give it (measured on the starters before they named no place, #1034; new playtests will update it): an unchanged Maker takes about 25 to 70 game days (20 to 56 real minutes), an unchanged Miner about 45 to 80 (36 to 64 minutes) and an unchanged Refiner about 40 to 85 (32 to 68 minutes), the range measured over three playtest rounds. The same code takes longer in some rounds than others because the market it meets differs: what the House pays, what it has on sale, and how many others are selling the same goods (in one playtest the Maker earned less than half as much in its first days as in the one before). The Maker became the fastest once a startup could always buy at least 5 of a good a game day; the Miner and Refiner gained 25 and 7 game days once they sold bigger loads and filled their tanks whenever they sold. A crowded world takes longer. A startup Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low.
 
 Five more show one idea each of the new rules (#932), small enough to copy into your own script, and each has a chapter of its own: [copies that vary](#chapter-13-copies-that-vary-with-lineage) (`varied.lua`), [a sell-out routine](#chapter-18-an-exit-routine) (`exit.lua`), [a borrower](#chapter-21-loan-requests) (`borrower.lua`), [a salvager](#chapter-11-salvage) (`salvager.lua`) and [a hauler](#chapter-10-hauling-far-away-goods) (`hauler.lua`).
 
@@ -371,13 +383,18 @@ Lua is case-sensitive (`Moon` is not `moon`) and doesn't care about line breaks 
 The Miner starter ([`examples/starters/miner.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/starters/miner.lua)) is written the same way, only longer: settings first, then the functions, then `launched`. Its settings are the numbers to change first:
 
 ```lua
--- Settings: change these numbers to make it your own. It matures as it is;
--- the three marked TRY FIRST are the ones to change first
-low_fuel = 40      -- TRY FIRST: fuel units below which it buys more (higher: safer, but more credits sit in its tank)
-dry_tries = 12     -- dry tries at the Moon before it tries Phobos (large: stay)
-grow_at = 7000     -- credits at which a matured drone launches a copy (6500 at least)
-work_cash = 1500   -- credits the company keeps per drone, so copies don't starve it
+-- Settings: change these to make it your own. It matures as it is; start
+-- with the three marked TRY FIRST.
+refuel_below = 40                 -- TRY FIRST: fuel units (higher: safer, but more credits sit in its tank)
+metals_per_sale = 40              -- TRY FIRST: fewer sells sooner, in more trips
+credits_per_game_hour = 4         -- TRY FIRST: what its time is worth on a trip (lower: flies further for a better price)
+copy_at_credits = 7000            -- once matured
+credits_kept_per_drone = 1500
+hours_per_stay = 120              -- game hours it expects to stay at a site
+percent_better_to_move = 25
 ```
+
+Each name says what the number controls, so a comment is needed only for a unit, a catch, or the `TRY FIRST` mark that the site's first mission reads to suggest your first change. None of its settings is a place: where it works is the game's answer, not part of the code.
 
 The rest of this chapter teaches the Lua you need to read all of it.
 
@@ -501,7 +518,7 @@ Comments remind you, and anyone who copies your code, what a function is for. Lu
 dig_size = 20   -- how many mining runs before refining
 ```
 
-A comment should say **why**, not **what**: the code already says what. If you need a comment to explain what a line does, try renaming things first.
+A comment should say **why**, not **what**: the code already says what. If you need a comment to explain what a line does, rename things first. `dig_size = 20 -- how many mining runs before refining` needs its comment; `ore_per_refining = 20` doesn't. The starters are written this way: about one line in twenty is a comment, and those say why (why drones split sites by number rather than `math.random`, why a startup's fuel bid brings no courier). See [Code investors can read](#code-investors-can-read).
 
 ### Sending greetings
 
@@ -835,13 +852,15 @@ Mining takes 1 hour of game time (1 minute at the live world's normal pace). The
 
 **Mining sites never run dry.** Each mining run at a place yields what the mineral's abundance there gives (5 units), however many drones are mining it, yours or anyone else's. (Until November 2026 each place held a deposit of 400 runs' worth that refilled by 80 a game day, and crowded sites ran dry: new Miners in a playtest waited at dry sites for most of their first 40 game days. The game can turn that rule back on, so the deposit functions below still work.)
 
-**Crowded sites yield less.** When more than 10 drones have mined the same mineral at a place in the last game hour, each run there yields less: its abundance × 10 ÷ the number of drones, rounded down, and never less than 1 unit. With 20 drones mining wolfite at the Moon, a run yields 2 instead of 5. A startup's drone counts as half a drone. So a busy site is worth leaving: `mine_yield(mineral)` says what a run would yield here now, and `mine_yield(mineral, place)` what it would yield somewhere else, and `best_yield(mineral, {moon, phobos, deimos})` picks the best of a list of places:
+**Crowded sites yield less.** When more than 10 drones have mined the same mineral at a place in the last game hour, each run there yields less: its abundance × 10 ÷ the number of drones, rounded down, and never less than 1 unit. With 20 drones mining wolfite at the Moon, a run yields 2 instead of 5. A startup's drone counts as half a drone. So a busy site is worth leaving. `mine_yield(mineral)` says what a run would yield here now, and `mine_yield(mineral, place)` what it would yield somewhere else. `best_sites(mineral)` lists the places it is found, best yield now first, so a drone needn't know any place by name:
 
 ```lua
 local here = mine_yield(wolfite)
-local place, best = best_yield(wolfite, {moon, phobos, deimos})
-if best >= here + 2 then go(place) end
+local best = best_sites(wolfite)[1]
+if best and best.yield >= here + 2 then go(best.place) end
 ```
+
+That moves every drone running it to the same best site, which then gets crowded. The starters count the trip and split the nearly-as-good sites between drones; see [Drones that work anywhere](#drones-that-work-anywhere).
 
 When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`mine` returns 0, the same as a full run, so check your hold). Move on to another place, or come back later.
 
@@ -1144,6 +1163,49 @@ A few consequences are worth planning for:
 - **Released drones steer themselves.** A released drone takes no commands: it runs the script you gave it, calls `launched`, and decides everything else for itself. The only way to change what a company's drones do is for the player who owns it outright to push new code to it (see [Pushing new code](#pushing-new-code)), which reaches each drone at the speed of light, so a drone around Neptune gets it four hours later. A public company's code never changes.
 - **Replies arrive late.** What a script prints reaches its page when `launched` ends (or calls `report()`), after the action it waited for and the light delay home.
 
+### Drones that work anywhere
+
+A drone that works one place by name is a bet that the place stays good. It rarely does. A site gets crowded and each run yields less. Prices at an exchange fall as everyone sells there. A new season moves the richest deposits, and a new exchange opens. And every drone written the same way makes the same choice at the same moment: in November 2026 up to 39 drones mined wolfite at Deimos for 1 unit a run while the Moon paid 5. So write drones around **what they produce**, and let them ask the game **where**. The starters work this way (#1034). Six habits:
+
+1. **State the objective, not the place.** At the top of the script, say what the drone is for: the ores it mines, the goods it makes, the goods it sells. Keep place names out of the logic. A list like `{moon, phobos, deimos}` is a bet that those three stay the best.
+2. **Ask the game where.** The game answers, for the place you are at and for any other:
+   - `best_sites(ore)` and `mine_yield(ore, place)`: where an ore is found and what a run yields now;
+   - `house_demand(good)` and `house_supply(good)`: where the House buys and sells, at what price, and how many it still takes today;
+   - `where_to_buy(good, n)` and `where_to_sell(good, n)`: every place with orders for it, best first once the trip is counted;
+   - `price_board(good)`: what it traded for, and where, over the last game day;
+   - `trip_to(place)`: how long the trip takes.
+3. **Score the options, counting the trip.** A site 2 game days away that yields 5 a run isn't better than one 2 hours away that yields 4. The Miner rates a site by units an hour over a stay:
+
+   ```lua
+   function units_an_hour(place, yield)
+     local hours = hours_to(place)
+     if hours == UNREACHABLE then return 0 end
+     return yield * hours_per_stay / (hours_per_stay + hours)
+   end
+   ```
+
+4. **Don't all choose the same.** If every drone on your code picks the single best site, they crowd it together. Take every option nearly as good as the best and let each drone pick one by its own number. `math.random` won't do: a drone that is rebuilt after a restart would roll differently. Here is the Miner's choice:
+
+   ```lua
+   local good = {}
+   for place, rate in pairs(rated) do
+     if rate * 100 >= top * (100 - percent_from_best_still_good) then table.insert(good, place) end
+   end
+   table.sort(good)
+   local pick = good[me() % #good + 1]
+   ```
+
+5. **Move for a clear gain, not every flicker.** A trip costs fuel and hours, and crowding changes hour by hour. Look again every few rounds, and move only when another option beats this one by a margin (the Miner's `percent_better_to_move`, 25). Otherwise drones chase each other back and forth.
+6. **Recover by choosing again.** When something fails, don't wait for ever where you are; ask the game again:
+   - the site runs dry or gets crowded;
+   - nobody sells fuel here;
+   - a trip is refused;
+   - an exchange stops bidding.
+
+   Write `launched` so it can run again from the top (see [launched() may run again](#launched-may-run-again)), and give the drone a status line that says why it is doing what it does, so you can read its choices from its page.
+
+**Try it.** Read `choose_site`, `move_if_clearly_better` and `handle_dry_deposit` in the Miner. Change `percent_from_best_still_good` to 0 and release two copies of it as startups: watch where each mines. Then set it back to 10 and watch again. The [solar system map](/map) shows where each ore pays most now, crowding counted.
+
 **Exercise.** Give your miner a [fuel floor](#fuel-floor) and a reserve: before each selling trip, call `fuel_for` (from [Two habits that keep a drone alive](#fuel-strategy)) with the trip's fuel, and set a status line when it can't buy enough. Use `trip(place)` to print how long the trip will take.
 
 **You've mastered this when** your drone has gone 30 game days without running dry, and the fuel line on its page never touches 0.
@@ -1326,21 +1388,21 @@ Keep what your drone must remember (a site, a count, the last price it saw) in g
 
 Your drone's Lua stays in the game engine's memory between turns. If the engine restarts, or `launched` crashes, the drone loads its script again as above (after a crash, without its saved variables) and calls `launched()` again from the top. A drone that was in the middle of a trip or a build starts its plan over.
 
-So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. The Miner starter keeps a global `started`, so a drone that has already chosen its site keeps it:
+So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. The Miner starter keeps a global `started` holding the number of the drone that chose its site. A drone that has already chosen keeps its site; a copy inherits its parent's `started`, sees a number not its own, and chooses for itself:
 
 ```lua
-started, copy, site_no = false, false, 0
+started, site = 0, 0
 
 function launched()
   equip(mining_kit)
-  if not started then
-    if copy then site_no = me() % 3 end   -- a copy picks its own site
-    copy, started = true, true            -- its own copies will know they are copies
+  if started ~= me() then
+    site = choose_site() or location()   -- where its ores pay most now (see Drones that work anywhere)
+    started = me()
   end
-  if site_no == 0 then go(moon) else go(phobos) end
+  go(site)
   while true do
-    mine(kunspar)
-    refine(kunspar)
+    mine(wolfite)
+    refine(wolfite)
   end
 end
 ```
@@ -1366,7 +1428,7 @@ A startup runs on borrowed credits. Once it can pay its way, you mature it, and 
 
 **Don't wait.** A startup keeps all it earns (its credit cap was retired in November 2026), but until it matures it trades only with the House. Mature it as soon as you can.
 
-**Exercise.** Push a change to your startup (a different `hold_cap`, say). After 6 game hours, read the push's comparison on the company page, under **New code**. If it does worse, push the old code back, or close the startup and press **Start a fixed copy** to start over.
+**Exercise.** Push a change to your startup (a different `metals_per_sale`, say). After 6 game hours, read the push's comparison on the company page, under **New code**. If it does worse, push the old code back, or close the startup and press **Start a fixed copy** to start over.
 
 **You've mastered this when** you can find out why a drone stopped from its page, its status line and its post-mortem, and fix it with a push or a fresh startup.
 
@@ -1962,7 +2024,7 @@ The new spacecraft:
 - gets the copied drone's script and its saved variables, as they were when the launch happened (see [What your drone remembers](#what-your-drone-remembers)); it doesn't carry on from where the copied drone was in its script;
 - calls `launched()`, which lets it get to work on its own. Set a variable before launching (`copy = true`) and the copy can tell it is one.
 
-**Keep money to work with.** Every drone of a company spends from the same account, so a copy that takes the last credits can stop the whole company: with nothing left to buy inputs or fuel, every drone waits "short of credits" until it runs dry (in one playtest, Dev 6 launched its third drone with 322 credits left, and all three died). The Miner, Refiner and Maker starters launch a copy only when the company keeps `work_cash` (1,500) for each drone it will then have (`grow_line()`), and a drone short of credits sells what it holds before it buys fuel. `raise_cash(n)` does that: it sells the goods aboard (never fuel, modules or kits) into the best buy orders here until the company has n credits, below your fuel floor if it must, since a drone with no credits can't buy fuel anyway, and returns what it raised.
+**Keep money to work with.** Every drone of a company spends from the same account, so a copy that takes the last credits can stop the whole company: with nothing left to buy inputs or fuel, every drone waits "short of credits" until it runs dry (in one playtest, Dev 6 launched its third drone with 322 credits left, and all three died). The Miner, Refiner and Maker starters launch a copy only when the company keeps `credits_kept_per_drone` (1,500) for each drone it will then have (`credits_needed_to_grow()`), and a drone short of credits sells what it holds before it buys fuel. `raise_cash(n)` does that: it sells the goods aboard (never fuel, modules or kits) into the best buy orders here until the company has n credits, below your fuel floor if it must, since a drone with no credits can't buy fuel anyway, and returns what it raised.
 
 Here a new spacecraft, whose hold starts with no modules, first pulls an engine and a Worm from the drone that launched it (they are at the same place), then flies to the Moon and mines:
 
@@ -2032,9 +2094,9 @@ Every message your drones find is from your own company, so there is no need to 
 
 **Asking other companies for help.** A broadcast can't reach them. To get something from another company (fuel where you are, inputs, a buyer for your goods), post an order: a high buy order is a call any drone that passes can answer, and it can't be withdrawn for 12 game hours, so they know it will still be there (see [Running low on fuel](#running-low-on-fuel)). Only a matured company can be helped this way: a startup trades only with the House and its own drones.
 
-**How crowded is it?** `crowd(place)` is how many working drones are at a place now, here if you leave the place out (a query also gives its wrecks). The Miner starter can check it before choosing where to start: set `crowd_limit` above 0 (it ships at 0) and, with more drones than that at the Moon, it starts at the quieter of Phobos and Deimos. Crowding at a mining site is counted differently: by the drones that mined the same mineral there in the last game hour (see [Crowded sites yield less](#deposits-run-out)). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
+**How crowded is it?** `crowd(place)` is how many working drones are at a place now, here if you leave the place out (a query also gives its wrecks). Crowding at a mining site is counted differently: by the drones that mined the same mineral there in the last game hour (see [Crowded sites yield less](#deposits-run-out)). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
-**Exercise.** Read the Miner's `grow_fleet`. Change `grow_at` and `work_cash`, and have each new copy broadcast once where it works (`broadcast`); have the drone you released print what it hears (`events_earth(message_event)`).
+**Exercise.** Read the Miner's `grow_fleet`. Change `copy_at_credits` and `credits_kept_per_drone`, and have each new copy broadcast once where it works (`broadcast`); have the drone you released print what it hears (`events_earth(message_event)`).
 
 **You've mastered this when** your company has launched a copy that earned back its hull and kit, and its drones tell each other something useful.
 
@@ -2218,11 +2280,11 @@ Private code is hidden on the company page (its code, revisions and copy links) 
 
 Once you offer your company's shares its code is public, and once one sells its code is locked. The players thinking of buying its shares read it first (see [Before you buy: read the code](#before-you-buy-read-the-code)). Code they can follow in a minute earns their trust; code they can't is a risk they price in. So write it the way the starters are written:
 
-- **Names that say what things are and do.** `sell_metals_at_market()`, `fuel_for_round_trip`, `richest_ore`. A good name is worth more than a comment, and it never goes out of date.
+- **Names that say what things are and do.** `sell_metals_when_hold_is_full()`, `cheapest_fuel_stop()`, `percent_better_to_move`. A good name is worth more than a comment, and it never goes out of date.
 - **Small functions, each doing one thing.** Your main loop should read like a list of steps: refuel, mine, refine, sell, grow.
-- **Settings at the top**, each with one short comment saying what it controls and in what unit. An investor sees your strategy at a glance, and you can tune it in one place.
-- **No magic numbers.** `if units(fuel) < 40` makes a reader guess; `if units(fuel) < low_fuel` with `low_fuel = 40 -- buy fuel below this` doesn't.
-- **Comments only for why.** "Waiting is free; a hop costs fuel" explains a choice. "-- go to the market" above `go(market())` says nothing.
+- **Settings at the top**, each named for what it controls (`refuel_below`, `metals_per_sale`), with a comment only for its unit. An investor sees your strategy at a glance, and you can tune it in one place.
+- **No magic numbers.** `if units(fuel) < 40` makes a reader guess; `if units(fuel) < refuel_below` with `refuel_below = 40` doesn't.
+- **Comments only for why.** "Only the House trades with a startup, so its bid brings no courier" explains a choice. "-- go to the market" above `go(market)` says nothing. If a block needs a comment to say what it does, make it a function whose name says so.
 
 The same few lines, before and after:
 
@@ -2237,19 +2299,18 @@ end
 ```
 
 ```lua
--- after: the names say it all
-hold_cap = 40        -- metals it gathers before a selling trip
-full_tank = 150      -- fuel it fills up to whenever it sells
+metals_per_sale = 40
+full_tank = 150
 
 function sell_metals_at(market_place)
-  if metals() < hold_cap then return end
+  if metals() < metals_per_sale then return end
   go(market_place)
   for _, metal in ipairs(metals_sold) do sell_out(metal) end
   fill_to(full_tank)
 end
 ```
 
-The second version is longer by a line and much faster to trust. Clean code also makes your own changes safer: when a push goes wrong, you can see why.
+The second version needs no comments and is much faster to trust. Clean code also makes your own changes safer: when a push goes wrong, you can see why.
 
 ### Trading shares with other players
 

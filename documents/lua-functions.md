@@ -98,7 +98,7 @@ end
 
 - A run that brings nothing still burns a fuel. On a busy deposit, other drones can take what `deposit` reported before your run lands, so `dig` compares the units before and after each run and waits when nothing came. Without that check, a drone can burn its whole tank on empty runs (a Refiner died that way in round 16).
 - Mining takes from a deposit shared by every drone there. Moon kunspar is usually mined out, while the Moon's yalspar and vladnium are not.
-- The Miner and Refiner starters move between Phobos and Deimos instead of waiting. Moving costs 5 fuel each way, so check fuel when you do.
+- The Miner and Refiner starters name no place (#1034). They rate every site `best_sites` lists by units an hour over a stay (`units_an_hour`), counting the trip, and split the nearly-as-good ones between drones by drone number. They move only when another site pays `percent_better_to_move` more, and after `dry_hours_before_moving` dry hours they choose again. Moving costs 5 fuel each way, so check fuel when you do. See the players' manual, "Drones that work anywhere".
 
 ## Fuel
 

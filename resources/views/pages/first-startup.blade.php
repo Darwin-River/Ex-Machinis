@@ -141,10 +141,9 @@
                         compare a few game days later. For example, the Miner sells once it has 40 metals aboard; with more aboard it
                         makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
                         still wants them:</p>
-<pre class="fs-code lua" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
-<del>- hold_cap = 40</del>
-<ins>+ hold_cap = 60</ins></pre>
-                    <p>It may help or not: in one playtest, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
+<pre class="fs-code lua" v-pre aria-label="A one-line change to the Miner"><del>- metals_per_sale = 40</del>
+<ins>+ metals_per_sale = 60</ins></pre>
+                    <p>It may help or not: in one playtest, a Miner told its time was worth less (<code>credits_per_game_hour</code> 2) flew to the
                         lowest bids and matured later than an unchanged one. A change that doesn't
                         work is fine: push another, or <b>close</b> the startup. Its debt is cancelled, and a game day later its slot is
                         free (you own up to {{ $startup['max'] }} companies outright at a time, startups included). Break, learn, repeat.</p>
