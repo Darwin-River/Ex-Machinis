@@ -97,6 +97,37 @@ class Bots
             'token' => Players::issueToken($user)];
     }
 
+    /** Longest profile or notes, in characters */
+    public const TEXT_MAX = 60000;
+
+    /** One of an operator's Claude players with its profile and notes (DV-04), or null */
+    public static function one(User $operator, string $name): ?array
+    {
+        $u = DB::table('users')->where('login', $name)->where('bot_operator_id', $operator->user_id)->first();
+        return $u ? ['name' => $u->login, 'credits' => (int) $u->credits,
+            'companies' => DB::table('companies')->where('owner_id', $u->user_id)->whereNull('eliminated_at')
+                ->orderBy('company_id')->get(['company_id', 'name', 'startup'])
+                ->map(fn ($c) => ['company_id' => (int) $c->company_id, 'name' => $c->name, 'startup' => (int) $c->startup === 1])->all(),
+            'profile' => $u->bot_profile, 'notes' => $u->bot_notes, 'since' => $u->created_at] : null;
+    }
+
+    /** Saves a Claude player's profile and/or notes: {ok, error} */
+    public static function save(User $operator, string $name, ?string $profile, ?string $notes): array
+    {
+        $set = [];
+        foreach (['bot_profile' => $profile, 'bot_notes' => $notes] as $col => $text) {
+            if ($text !== null) {
+                if (mb_strlen($text) > self::TEXT_MAX) {
+                    return ['ok' => false, 'error' => 'A profile or notes are at most ' . self::TEXT_MAX . ' characters.'];
+                }
+                $set[$col] = $text;
+            }
+        }
+        $done = $set ? DB::table('users')->where('login', $name)->where('bot_operator_id', $operator->user_id)->update($set) : 0;
+        $exists = DB::table('users')->where('login', $name)->where('bot_operator_id', $operator->user_id)->exists();
+        return $exists ? ['ok' => true, 'error' => null] : ['ok' => false, 'error' => 'No Claude player of yours has that name.'];
+    }
+
     /** A fresh token for one of an operator's Claude players (the old one stops working), or null */
     public static function token(User $operator, string $name): ?string
     {

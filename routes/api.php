@@ -68,6 +68,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots', 'BotApiController@make');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/{name}/token', 'BotApiController@token');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots', 'BotApiController@index');
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('bots/{name}', 'BotApiController@show');
+    Route::middleware(['new-rules', 'throttle:api-write'])->put('bots/{name}', 'BotApiController@update');
     // The e-mail notice settings (#836)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/notices', 'AccountApiController@notices');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/notices', 'AccountApiController@notices');

@@ -48,6 +48,28 @@ class BotApiController extends Controller
             : response()->json(['name' => $name, 'token' => $token]);
     }
 
+    /** GET /api/v1/bots/{name}: one of the operator's Claude players, with its profile and notes (DV-04) */
+    public function show(Request $request, string $name): JsonResponse
+    {
+        if (!$operator = $this->operator($request)) {
+            return $this->refused();
+        }
+        $one = Bots::one($operator, $name);
+        return $one === null ? response()->json(['error' => 'No Claude player of yours has that name.'], 404) : response()->json($one);
+    }
+
+    /** PUT /api/v1/bots/{name} {profile?, notes?}: saves its profile and notes */
+    public function update(Request $request, string $name): JsonResponse
+    {
+        if (!$operator = $this->operator($request)) {
+            return $this->refused();
+        }
+        $text = fn ($k) => $request->has($k) ? (string) $request->input($k) : null;
+        $r = Bots::save($operator, $name, $text('profile'), $text('notes'));
+        return $r['ok'] ? response()->json(Bots::one($operator, $name))
+            : response()->json(['error' => $r['error']], str_starts_with($r['error'], 'No ') ? 404 : 422);
+    }
+
     /** GET /api/v1/bots: the operator's Claude players */
     public function index(Request $request): JsonResponse
     {

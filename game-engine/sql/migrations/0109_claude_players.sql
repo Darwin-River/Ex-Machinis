@@ -1,11 +1,13 @@
 -- Claude players (#1025): accounts Claude runs on the live site, made with a
 -- key an operator (FORGE_OPERATORS) makes on their account page. A Claude
 -- player is verified without an e-mail address and names the operator whose
--- key made it; the keys are kept only as hashes.
+-- key made it; the keys are kept only as hashes. Its profile and running
+-- notes (DV-04, #1027) are read and written only with the operator's key:
+-- nothing a player can reach shows them.
 SET @has := (SELECT COUNT(*) FROM information_schema.columns
              WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'bot_operator_id');
 SET @sql := IF(@has = 0,
-    'ALTER TABLE users ADD COLUMN bot_operator_id INT NULL COMMENT ''A Claude player: the operator whose key made it (#1025)''',
+    'ALTER TABLE users ADD COLUMN bot_operator_id INT NULL COMMENT ''A Claude player: the operator whose key made it (#1025)'', ADD COLUMN bot_profile MEDIUMTEXT NULL COMMENT ''Its profile, DV-04-T1 (#1027)'', ADD COLUMN bot_notes MEDIUMTEXT NULL COMMENT ''Its running notes between check-ins (#1027)''',
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 

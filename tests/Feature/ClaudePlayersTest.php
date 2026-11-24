@@ -108,6 +108,35 @@ class ClaudePlayersTest extends TestCase
         $this->assertNull(Bots::operatorFor($second));
     }
 
+    public function testProfilesAndNotesAreReadOnlyWithTheKey()
+    {
+        // DV-04 (#1027): a Claude player's profile and notes, kept in the
+        // database, read and written only with its operator's key
+        $lead = $this->player('Profile Lead');
+        $rival = $this->player('Rival Lead');
+        config(['forge.operators' => ['Profile Lead', 'Rival Lead']]);
+        $key = Bots::makeKey($lead);
+        $rivalKey = Bots::makeKey($rival);
+        $made = $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => 'Juno Park'])->assertStatus(201)->json();
+
+        $this->withHeader('X-Bot-Key', $key)->putJson('/api/v1/bots/Juno Park', ['profile' => "Persona: a retired surveyor\nRisk: low",
+            'notes' => 'Day 1: founded a Miner.'])->assertOk()->assertJsonPath('profile', "Persona: a retired surveyor\nRisk: low");
+        // Notes alone change; the profile stays
+        $this->withHeader('X-Bot-Key', $key)->putJson('/api/v1/bots/Juno Park', ['notes' => 'Day 2: it matured.'])
+            ->assertOk()->assertJsonPath('notes', 'Day 2: it matured.')->assertJsonPath('profile', "Persona: a retired surveyor\nRisk: low");
+        $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots/Juno Park')->assertOk()->assertJsonPath('notes', 'Day 2: it matured.');
+        $this->withHeader('X-Bot-Key', $key)->putJson('/api/v1/bots/Juno Park', ['notes' => str_repeat('x', Bots::TEXT_MAX + 1)])->assertStatus(422);
+
+        // Another operator's key, no key, or the player's own token: nothing
+        $this->withHeader('X-Bot-Key', $rivalKey)->getJson('/api/v1/bots/Juno Park')->assertStatus(404);
+        $this->withHeader('X-Bot-Key', $rivalKey)->putJson('/api/v1/bots/Juno Park', ['notes' => 'x'])->assertStatus(404);
+        $this->flushHeaders();
+        $this->getJson('/api/v1/bots/Juno Park')->assertStatus(401);
+        $this->withHeader('Authorization', 'Bearer ' . $made['token'])->getJson('/api/v1/account')->assertOk()
+            ->assertDontSee('surveyor')->assertJsonMissingPath('profile');
+        $this->assertArrayNotHasKey('bot_profile', User::where('login', 'Juno Park')->first()->toArray());
+    }
+
     public function testWriteLimitsCountPerAccount()
     {
         // Ten writes a minute: an account with a good token has its own count,
