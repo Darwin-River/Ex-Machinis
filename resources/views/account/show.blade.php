@@ -369,6 +369,46 @@
                 </form>
             @endif
 
+            @if($bots ?? null)
+                <h3 class="h5 mt-4" id="claude-players">Claude players</h3>
+                <p>You are an operator. A key lets Claude make Claude players through the API
+                    (<code>POST /api/v1/bots</code> with the header <code>X-Bot-Key</code>): accounts verified without an e-mail
+                    address, playing by every rule a person does. Only the database marks them: to players they look like anyone else. Enter a key in Claude's environment as a
+                    network secret for this site; it is shown here once.</p>
+                @if(session('bot_key'))
+                    <div class="alert alert-warning" id="new-bot-key">Your new key, shown only now:
+                        <code>{{ session('bot_key') }}</code></div>
+                @endif
+                @if(count($bots['keys']))
+                    <ul>
+                        @foreach($bots['keys'] as $k)
+                            <li>Key {{ $k['id'] }}, made {{ $k['made'] }}:
+                                @if($k['revoked']) revoked {{ $k['revoked'] }}
+                                @else
+                                    <form method="POST" action="{{ url('account/bot-keys/' . $k['id'] . '/revoke') }}" class="d-inline">
+                                        {{ csrf_field() }}
+                                        <button class="button button-secondary button-sm" type="submit">Revoke</button>
+                                    </form>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+                <form method="POST" action="{{ url('account/bot-keys') }}">
+                    {{ csrf_field() }}
+                    <button class="button button-secondary button-sm" type="submit">Make a key</button>
+                </form>
+                @if(count($bots['players']))
+                    <p class="mt-2 mb-1">Your Claude players ({{ count($bots['players']) }} of {{ config('forge.bot_max') }}):</p>
+                    <ul>
+                        @foreach($bots['players'] as $p)
+                            <li><a href="{{ url('players/' . rawurlencode($p['name'])) }}">{{ $p['name'] }}</a>:
+                                {{ number_format($p['credits']) }} credits, {{ $p['companies'] }} companies</li>
+                        @endforeach
+                    </ul>
+                @endif
+            @endif
+
             <form method="POST" action="{{ url('logout') }}" class="mt-4">
                 {{ csrf_field() }}
                 <button class="button button-secondary button-sm" type="submit">Log out</button>

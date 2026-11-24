@@ -24,7 +24,7 @@
 
    2. <a id="4.2"></a>Each round tests one idea. Say before it starts what the round is meant to show.
 
-   3. <a id="4.3"></a>Newcomer personas stand in for the people the game is for. Each round should include at least one persona who is new to programming, such as a high school student or a teacher, and the rest can vary (an accountant, a speedrunner, a Python developer). A persona plays only from what a real newcomer could see: the player's manual, the Lua function list, the examples and the game itself.
+   3. <a id="4.3"></a>Newcomer personas stand in for the people the game is for. Every persona is an adult, 18 or over. Each round should include at least one persona who is new to programming, such as a first-year college student or a teacher, and the rest can vary (an accountant, a speedrunner, a Python developer). A persona plays only from what a real newcomer could see: the player's manual, the Lua function list, the examples and the game itself. On the live game, the personas are the AI player cohort's players, per [DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md), and the round's log names them only by persona ID.
 
    4. <a id="4.4"></a>Rounds are logged as comments on #380, not as new issues. Each bug and each change a round leads to gets its own issue, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md).
 
@@ -64,9 +64,11 @@
 
    3. <a id="6.3"></a>[DV-03](DV-03%20Tuning%20gameplay%20parameters.md): Tuning gameplay parameters
 
-   4. <a id="6.4"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
+   4. <a id="6.4"></a>[DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md): Maintaining the AI player cohort
 
-   5. <a id="6.5"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   5. <a id="6.5"></a>[OR-01](OR-01%20Writing%20and%20publishing%20blog%20posts.md): Writing and publishing blog posts
+
+   6. <a id="6.6"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
 
 7. # <a id="7"></a>Attachments
 

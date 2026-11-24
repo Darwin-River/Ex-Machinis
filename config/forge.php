@@ -53,6 +53,10 @@ return [
     'player_signups_per_hour' => (int) env('FORGE_PLAYER_SIGNUPS_PER_HOUR', 3),
     // Most pupils' accounts in one class group
     'class_group_max' => (int) env('FORGE_CLASS_GROUP_MAX', 40),
+    // Claude players (#1025): the accounts that may make keys for them (names,
+    // comma-separated), and the most Claude players each operator may have
+    'operators' => array_values(array_filter(array_map('trim', explode(',', (string) env('FORGE_OPERATORS', ''))))),
+    'bot_max' => (int) env('FORGE_BOT_MAX', 30),
 
     // Startups (#637): every company starts as one, lent its hull and its
     // starting credits (starting_credits) by the bank, plus a fee; it owes all

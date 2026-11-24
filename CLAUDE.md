@@ -41,6 +41,12 @@ When a change affects players, update the docs in the same PR:
 - Changes to the game's numbers that aim at balance or playability follow DV-03 (`Procedures/SOPs/DV-03 Tuning gameplay parameters.md`): each names its playability objectives (`tools/balance/objectives.json`), predicts their movement, changes one lever family a release, and is measured live and in a playtest round before it is kept, adjusted or reverted.
 - Tuning issues are sub-issues of the backlog, #962, written with DV-03-T1.
 
+## The AI player cohort
+
+- Claude runs a cohort of AI players on the live game per DV-04 (`Procedures/SOPs/DV-04 Maintaining the AI player cohort.md`): each an adult with its own profile, checking in, coding, investing and lending as a person would, under the same rules.
+- No one may be able to tell which accounts are AI players. Their profiles and notes live only in the database (`/api/v1/bots`, with the operator's key). On GitHub, name a player only by its persona ID (C-01…), never its account, companies or drones.
+- An AI player never claims to be a person and doesn't announce that it is AI. It tests the rules only against the cohort's own companies, loans and contracts, never at a person's cost.
+
 ## Outreach and fundraising
 
 - Claude drafts blog posts, lessons, social media posts and supporter updates; people review and publish them.

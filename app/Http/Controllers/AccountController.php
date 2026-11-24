@@ -130,6 +130,29 @@ class AccountController extends Controller
         return back();
     }
 
+    /** POST /account/bot-keys: an operator's new key for Claude players, shown once (#1025) */
+    public function makeBotKey()
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        $key = \App\Services\Bots::makeKey($user);
+        return $key === null ? redirect('/account')->with('error', 'Only an operator can make keys for Claude players.')
+            : redirect('/account#claude-players')->with('bot_key', $key);
+    }
+
+    /** POST /account/bot-keys/{id}/revoke (#1025) */
+    public function revokeBotKey(int $id)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        return \App\Services\Bots::revokeKey($user, $id) ? redirect('/account#claude-players')->withSuccess('The key is revoked.')
+            : redirect('/account#claude-players')->with('error', 'No such key of yours stands.');
+    }
+
     public function show()
     {
         $user = $this->player();
@@ -142,7 +165,10 @@ class AccountController extends Controller
         return view('account.show', ['account' => Players::summary($user), 'mine' => \App\Services\Startups::of($user),
             'portfolio' => \App\Services\PlayerShares::of($user),
             // The account trading script (#768)
-            'tradeScript' => \App\Services\TradeScripts::available() ? (\App\Services\TradeScripts::of($user) ?? ['code' => '', 'enabled' => false, 'runs' => 0, 'last_run' => null, 'log' => []]) : null]);
+            'tradeScript' => \App\Services\TradeScripts::available() ? (\App\Services\TradeScripts::of($user) ?? ['code' => '', 'enabled' => false, 'runs' => 0, 'last_run' => null, 'log' => []]) : null,
+            // Claude players (#1025): an operator's keys and players
+            'bots' => \App\Services\Bots::isOperator($user) ? ['keys' => \App\Services\Bots::keys($user),
+                'players' => \App\Services\Bots::players($user)] : null]);
     }
 
     /** The link from the e-mail: verifies the address (the route checks the signature) */

@@ -26,7 +26,9 @@ class User extends Authenticatable
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token',
+        'password', 'remember_token', 'api_token',
+        // The Claude players' marker, profile and notes: back end only (#1025, #1027)
+        'bot_operator_id', 'bot_profile', 'bot_notes',
     ];
 
     /**
