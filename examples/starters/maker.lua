@@ -1,15 +1,18 @@
--- Maker: a starter script for Ex Machinis, in Lua. It equips itself with the
--- Factory Kit, buys Metals (A1) where they cost least, makes them into alloys
--- and the alloys into rods, and sells the rods where they pay best. With
--- enough credits, once matured, it launches a copy of itself. A startup
--- deals only with the House and launches no copies.
+-- Maker: a starter script for Ex Machinis, in Lua. Its objective is rods:
+-- it equips itself with the Factory Kit, buys Metals (A1) where they cost
+-- least, makes them into alloys and the alloys into rods, and sells the rods
+-- where they pay best. With enough credits, once matured, it launches a copy
+-- of itself. A startup deals only with the House and launches no copies.
+-- It names no place: where to buy and where to sell are the game's answers
+-- (house_supply, house_demand, where_to_buy, where_to_sell), counting the
+-- trip, so a new exchange or a shift in prices needs no change of code.
 
 -- Settings: change these numbers to make it your own. It matures as it is;
 -- the three marked TRY FIRST are the ones to change first
 rod_load = 12      -- TRY FIRST: rods it carries off to sell, 4 cargo each (fewer: sells sooner, more trips)
 low_fuel = 40      -- buy fuel below this
 keep_fuel = 25     -- it stops making rods below this much fuel
-trip_margin = 20   -- TRY FIRST: flies to Earth only if rods sell there for this much more
+trip_margin = 20   -- TRY FIRST: flies off to sell only if rods sell elsewhere for this much more
 grow_at = 7000     -- credits at which it launches a copy (once matured)
 work_cash = 1500   -- credits kept for each drone before a copy launches
 grow_until = 0     -- game day after which no more copies (0: no limit)
@@ -147,6 +150,7 @@ function buy_metals()
     wait(2 * HOUR)
     return
   end
+  if not house_only() and buy_price(metals_a1) == 0 then go_to_metals() end
   local price = buy_price(metals_a1)
   if house_only() then
     price = go_to_cheapest_house_metals()
@@ -191,18 +195,17 @@ function sell_rods_here()
   end
 end
 
--- Earth's best rod bid an hour ago, or yesterday's trade price if higher
-function earth_rod_price()
-  local quote = quotes(rods)[earth]
-  return math.max(quote and quote.bid or 0, board_price(rods, earth))
+-- Where rods fetch most after the trip, of every place that bids for them
+function best_rod_market()
+  return where_to_sell(rods, math.max(units(rods), 1), HOUR_AWAY_COST)[1]
 end
 
--- Yes when the bid here, plus trip_margin, matches what Earth pays
+-- Yes when the bid here, plus trip_margin, matches the best elsewhere
 function rods_sell_best_here()
   if house_only() then return house_rods() == location() end
   local bid_here = sell_price(rods)
-  local earth_pays = earth_rod_price()
-  return bid_here > 0 and bid_here + trip_margin >= earth_pays
+  local best = best_rod_market()
+  return bid_here > 0 and (not best or best.place == location() or bid_here + trip_margin >= best.price)
 end
 
 -- For a startup: where the House pays most for the rods aboard, after tax
@@ -219,13 +222,30 @@ function house_rods()
   return best_place
 end
 
--- Earth, unless another place pays more after the trip (nil: a startup
--- whose rods no House bid pays the trip for)
+-- Where rods pay most after the trip; the House's best bid when no drone's
+-- bid does (nil: no bid pays the trip)
 function market_for_rods()
   if house_only() then return house_rods() end
-  local best = where_to_sell(rods, math.max(units(rods), 1))[1]
-  if best and best.place ~= moon and best.net > 0 then return best.place end
-  return earth
+  local best = best_rod_market()
+  if best and best.net > 0 then return best.place end
+  return house_rods()
+end
+
+-- Where a batch of metals costs least, counting the trip (nil: nowhere)
+function metals_market()
+  local best = where_to_buy(metals_a1, batch, HOUR_AWAY_COST)[1]
+  return best and best.place
+end
+
+-- A matured maker goes where metals cost least; a startup picks its House
+-- exchange in buy_metals
+function go_to_metals()
+  if house_only() then return end
+  local place = metals_market()
+  if place and place ~= location() then
+    set_status("buying metals at " .. place_name(place))
+    go(place)
+  end
 end
 
 function stuck_with_rods()
@@ -249,7 +269,7 @@ function haul_rods()
   end
   if units(fuel) < REFUEL_AFTER_HAUL then buy_fuel(2 * HOUR) end
   sell_rods_here()
-  if not house_only() then go(moon) end   -- a startup picks its next exchange in buy_metals
+  go_to_metals()
 end
 
 function sell_or_haul_rods()
@@ -348,6 +368,6 @@ end
 function launched()
   fuel_floor(FUEL_FLOOR)   -- keeps enough fuel to buy more
   equip(factory_kit)       -- a copy waits for the kit it is handed
-  if not house_only() then go(moon) end   -- the Moon's miners sell metals cheapest
+  go_to_metals()
   while true do work() end
 end

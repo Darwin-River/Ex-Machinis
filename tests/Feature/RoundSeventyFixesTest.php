@@ -39,9 +39,10 @@ class RoundSeventyFixesTest extends TestCase
         $miner = $this->source('examples/starters/miner.lua');
         $this->assertStringContainsString('function best_market(except)', $miner);
         $this->assertStringContainsString('house_demand(metal)', $miner);
-        $this->assertStringContainsString('markets = {moon, mars, earth}', $miner);
+        // #1034: every exchange the House bids at counts, not a list of places
+        $this->assertStringContainsString('for place, value in pairs(house_value_of_metals()) do', $miner);
         $this->assertMatchesRegularExpression('/^haul_at = 60/m', $miner);
-        $this->assertStringContainsString('local where = best_market() or market()', $miner);
+        $this->assertStringContainsString('local where = best_market() or nearest_market()', $miner);
     }
 
     /** #713: a startup Maker sells to the House's bids, and a broke one rests */

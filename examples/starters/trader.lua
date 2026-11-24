@@ -1,7 +1,10 @@
--- Trader: a starter drone for Ex Machinis. It buys an Engine at Earth, then
--- buys metals from the miners at the Moon whenever Mars or Earth paid enough
--- more for them over the last game day, hauls them to whichever pays most,
--- sells them and comes back. Change the settings below to make it your own.
+-- Trader: a starter drone for Ex Machinis. Its objective is margin on
+-- metals: it buys an Engine, then buys metals from the miners wherever they
+-- are on sale cheapest, whenever another place paid enough more for them
+-- over the last game day, hauls them to whichever paid most, sells them and
+-- comes back. It names no place: the price board and the order books say
+-- where to buy and sell, so it follows the miners wherever they go. Change
+-- the settings below to make it your own.
 
 -- Settings
 cargo_goal = 150   -- metals to gather before setting off (units)
@@ -14,7 +17,7 @@ nap = 120          -- rest when nothing is worth buying (game minutes)
 cash_floor = 200   -- credits kept for fuel: spent on metals, it would be stranded (credits)
 
 traded = {metals_a1, metals_a2, metals_a3}   -- the metals it buys and sells
-markets = {mars, earth}                      -- where it sells them
+hour_value = 4                               -- credits a game hour of its time is worth, choosing where to buy
 
 -- Other numbers it uses
 share_kept_after_sales_tax = 95   -- percent of a sale a seller keeps (the tax is 5%)
@@ -34,6 +37,7 @@ startup_message = "A startup trades only with the House: nothing to trade. Relea
 -- What it has been doing (kept if the engine restarts)
 looks_since_last_trip = 0
 rounds_worked = 0
+buying_at = 0   -- where it buys (0: not chosen yet)
 
 function metals_aboard()
   local total = 0
@@ -43,13 +47,13 @@ end
 
 function spare_credits() return math.max(credits() - cash_floor, 0) end
 
--- The market where a metal sold for most over the last game day, and that
--- price less the sales tax (0 where it didn't trade)
+-- The place (not where it buys) where a metal sold for most over the last
+-- game day, and that price less the sales tax (0 where it didn't trade)
 function best_market_for(metal)
-  local best_market, best_price = mars, 0
-  for _, market in ipairs(markets) do
-    local price = board_price(metal, market) * share_kept_after_sales_tax // 100
-    if price > best_price then best_market, best_price = market, price end
+  local best_market, best_price = nil, 0
+  for _, board in ipairs(price_board(metal)) do
+    local price = board.price * share_kept_after_sales_tax // 100
+    if board.place ~= buying_at and price > best_price then best_market, best_price = board.place, price end
   end
   return best_market, best_price
 end
@@ -91,23 +95,32 @@ function sell_load_here()
   end
 end
 
--- The market where the load aboard sold for most over the last game day
+-- The place (not where it buys) where the load aboard sold for most over
+-- the last game day; nil if it traded nowhere else
 function market_paying_most_for_load()
   local load_value = {}
   for _, metal in ipairs(traded) do
     local amount = units(metal)
     if amount > 0 then
-      for _, market in ipairs(markets) do
-        load_value[market] = (load_value[market] or 0) + amount * board_price(metal, market)
+      for _, board in ipairs(price_board(metal)) do
+        if board.place ~= buying_at then
+          load_value[board.place] = (load_value[board.place] or 0) + amount * board.price
+        end
       end
     end
   end
-  local best_market, best_value = mars, -1
-  for _, market in ipairs(markets) do
-    local value = load_value[market] or 0
-    if value > best_value then best_market, best_value = market, value end
+  local best_market, best_value = nil, 0
+  for place, value in pairs(load_value) do
+    if value > best_value then best_market, best_value = place, value end
   end
   return best_market
+end
+
+-- Where a load of metals costs least to buy, counting the trip; here if
+-- none is on sale anywhere
+function choose_buying_place()
+  local best = where_to_buy(metals_a1, min_load, hour_value)[1]
+  return best and best.place or location()
 end
 
 -- Each look counts toward setting off with a smaller load
@@ -121,12 +134,16 @@ function shop_for_metals()
   if not bought_any then wait(nap) end
 end
 
+-- If no other place traded its metals, it sells where it is; then it
+-- chooses afresh where to buy, as the miners move
 function haul_load_and_return()
   fuel_up()
-  go(market_paying_most_for_load())
+  local market = market_paying_most_for_load()
+  if market then go(market) end
   sell_load_here()
   fuel_up()
-  go(moon)
+  buying_at = choose_buying_place()
+  go(buying_at)
   looks_since_last_trip = 0
 end
 
@@ -177,6 +194,7 @@ function launched()
   wait_while_a_startup()
   fuel_floor(fuel_reserve)
   get_an_engine()
-  go(moon)
+  if buying_at == 0 then buying_at = choose_buying_place() end
+  go(buying_at)
   while true do work_one_round() end
 end

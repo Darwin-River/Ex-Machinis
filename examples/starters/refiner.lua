@@ -1,25 +1,29 @@
--- Refiner: a starter script for Ex Machinis, in Lua. It equips itself
+-- Refiner: a starter script for Ex Machinis, in Lua. Its objective is the
+-- goods factories need to brew fuel and make polymers: it equips itself
 -- with the Mining Kit (Engine, Worm and Refinery), mines yalspar and
 -- vladnium and refines them into Organics (A1), Inorganics (A1) and (A2),
--- and Metals (A1) and (A2): what factories need to brew fuel and make
--- polymers. It keeps standing sell orders for its goods, sells what nobody
--- bought at the market, and buys its fuel. Mining sites never run dry, but
--- a crowded one yields less a run, so it works the Moon, nearest the
--- markets, and moves to Phobos or Deimos when a run there would yield more
--- (move_below); set spread_copies to 1 to send two in three copies there.
+-- and Metals (A1) and (A2). It keeps standing sell orders for its goods,
+-- sells what nobody bought wherever the House pays most, and buys its fuel.
+-- It names no place: it asks the game where its ores yield most an hour
+-- now, counting the trip (a crowded site yields less). Drones on this code
+-- split the nearly-as-good sites by drone number, so they spread out. It
+-- moves only for a clear gain, and when something fails it chooses again.
 
 -- Settings: change these numbers to make it your own. It matures as it is;
 -- the three marked TRY FIRST are the ones to change first
 low_fuel = 40      -- TRY FIRST: fuel units below which it buys more (higher: safer, but more credits sit in its tank)
-spread_copies = 0  -- 1: copies spread over the Moon, Phobos and Deimos; 0: all at the Moon
-move_below = 3     -- units a run yields here below which it moves to a quieter site (0: stay)
-dry_tries = 12     -- dry tries in a row at the Moon before it tries Phobos
+stay_hours = 120   -- game hours a stay at a site lasts, over which the trip there is shared
+move_margin = 25   -- percent more an hour another site must pay before it moves there
+spread = 10        -- percent below the best at which a site still counts as good
+look_every = 6     -- rounds of work between looks for a better site
+move_below = 3     -- units a run of yalspar yields here below which it looks at once (0: only now and then)
+dry_tries = 6      -- dry tries in a row before it tries elsewhere
 grow_at = 7000     -- credits at which a matured company launches a copy
                    -- (at least 6500: a hull 3000, a kit 2000, 1500 to work with)
 work_cash = 1500   -- credits kept for each drone the company will have after a launch
 grow_until = 0     -- game day after which it launches no copies (0: no limit);
                    -- a copy takes about 20 game days to pay back
-rest = 240         -- game minutes to rest when both Mars moons are dry
+rest = 240         -- game minutes to rest when nowhere else is better
 hold_cap = 48      -- TRY FIRST: refined goods it keeps on offer before a selling trip (fewer: sells sooner)
 min_ask = 12       -- least asking price (credits) where nobody bids
 hour_value = 4     -- TRY FIRST: credits a game hour of its time is worth (lower: sells further away)
@@ -31,7 +35,8 @@ local CASH_FOR_FUEL = 150          -- credits raised before buying fuel
 local FUEL_TO_BUY = 30             -- units bought when low
 local FUEL_BID_PRICE = 7           -- credits a unit, bid where nobody sells fuel
 local FUEL_BID_UNITS = 60
-local FUEL_TO_TRY_PHOBOS = 60
+local FUEL_TO_MOVE = 60           -- fuel it needs before it moves to another site
+local FULL_TANK = 150
 local LOW_DEPOSIT = 5              -- mining runs left at which a deposit is dry
 local DELIVERY_HOURS = 6           -- game hours it waits for a purchase to arrive
 local COPY_COST = 5000             -- a hull and a kit
@@ -39,26 +44,89 @@ local FUEL_FOR_COPY = 40
 local TANK_TO_LAUNCH, FUEL_NEEDED_TO_LAUNCH = 90, 80
 local TANK_AFTER_LAUNCH = 60
 local TANK_AFTER_SELLING = 100
-local YALSPAR_LOAD, VLADNIUM_LOAD = 16, 12
 local REPORT_EVERY = 4             -- work rounds between reports home
 local TRIP_FUEL_CREDITS = 30       -- a flight's fuel, in credits (10 fuel at about 3)
-local MOON_SITE, PHOBOS_SITE, DEIMOS_SITE, SITE_COUNT = 0, 1, 2, 3
+local NO_TRIP = 999                -- game hours for a place it can't find a trip to
 
+-- Its objective: the ores it mines (and how many before refining), and the goods
+local ores = {yalspar, vladnium}
+local loads = {[yalspar] = 16, [vladnium] = 12}
 local goods_sold = {metals_a1, metals_a2, organics_a1, inorganics_a1, inorganics_a2}
-local markets = {moon, mars, earth}
 
--- The drone you release works the Moon; copies spread out by drone number
-site_number, dry_count, copy = MOON_SITE, 0, false
+-- Where it works (0: not chosen); dry tries in a row; is it a copy
+site, dry_count, copy = 0, 0, false
 
-function work_site()
-  if site_number == MOON_SITE then return moon
-  elseif site_number == PHOBOS_SITE then return phobos
-  else return deimos end
+-- Where to work: answers from the game, not a list of places
+
+function hours_to(place)
+  if place == location() then return 0 end
+  local trip = trip_to(place)
+  return trip and trip.hours or NO_TRIP
 end
 
--- The Moon Depot at the Moon, else the Mars Exchange
-function selling_place()
-  if work_site() == moon then return moon else return mars end
+-- Units an hour over a stay: what its ores yield a run, less the trip there
+function site_rate(place, yield)
+  local hours = hours_to(place)
+  if hours == NO_TRIP then return 0 end   -- no way there: not a site
+  return yield * stay_hours / (stay_hours + hours)
+end
+
+-- What a run of each of its ores yields at a place now, added up
+function yield_at(place)
+  local total = 0
+  for _, ore in ipairs(ores) do total = total + mine_yield(ore, place) end
+  return total
+end
+
+-- Where its ores are found, rated by what they yield together. Of those
+-- within spread percent of the best, the one its drone number picks (drones
+-- on this code spread out), and its rate; nil when none. except: a place to
+-- leave out
+function choose_site(except)
+  local found, rated, top = {}, {}, 0
+  for _, ore in ipairs(ores) do
+    for _, s in ipairs(best_sites(ore)) do found[s.place] = (found[s.place] or 0) + s.yield end
+  end
+  for place, yield in pairs(found) do
+    if place ~= except then
+      rated[place] = site_rate(place, yield)
+      top = math.max(top, rated[place])
+    end
+  end
+  local good = {}
+  for place, rate in pairs(rated) do
+    if rate * 100 >= top * (100 - spread) then table.insert(good, place) end
+  end
+  if #good == 0 or top == 0 then return nil, 0 end
+  table.sort(good)
+  local pick = good[me() % #good + 1]
+  return pick, rated[pick]
+end
+
+function settle(place)
+  if not place or place == site then return end
+  site, dry_count = place, 0
+  set_status("moving to " .. place_name(place) .. ": it pays most there now")
+  if go(place) ~= 0 then site = location() end   -- couldn't fly: work here and look again later
+end
+
+-- Moves only when another site pays move_margin percent more an hour
+function look_around()
+  if units(fuel) < FUEL_TO_MOVE then return end
+  local place, rate = choose_site()
+  if place and rate * 100 > site_rate(site, yield_at(site)) * (100 + move_margin) then settle(place) end
+end
+
+-- Where the House sells a tankful for least, counting the trip; nil if nowhere
+function fuel_stop()
+  local best, least = nil, math.huge
+  for _, offer in ipairs(house_supply(fuel)) do
+    if offer.price > 0 and offer.on_sale >= FUEL_TO_BUY then
+      local cost = offer.price * FULL_TANK + hours_to(offer.place) * hour_value
+      if cost < least then best, least = offer.place, cost end
+    end
+  end
+  return best
 end
 
 -- Halfway between the best bid and the cheapest other seller. With no bid,
@@ -95,7 +163,7 @@ function sell_out(good)
 end
 
 -- Buy here; failing that, bid for fuel (a courier may fill the bid); failing
--- that, fetch it from the market. The bid is withdrawn either way
+-- that, fetch it from where it's cheapest. The bid is withdrawn either way
 function refuel()
   if units(fuel) >= low_fuel then return end
   set_status("low on fuel (" .. units(fuel) .. "): buying some here")
@@ -105,46 +173,33 @@ function refuel()
   set_status("no fuel on sale here: bidding for some")
   buy_order(FUEL_BID_PRICE, FUEL_BID_UNITS, fuel)
   wait(2 * HOUR)
-  if units(fuel) < low_fuel then
-    set_status("still low on fuel: going to " .. place_name(selling_place()) .. " for some")
-    go(selling_place())
+  local stop = units(fuel) < low_fuel and fuel_stop()
+  if stop then
+    set_status("still low on fuel: going to " .. place_name(stop) .. " for some")
+    go(stop)
     raise_cash(CASH_FOR_FUEL); buy_here(FUEL_TO_BUY, fuel)
     wait(2 * HOUR)
-    go(work_site())
+    go(site)
   end
   buy_order(1, 0, fuel)   -- wants 0: withdraws the bid
 end
 
--- Wait for the Moon to refill, unless it has been dry dry_tries times in a
--- row and Phobos is less crowded and in reach
-function wait_at_moon_or_try_phobos()
+-- Waiting is free and a trip costs fuel: it waits a while, then tries the
+-- next best site, or rests when there is none. Refuel first, or it could
+-- rest at a dry site with too little fuel to leave
+function move_on_from_dry_site()
+  if units(fuel) < low_fuel then refuel(); return end
   dry_count = dry_count + 1
-  if dry_count < dry_tries or units(fuel) < FUEL_TO_TRY_PHOBOS or crowd(phobos) >= crowd(moon) then
-    set_status("the Moon is dry: waiting for it to refill (" .. dry_count .. " of " .. dry_tries .. " tries)")
+  if dry_count < dry_tries or units(fuel) < FUEL_TO_MOVE then
+    set_status("dry here: waiting for it to refill (" .. dry_count .. " of " .. dry_tries .. " tries)")
     wait(HOUR)
     return
   end
-  site_number, dry_count = PHOBOS_SITE, 0
-  set_status("the Moon was dry " .. dry_tries .. " times: trying Phobos")
-  go(work_site())
-end
-
--- Fly to the other Mars moon, resting once both have been dry. Refuel
--- first, or it could rest at a dry moon with too little fuel to leave
-function try_other_mars_moon()
-  if units(fuel) < low_fuel then refuel(); return end
-  site_number = PHOBOS_SITE + DEIMOS_SITE - site_number
-  dry_count = dry_count + 1
-  if dry_count % 2 == 0 then
-    set_status("both Mars moons are dry: resting " .. rest .. " game minutes")
-    wait(rest)
-  end
-  set_status("dry here: trying " .. place_name(work_site()))
-  go(work_site())
-end
-
-function move_on_from_dry_site()
-  if site_number == MOON_SITE then wait_at_moon_or_try_phobos() else try_other_mars_moon() end
+  local other = choose_site(site)
+  if other then settle(other); return end
+  set_status("dry here and nowhere better: resting " .. rest .. " game minutes")
+  dry_count = 0
+  wait(rest)
 end
 
 -- A run that brings nothing means others took the ore first
@@ -256,27 +311,30 @@ end
 
 -- A sale's value less the flight there and back to the work site
 function value_after_round_trip(place, value)
-  if place ~= location() then
-    local there = trip_to(place)
-    value = value - TRIP_FUEL_CREDITS - (there and there.hours or 0) * hour_value
-  end
-  if place ~= work_site() then
-    local back = trip_between(place, work_site())
+  if place ~= location() then value = value - TRIP_FUEL_CREDITS - hours_to(place) * hour_value end
+  if place ~= site then
+    local back = trip_between(place, site)
     value = value - (back and back.hours or 0) * hour_value
   end
   return value
 end
 
--- The market where the goods aboard fetch most after the trip (the Moon's
--- bids sag as it fills; Earth's often pay more); nil if none comes out ahead
+-- The exchange where the goods aboard fetch most after the trip, of all
+-- the House bids at (a new one counts too); nil if none comes out ahead
 function best_market()
-  local value = house_value_of_goods()
   local best, best_net = nil, 0
-  for _, place in ipairs(markets) do
-    if value[place] then
-      local net = value_after_round_trip(place, value[place])
-      if net > best_net then best, best_net = place, net end
-    end
+  for place, value in pairs(house_value_of_goods()) do
+    local net = value_after_round_trip(place, value)
+    if net > best_net then best, best_net = place, net end
+  end
+  return best
+end
+
+-- The nearest exchange that bids for its goods
+function nearest_market()
+  local best, least = location(), math.huge
+  for place in pairs(house_value_of_goods()) do
+    if hours_to(place) < least then best, least = place, hours_to(place) end
   end
   return best
 end
@@ -284,14 +342,14 @@ end
 -- Until hold_cap goods are aboard, other drones may buy them here
 function sell_when_hold_is_full()
   if goods_aboard() < hold_cap then return end
-  local where = best_market() or selling_place()
+  local where = best_market() or nearest_market()
   set_status("selling " .. goods_aboard() .. " refined goods at " .. place_name(where))
   go(where)
   post_sell_orders()
   for _, good in ipairs(goods_sold) do sell_out(good) end
   fill_to(TANK_AFTER_SELLING)
   reinvest()
-  go(work_site())
+  go(site)
 end
 
 rounds_worked = 0
@@ -302,47 +360,38 @@ function report_home_now_and_then()
   report()
 end
 
-function mine_and_refine(mineral, mineral_name, load)
-  set_status("mining " .. mineral_name .. " at " .. place_name(work_site()))
-  dig(mineral, load)
-  set_status("refining " .. mineral_name)
-  refine(mineral)
-end
-
--- A crowded site yields less a run: below move_below, move to the Moon,
--- Phobos or Deimos, whichever yields at least 2 more a run now
-function move_if_crowded(mineral)
-  local here = mine_yield(mineral)
-  if move_below == 0 or here >= move_below or units(fuel) < FUEL_TO_TRY_PHOBOS then return end
-  local place, best = best_yield(mineral, {moon, phobos, deimos})
-  if place == work_site() or best < here + 2 then return end
-  if place == moon then site_number = MOON_SITE elseif place == phobos then site_number = PHOBOS_SITE
-  else site_number = DEIMOS_SITE end
-  set_status("crowded (" .. here .. " a run): moving to " .. place_name(place))
-  go(place)
+-- Each of its ores found here, a load at a time
+function mine_and_refine()
+  for _, ore in ipairs(ores) do
+    if mine_yield(ore) > 0 then
+      set_status("mining " .. resource_name(ore) .. " at " .. place_name(site))
+      dig(ore, loads[ore])
+      set_status("refining " .. resource_name(ore))
+      refine(ore)
+    end
+  end
 end
 
 function work()
   refuel()
-  move_if_crowded(yalspar)
-  mine_and_refine(yalspar, "yalspar", YALSPAR_LOAD)
-  mine_and_refine(vladnium, "vladnium", VLADNIUM_LOAD)
+  if rounds_worked % look_every == 0 or mine_yield(yalspar) < move_below then look_around() end
+  mine_and_refine()
   sell_when_hold_is_full()
   report_home_now_and_then()
 end
 
 -- launched() may run again after a crash or restart: a drone that has
--- chosen its site keeps it. A copy inherits started holding its parent's
--- number, so it chooses afresh
+-- chosen its site keeps it. A new drone, or a copy (which inherits started
+-- holding its parent's number), chooses its own
 started = 0
 function launched()
   fuel_floor(FUEL_FLOOR)
   equip(mining_kit)   -- a copy waits for the kit its parent hands it
   if started ~= me() then
-    if copy and spread_copies == 1 then site_number = me() % SITE_COUNT else site_number = MOON_SITE end
+    site = choose_site() or location()
     copy, started = true, me()
   end
-  go(work_site())
+  go(site)
   post_sell_orders()
   while true do work() end
 end
