@@ -23,3 +23,6 @@ phpMyAdmin
 
 # Access lock files (#526)
 *.laccdb
+
+# Python bytecode (tools/balance imports the game-data build)
+__pycache__/

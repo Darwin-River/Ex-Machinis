@@ -40,6 +40,7 @@ When a change affects players, update the docs in the same PR:
 
 - Changes to the game's numbers that aim at balance or playability follow DV-03 (`Procedures/SOPs/DV-03 Tuning gameplay parameters.md`): each names its playability objectives (`tools/balance/objectives.json`), predicts their movement, changes one lever family a release, and is measured live and in a playtest round before it is kept, adjusted or reverted.
 - Tuning issues are sub-issues of the backlog, #962, written with DV-03-T1.
+- The live game's balance is checked routinely per DV-05 (`Procedures/SOPs/DV-05 Monitoring and balancing the live game.md`): a daily reading on the balance log (#1032) with `tools/balance/measure_live.py` and `watch.py`, and a weekly review that drafts at most one tuning issue. A signal acts only after it persists; readings never name or single out an AI player.
 
 ## The AI player cohort
 
