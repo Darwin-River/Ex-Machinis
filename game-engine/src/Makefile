@@ -75,7 +75,7 @@ $(EVENTS_ENGINE_EXE_NAME): $(EVENTS_ENGINE_OBJS)
 # Compiles a Lua drone's script without running it (#380: the website's check)
 $(EXE_PATH)/lua-check: lua_check.c $(LUA_OBJS)
 	@mkdir -p $(EXE_PATH)
-	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $@ lua_check.c $(LUA_OBJS) -lm
+	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -I./include -o $@ lua_check.c $(LUA_OBJS) -lm
 
 # Runs a player's trading script once, in a sandbox (#768: the website's keeper)
 $(EXE_PATH)/lua-trade: lua_trade.c $(LUA_OBJS)

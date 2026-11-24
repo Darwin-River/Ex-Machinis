@@ -176,12 +176,12 @@ class ReleasePageTest extends TestCase
     public function testLongScriptsAreSplitAtLineEnds()
     {
         $line = str_repeat('1 drop ', 100); // 700 characters
-        $script = implode("\n", array_fill(0, 7, $line));
+        $script = implode("\n", array_fill(0, 50, $line));
         $chunks = Release::chunks($script);
 
         $this->assertGreaterThan(1, count($chunks));
         foreach ($chunks as $chunk) {
-            $this->assertLessThanOrEqual(Command::MAX_CODE_LENGTH, mb_strlen($chunk));
+            $this->assertLessThanOrEqual(Command::MAX_CODE_LENGTH, strlen($chunk));
         }
         $this->assertEquals($script, implode("\n", $chunks));
     }

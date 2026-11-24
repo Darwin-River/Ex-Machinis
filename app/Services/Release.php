@@ -143,14 +143,15 @@ class Release
     }
 
     /**
-     * Why a script can't be released, or null: it must define launched, and
-     * no line may be longer than the drone reads. The Release page and the
-     * API (#380) both check this.
+     * Why a script can't be released, or null: it must define launched, no
+     * line may be longer than the drone reads, and once loaded it must leave
+     * the drone memory for its data (#1035). The Release page and the API
+     * (#380) both check this.
      */
     public static function scriptProblem(string $script): ?string
     {
         foreach (explode("\n", $script) as $i => $line) {
-            if (mb_strlen($line) > \App\Command::MAX_CODE_LENGTH) {
+            if (strlen($line) > \App\Command::MAX_CODE_LENGTH) {
                 return 'Line ' . ($i + 1) . ' is too long: split it into shorter lines.';
             }
         }
@@ -164,7 +165,37 @@ class Release
             return 'Your script must define the function launched ("function launched() ... end"): '
                 . 'your drone runs it once it is released.';
         }
-        return self::luaProblem($script);
+        return self::luaProblem($script) ?? self::memoryProblem($script);
+    }
+
+    /**
+     * What a Lua script holds of its drone's memory once loaded (#1035), from
+     * lua-check: script (bytes the compiled script holds), in_use (all the
+     * drone's Lua holds with the game's library loaded too), cap (the most it
+     * may hold), headroom (what must be left for its data) and allowance (cap
+     * less headroom). Null without the checker, or when it doesn't compile.
+     * Comments and blank lines hold nothing; code does.
+     */
+    public static function luaMemory(string $script): ?array
+    {
+        [$code, $out] = self::runLuaCheck($script);
+        if ($code !== 0 || !preg_match('/^memory: (\d+) (\d+) (\d+) (\d+)$/m', $out, $m)) {
+            return null;
+        }
+        return ['script' => (int) $m[1], 'in_use' => (int) $m[2], 'cap' => (int) $m[3], 'headroom' => (int) $m[4],
+            'allowance' => (int) $m[3] - (int) $m[4]];
+    }
+
+    private static function memoryProblem(string $script): ?string
+    {
+        $memory = self::luaMemory($script);
+        if ($memory === null || $memory['in_use'] <= $memory['allowance']) {
+            return null;
+        }
+        $kb = fn ($bytes) => number_format($bytes / 1024) . ' KB';
+        return 'Once loaded, your script and the game\'s library hold ' . $kb($memory['in_use']) . ' of the drone\'s '
+            . $kb($memory['cap']) . ' of memory, leaving less than the ' . $kb($memory['headroom'])
+            . ' it needs for its data. Shorten the code: comments and blank lines take no memory, functions and tables do.';
     }
 
     public static function definesLaunched(string $script): bool
@@ -297,7 +328,7 @@ class Release
         $current = '';
         foreach (preg_split('/\r\n|\r|\n/', $script) as $line) {
             $candidate = $current === '' ? $line : $current . "\n" . $line;
-            if (mb_strlen($candidate) > Command::MAX_CODE_LENGTH && $current !== '') {
+            if (strlen($candidate) > Command::MAX_CODE_LENGTH && $current !== '') {
                 $chunks[] = $current;
                 $candidate = $line;
             }
