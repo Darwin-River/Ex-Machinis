@@ -129,6 +129,7 @@ Route::middleware('new-rules')->group(function () {
     // Opt-in e-mail notices (#761)
     Route::post('/account/notices', 'AccountController@notices');
     Route::post('/account/classes/{id}/notices', 'AccountController@classNotices')->whereNumber('id');
+    Route::post('/account/classes/{id}/settings', 'AccountController@classSettings')->whereNumber('id');
     Route::post('/account/alerts', 'AccountController@addAlert');
     Route::post('/account/alerts/{id}/remove', 'AccountController@removeAlert')->whereNumber('id');
     Route::get('/notices/unsubscribe/{id}', 'AccountController@unsubscribe')->whereNumber('id')

@@ -253,6 +253,10 @@ A teacher with a verified account can make a **class group** from the account pa
 
 - **Pupils give no names and no e-mail addresses.** Their accounts are verified through their teacher's. Like every new account, they start with no credits.
 - **They trade shares only with their own group.**
+- **Class settings** (#1003), on the group's page (the teacher's account page links to it):
+  - **Takeovers within the class**, on at first. Off, no pupil can buy every share of a company a classmate founded, so nobody takes over a classmate's code; a pupil can still own their own companies outright.
+  - **Loans only within the class**, on at first. Pupils back only loans their classmates' companies ask for, and those companies borrow only from the class.
+  - **A read-only log** of the last 30 game days between the pupils: share trades between them, loans one backed to another's company, the dividends classmates' companies paid them, and those companies' payouts.
 - **They have their own boards**: the Players page ranks the group's members among themselves.
 - **They get no e-mails** (they have no address). The teacher can turn on a **daily class summary** for each group on their account page, under **E-mail notices**: one e-mail, on a day something needs a pupil, listing each pupil's startups that can mature, companies at risk and wrecked drones, with what each could try next.
 
