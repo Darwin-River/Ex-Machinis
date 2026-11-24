@@ -97,7 +97,9 @@ class WorldController extends Controller
     /** The stock exchange (#484): every company's shares, what's for sale, and the latest trades */
     public function shares()
     {
-        return view('world.shares', self::sharesPage());
+        // New on the exchange (#996): first offers of shares and loan requests over the last 7 game days
+        $listings = config('forge.new_rules') ? \App\Services\Notices::listings(\App\Services\World::gameNow() - 7 * 86400) : [];
+        return view('world.shares', self::sharesPage() + ['listings' => $listings]);
     }
 
     /** Real seconds after which a view of the stock exchange starts a rebuild of it (#726) */

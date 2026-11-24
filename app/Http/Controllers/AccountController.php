@@ -207,7 +207,21 @@ class AccountController extends Controller
         }
         $group = Players::classGroup($user, $id);
         abort_if($group === null, 404);
-        return view('account.class-group', ['group' => $group, 'fresh' => false]);
+        // Class settings and the log of what passed between pupils (#1003)
+        return view('account.class-group', ['group' => $group, 'fresh' => false,
+            'settings' => \App\Services\ClassSettings::available() ? \App\Services\ClassSettings::of($id) : null,
+            'log' => \App\Services\ClassSettings::log($id)]);
+    }
+
+    /** POST /account/classes/{id}/settings {takeovers, loans_within}: a teacher's class settings (#1003) */
+    public function classSettings(Request $request, int $id)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        abort_unless(\App\Services\ClassSettings::save($user, $id, $request->boolean('takeovers'), $request->boolean('loans_within')), 404);
+        return redirect('/account/classes/' . $id . '#class-settings')->withSuccess('The class settings are saved.');
     }
 
     /** A new password for one pupil, shown once */

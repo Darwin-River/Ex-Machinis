@@ -129,12 +129,15 @@ Route::middleware('new-rules')->group(function () {
     // Opt-in e-mail notices (#761)
     Route::post('/account/notices', 'AccountController@notices');
     Route::post('/account/classes/{id}/notices', 'AccountController@classNotices')->whereNumber('id');
+    Route::post('/account/classes/{id}/settings', 'AccountController@classSettings')->whereNumber('id');
     Route::post('/account/alerts', 'AccountController@addAlert');
     Route::post('/account/alerts/{id}/remove', 'AccountController@removeAlert')->whereNumber('id');
     Route::get('/notices/unsubscribe/{id}', 'AccountController@unsubscribe')->whereNumber('id')
         ->middleware('signed:relative')->name('notices.unsubscribe');
     // Loans (#928)
     Route::post('/loans/{id}/back', 'LoanController@back')->whereNumber('id');
+    // A founder's note (#998)
+    Route::post('/companies/{id}/note', 'UserController@note')->whereNumber('id');
     // Startups (#637)
     Route::post('/startups/claim', 'StartupController@claim');
     Route::post('/startups/{id}/push', 'StartupController@reprogram')->whereNumber('id');
@@ -163,6 +166,8 @@ Route::middleware('new-rules')->group(function () {
     // "Since you last looked" (#771): seen
     Route::post('/account/seen', 'AccountController@seen');
     Route::post('/account/trade-script/run', 'PlayerShareController@runTradeScript');
+    // A test drive: what it would do, applying nothing (#1005)
+    Route::post('/account/trade-script/test-drive', 'PlayerShareController@testDriveTradeScript');
 });
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');

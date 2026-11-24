@@ -97,6 +97,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/trade-script', 'PlayerShareController@apiTradeScript');
     Route::middleware(['new-rules', 'throttle:api-write'])->put('account/trade-script', 'PlayerShareController@apiSaveTradeScript');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/trade-script/run', 'PlayerShareController@apiRunTradeScript');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('account/trade-script/test-drive', 'PlayerShareController@apiTestDriveTradeScript');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/bank/sell', 'PlayerShareController@apiSellToBank')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/bank/buy', 'PlayerShareController@apiBuyFromBank')->whereNumber('id');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('player-shares/{id}/orders', 'PlayerShareController@apiOrder')->whereNumber('id');

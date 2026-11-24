@@ -180,6 +180,10 @@ class Loans
             if (!$c || $c->eliminated_at !== null || Ownership::owner($c) !== null || (int) $c->startup === 1) {
                 return self::fail(409, 'Only a public company borrows, and this one no longer is.');
             }
+            // Loans only within a class (#1003)
+            if ($problem = ClassSettings::loanProblem((int) $user->user_id, (int) $r->company_id)) {
+                return self::fail(403, $problem);
+            }
             $left = (int) $r->amount - (int) $r->backed;
             if ($left <= 0) {
                 return self::fail(409, 'It is fully backed.');

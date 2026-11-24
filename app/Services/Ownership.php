@@ -90,6 +90,10 @@ class Ownership
             return 'You sold shares of this company: you can buy its shares again from ' . $until->format('M j, H:i') . ' UTC ('
                 . self::BAN_DAYS . ' real days after selling any).';
         }
+        // A class with takeovers off (#1003): no pupil buys every share of a classmate's company
+        if (self::wouldOwn($user, $company, $units) && ($problem = ClassSettings::takeoverProblem($user, $company))) {
+            return $problem;
+        }
         if (self::wouldOwn($user, $company, $units) && Startups::slotsInUse($user) >= (int) config('forge.startup_max')) {
             return 'That would give you all its shares, and you already own ' . (int) config('forge.startup_max')
                 . ' companies outright (startups included), the most you may. Sell a share of one, or close one, first.';

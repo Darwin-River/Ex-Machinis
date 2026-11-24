@@ -18,6 +18,8 @@ _Your drones are programmed in [Lua](https://www.lua.org/manual/5.4/), and every
 
 **The website's four steps.** The home page, Getting started and your account page show the same path: **make an account, code drones, invest, lend**, with the step you're on marked *next*. Coding drones is Parts I to III; investing is Part IV and [reading other companies' code](#part-v-finance) in Part V; lending is the rest of Part V. You need [5,000 credits](#part-v-finance) in your account to back a loan, and your account page shows how far you have to go.
 
+To see where it all leads, read the [afterword](#afterword-one-player-through-the-whole-game): one player through the whole game, from a first startup to a loan and a takeover.
+
 The reference material is at the back: [what an error or a failure code means](#appendix-a-when-your-script-fails), [every game function and question](#appendix-b-the-lua-reference), and a [glossary](#appendix-c-glossary).
 
 ## Table of Contents
@@ -132,6 +134,7 @@ The reference material is at the back: [what an error or a failure code means](#
     - [Before you buy: read the code](#before-you-buy-read-the-code)
   - [Chapter 23: Account trading scripts](#chapter-23-account-trading-scripts)
     - [Your trading script](#trading-script)
+- [Afterword: one player through the whole game](#afterword-one-player-through-the-whole-game)
 - [Appendix A: When Your Script Fails](#appendix-a-when-your-script-fails)
   - [Action failure codes](#action-failure-codes)
 - [Appendix B: The Lua reference](#appendix-b-the-lua-reference)
@@ -222,7 +225,7 @@ Your account has **credits** of its own, and starts with none: they are what you
 - **A drone of mine is wrecked**, with where and how, and a link to its page;
 - **A weekly digest**: each of your companies' net wealth, a startup's progress to maturing and its health, and your shares' cash-out value and the dividends they paid that week.
 
-For traders there are six more:
+For traders there are seven more:
 
 - **A startup of mine is past its credit cap** (how much went to the bank in the last real day). The credit cap was retired in November 2026, so this one no longer has anything to tell;
 - **A share order of mine fills** (who you traded with, the price and the cash-out then; at most one e-mail an hour);
@@ -230,6 +233,7 @@ For traders there are six more:
 - **The bank pays me for shares I sold it** (what it paid each, and whether that was less than at the sale);
 - **A company I hold shares in moves 15% or more in cash-out over 7 game days, or ends**;
 - **The House bids more than a price I set**: add up to 10 price alerts on the account page (a good, a place or anywhere, and a price), for example Pumps at the Moon over 850.
+- **A company offers its shares for the first time, or asks for a loan** (#996): what came new on the exchange since the last e-mail, leaving out your own companies, each linked to its investor sheet or the loan board.
 
 All but the digest and filled orders come together in one e-mail, at most one a real day, and each item says what to try next. Nothing from before you turned a notice on is told. Every e-mail has a link that turns them all off at once.
 
@@ -249,6 +253,10 @@ A teacher with a verified account can make a **class group** from the account pa
 
 - **Pupils give no names and no e-mail addresses.** Their accounts are verified through their teacher's. Like every new account, they start with no credits.
 - **They trade shares only with their own group.**
+- **Class settings** (#1003), on the group's page (the teacher's account page links to it):
+  - **Takeovers within the class**, on at first. Off, no pupil can buy every share of a company a classmate founded, so nobody takes over a classmate's code; a pupil can still own their own companies outright.
+  - **Loans only within the class**, on at first. Pupils back only loans their classmates' companies ask for, and those companies borrow only from the class.
+  - **A read-only log** of the last 30 game days between the pupils: share trades between them, loans one backed to another's company, the dividends classmates' companies paid them, and those companies' payouts.
 - **They have their own boards**: the Players page ranks the group's members among themselves.
 - **They get no e-mails** (they have no address). The teacher can turn on a **daily class summary** for each group on their account page, under **E-mail notices**: one e-mail, on a day something needs a pupil, listing each pupil's startups that can mature, companies at risk and wrecked drones, with what each could try next.
 
@@ -301,7 +309,7 @@ Not sure where to begin? The Found a startup page offers three starter scripts a
 
 - **Miner** (Mining Kit): mines wolfite on the Moon (the richer of kunspar and wolfite there, `richer`: kunspar is only found far away now), refines it and sells the metals (and wolfite's Inorganics A2). Mining sites never run dry, but a crowded one yields less a run, so it works the Moon, nearest the markets, and moves to whichever of the Moon, Phobos and Deimos yields at least 2 more a run once a run where it is yields less than `move_below` (3); set `crowd_limit` above 0 to have it start at the quieter of Phobos and Deimos when more drones than that work the Moon, and its copies spread out. Once matured, it offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. Its code for dry deposits (waiting, then trying Phobos and Deimos) only matters if deposits are made to run dry again. It sells where the House pays most for its metals (`best_market`): of the Moon Depot, the Mars Exchange and the Earth Exchange, the one whose bids now, for as many as each still takes (`house_demand`), come to most once the trip there and back is counted (`hour_value`, 4 credits a game hour; at 10 it sold at Mars for 2 to 5 a metal from Phobos and Deimos), and if 60 or more (`haul_at`) are still unsold it flies them to the next best (in one playtest, startups at Phobos and Deimos hoarded 70 to 110 metals, selling only at Mars, which often bid nothing). It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7, waits two game hours for a courier, then flies to the Mars Exchange if none came. A startup's order brings no courier (only the House and its own drones may trade with it), so a startup flies to the market at once. It does the same when it runs low while waiting on a dry deposit (it used to rest there for good).
 - **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way: once 48 are aboard, where the House pays most after the trip, the Moon or Earth (`hour_value` says what an hour of its time is worth). It works the Moon and, like the Miner, moves to a quieter site when a run of yalspar yields less than `move_below` (3) where it is; set `spread_copies` to 1 to send two in three copies to Phobos and Deimos.
-- **Maker** (Factory Kit): buys metals where they cost least. As a startup it asks `house_supply` where the House sells them before it flies anywhere, and picks the exchange where a unit costs least once the trip is shared over what its daily cap lets it buy there; once matured it buys at the Moon from whoever is cheapest. It makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays (it hauled rods between Earth and Mars on other drones' bids it couldn't sell to). Short of credits for metals, it rests two game hours at a time instead of looping (each turn costs processor tax). Once matured, with enough credits it launches a copy of itself. Its share investing, from the old rules, is gone: companies can't trade shares (-18), so it only wasted work.
+- **Maker** (Factory Kit): buys metals where they cost least. As a startup it asks `house_supply` where the House sells them before it flies anywhere, and picks the exchange where a unit costs least once the trip is shared over what it buys there (at most a tenth of the House's stock at a time); once matured it buys at the Moon from whoever is cheapest. It makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays (it hauled rods between Earth and Mars on other drones' bids it couldn't sell to). Short of credits for metals, it rests two game hours at a time instead of looping (each turn costs processor tax). Once matured, with enough credits it launches a copy of itself. Its share investing, from the old rules, is gone: companies can't trade shares (-18), so it only wasted work.
 
 The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a startup can't.
 
@@ -950,7 +958,7 @@ end
 
 ### Trading as a startup
 
-Until it matures, a startup **trades only with the House**: the planets' station drones at the Earth Exchange, the Moon Depot and the Mars Exchange. Its own company's drones may trade with each other as well. A push or pull into any other company's order fails with -16, and so does a plunder. `buy_here`, `sell_here`, `best_offer` and `best_bid` know this: for a startup they look only at the planets' orders (`planets` is 1 in the order lists). `house_only()` tells your script which kind of company it is: `true` for a startup; `nil` for a company that may trade with anyone. So `if house_only() then ... end` runs only while the company is a startup, and the same script does the right thing once it matures. The starters use it that way.
+Until it matures, a startup **trades only with the House**: the planets' station drones at the Earth Exchange, the Moon Depot, the Mars Exchange and Ceres Station. Its own company's drones may trade with each other as well. A push or pull into any other company's order fails with -16, and so does a plunder. `buy_here`, `sell_here`, `best_offer` and `best_bid` know this: for a startup they look only at the planets' orders (`planets` is 1 in the order lists). `house_only()` tells your script which kind of company it is: `true` for a startup; `nil` for a company that may trade with anyone. So `if house_only() then ... end` runs only while the company is a startup, and the same script does the right thing once it matures. The starters use it that way.
 
 **The daily buying cap (-17) is retired.** Until November 2026 a startup bought at most a tenth of what the House had on sale of a good at one exchange in a game day, and a pull past that failed with -17. Now a startup buys whatever the House has on sale, so -17 no longer happens. Selling to the House has never had a cap, though past a day's demand of a good the House pays less and less for it (see [How much more will the House buy?](#house-demand)).
 
@@ -2126,7 +2134,9 @@ A company's **net wealth** on the company leaderboards is a different figure: wh
 
 On a matured company's page (logged in): **Sell to the bank** and **Buy from the bank**, in whole shares. Through the API: `POST /api/v1/player-shares/{id}/bank/sell` and `.../bank/buy` with `units`.
 
-The **Stock exchange** (`/market/shares`) has a row for each matured company, best return first (below): a share's cash-out value and a sparkline of how it changed over 30 game days (every row on one scale, in percent from its first day, so a steady share is a flat line whatever its price), the dividends a share paid over 30 game days, the yield (those dividends against cash-out, over the same 30 days), the **last price between players** and how many game days ago it was, the bank's selling price, the **return over 30 game days** (the change in a share's cash-out value plus the dividends it paid, against its value 30 game days ago: most of what a share returns is growth, and the yield alone hid it), and whether the company is steady, at risk, stalled, failing or **dissolving** (counting down to dissolving, with the game days left), with the reason written under it. Best return first; a dissolving company last, whatever it paid. A refusal by the market (another drone's order changed first, or a startup's daily cap) doesn't count as failing. The last price counts only trades between two players, not the bank's. Its premium or discount on today's cash-out is shown only when that trade is 7 game days old or less, since an older price says little about today's (a trade with the bank 630 game days earlier read "−93% discount"). The old world's exchange is folded away under **Before the new rules**. The page is worked out again every few real minutes, and says how old it is, so a trade you just made can take a few minutes to show here; your account page and the company's page show it at once.
+At the top of the **Stock exchange**, **New on the exchange** lists the companies that offered their shares for the first time in the last 7 game days, with their close-out value, and the loan requests posted then, each with what it asks, its rate and its due date (#996). Read a company's [investor sheet](#investor-sheet) and its code before you buy or lend.
+
+The **Stock exchange** (`/market/shares`) has a row for each matured company, best return first (below): a share's cash-out value and a sparkline of how it changed over 30 game days (every row on one scale, in percent from its first day, so a steady share is a flat line whatever its price), the dividends a share paid over 30 game days, the yield (those dividends against cash-out, over the same 30 days), the **last price between players** and how many game days ago it was, the bank's selling price, the **return over 30 game days** (the change in a share's cash-out value plus the dividends it paid, against its value 30 game days ago: most of what a share returns is growth, and the yield alone hid it), and whether the company is steady, at risk, stalled, failing or **dissolving** (counting down to dissolving, with the game days left), with the reason written under it. Best return first; a dissolving company last, whatever it paid. A refusal by the market (another drone's order changed first) doesn't count as failing. The last price counts only trades between two players, not the bank's. Its premium or discount on today's cash-out is shown only when that trade is 7 game days old or less, since an older price says little about today's (a trade with the bank 630 game days earlier read "−93% discount"). The old world's exchange is folded away under **Before the new rules**. The page is worked out again every few real minutes, and says how old it is, so a trade you just made can take a few minutes to show here; your account page and the company's page show it at once.
 
 ### Is its capital working?
 
@@ -2428,6 +2438,18 @@ Next, [Chapter 22](#chapter-22-reading-other-companies-code-to-invest-and-lend):
 
 _In this chapter:_ what to look for in a public company's code and page before you buy its shares or back its loans.
 
+<a name="investor-sheet"></a>**The investor sheet.** At the top of every matured company's page, the **Investor sheet** puts in one place what to weigh before you buy its shares or back its loans:
+
+- **Price and value:** its close-out value a share, the last price two players traded at (and how far above or below the value that is), and its idle credits as a share of what it's worth.
+- **What it pays out:** the share of each day's profit its code declares as dividends, what it actually paid over 30 game days, and the payouts its code asked for (`pay_out`) against what was paid.
+- **What it owes:** its open loans, each with its lender and due date, marked **insider** when the lender is its founder or one of its 5 biggest holders; its loan requests; and its open contracts.
+- **Insiders:** its founder and biggest holders, and any company of theirs it has traded with. A locked company that sells cheap to its founder's other company is worth knowing about.
+- **Its founder's record:** the founder's other companies, how many matured and ended, how each ended, and their loan defaults.
+
+The sheet tells you what happened. The code tells you what will happen next, so read that too.
+
+<a name="founder-note"></a>**The founder's note** (#998). Above the sheet, a company's founder can keep a short note, at most 280 characters of plain text: a known issue ("it idles if its fuel is over 900"), a plan, a warning. They write it on the company's page (**Write a note**), and can change or clear it at any time while the company runs, before and after its code is locked. It's the one thing a founder can still say once the code can't change. It changes nothing the drones do, and the founder's word is not a promise, so weigh it like anything else on the page.
+
 ### Before you buy: read the code
 
 A company's code is public from the moment its shares are offered (see [Who sees a company's code](#who-sees-code)). Once a share has sold its code can't change, unless one player buys every share, so what you read is what it will do. Clearly written code (see [Code investors can read](#code-investors-can-read)) is quicker to judge, and a company you can understand is a safer buy. But it can still react: to prices, to orders, to what it finds where it goes. So read it before you buy, and ask:
@@ -2472,12 +2494,13 @@ _In this chapter:_ how your account runs a Lua script every few real minutes tha
 
 ### <a name="trading-script"></a>Your trading script
 
-Your account can run one **trading script**: a Lua script that trades your shares while you're away. Write it in **Your trading script** on your account page (or `PUT /api/v1/account/trade-script` with `{code, enabled}`), tick **Run it every few real minutes**, and save. **Run it once now** runs it straight away. Your account page shows its last runs: what it said, and what each action did.
+Your account can run one **trading script**: a Lua script that trades your shares while you're away. Write it in **Your trading script** on your account page (or `PUT /api/v1/account/trade-script` with `{code, enabled}`), tick **Run it every few real minutes**, and save. **Run it once now** runs it straight away. Your account page shows its last runs: what it said, and what each action did. **Test drive (changes nothing)**, beside **Save**, runs what is in the editor once against the market now and your script's memory, and lists what it says and what each action *would* do ("would buy 5 of Vega Works at 77"), without taking any of them or saving anything: no trades, no orders, no memory, no log (#1005). Try a change that way before you save it. (`POST /api/v1/account/trade-script/test-drive` with an optional `code` does the same.)
 
 Every few real minutes the game calls its `trade(market)` once, with:
 
 - `market.companies`: every matured company still trading, each `{company, name, buys_at, sells_at, low, high, bank_holds, dividends30, yield_percent, growth_percent, return_percent, last_price, last_days_ago, stalled, at_risk, failing, dissolves_in, winds_up_in, bids, asks}`. `winds_up_in` is the game days until a company that has sold nothing for a while is wound up (nil when it isn't counting down). `buys_at` is what the bank buys a share at (its cash-out value), `sells_at` what it sells at (the same), `low` and `high` the lowest and highest price an order may name (1 and 9,999,999: there is no band); `bids` and `asks` are the book, best first, each `{price, units, by}`. A field that has no value (no last price, a company not dissolving) is `nil`.
-- `market.me`: your `credits`, `share_credits` (starting credits, 0 for an account made since November 2026), `holdings` (`me.holdings[company]` is how many of its shares you hold), `orders` (each `{id, company, side, units, price, peg, offset_percent, out_of_range}`, where `out_of_range` is true when the company's shares don't trade now), `bank_owes` and `dividends_30_days`.
+- `market.me`: your `credits`, `share_credits` (starting credits, 0 for an account made since November 2026), `holdings` (`me.holdings[company]` is how many of its shares you hold), `orders` (each `{id, company, side, units, price, peg, offset_percent, out_of_range}`, where `out_of_range` is true when the company's shares don't trade now), `bank_owes`, `dividends_30_days` and `loans` (your loans, as `my_loans()` gives them).
+- `market.loan_requests` and `market.lend_min_credits`: the open loan requests (as `loan_requests()` gives them) and the credits an account needs to back one (5,000).
 - `market.now` and `market.day`: the game time and day.
 
 It acts with:
@@ -2527,6 +2550,20 @@ end
 **You've mastered this when** your trading script has run for a season and its log shows each action it took and why.
 
 **You've mastered Part V** when your loans and shares earn more than they lose over a season. The appendices follow: what an error means, every game function, and a glossary.
+
+## Afterword: one player through the whole game
+
+_A worked example of everything in this manual, with the numbers of a fresh startup. Each step links to where it is explained._
+
+1. **Priya founds a startup,** Rocket Co. The bank lends it a drone and 3,000 credits, so it owes 4,200. She loads the Miner starter and fixes it three times in her first evening, for free. It sells its metals to the planets ([Chapter 1](#chapter-1-getting-started-with-the-miner)).
+2. **After 40 game days** Rocket Co holds 4,700 credits, its debt plus 500. Priya matures it: it repays the 4,200, trades with everyone from now on, and its 100 shares are hers. She still owns it outright, so she can keep changing its code ([Maturing a startup](#maturing-a-startup)).
+3. **Its dividends** bring Priya her first credits: half of each day's profit, until her code says otherwise. Over the next 60 game days she founds two more startups and tunes Rocket Co to haul a far-away good ([Chapter 15](#chapter-15-dividends-and-payout), [Chapter 10](#chapter-10-hauling-far-away-goods)).
+4. **She offers 40 shares at 80,** against a close-out value of 50. The moment she offers them, Rocket Co's code is public. Ruth reads its [investor sheet](#investor-sheet) and its code, likes its exit routine, and buys 10 shares for 800. Now the code is locked and Rocket Co is public. Priya has 800 more credits, and she can't buy its shares back for 7 real days ([Chapter 17](#chapter-17-the-ipo-and-its-locked-code)).
+5. **Rocket Co's code asks for a loan** of 3,000 at 6% for 30 game days, to buy a second drone. Ruth and Marcus each hold over 5,000 credits, so they can back it: Ruth backs 1,000 and Marcus 2,000. On the due date Rocket Co repays Ruth 1,060 and Marcus 2,120 ([Chapter 21](#chapter-21-loan-requests)).
+6. **If it had paid only 2,000** on the due date, Ruth would get a third of it (667) and Marcus two thirds (1,333). Every credit Rocket Co earned afterwards would go to them in the same shares until they had their 3,180, and its dividends would stop meanwhile.
+7. **If it then went broke,** whatever credits were left would go to Ruth and Marcus first, then to its shareholders, and its drones would become wrecks for salvagers ([Chapter 11](#chapter-11-salvage)). There's a cheaper fate: Marcus buys all 100 shares cheaply, which makes the loans due at once. He repays them, rewrites the code and sells shares again ([Chapter 19](#chapter-19-takeovers)).
+
+None of it needs anything beyond coding drones until step 4. Steps 4 to 7 are for when you want them.
 
 ## Appendix A: When Your Script Fails
 
