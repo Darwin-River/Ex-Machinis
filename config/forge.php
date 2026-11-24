@@ -9,6 +9,8 @@ return [
     // The account trading script's sandbox (#768), and how often it may run (real seconds)
     'lua_trade' => env('LUA_TRADE', base_path('game-engine/src/bin/lua-trade')),
     'trade_script_every' => (int) env('FORGE_TRADE_SCRIPT_EVERY', 120),
+    // A drone script's test drive (#1007): runs it against a snapshot of the world, changing nothing
+    'lua_drive' => env('LUA_DRIVE', base_path('game-engine/src/bin/lua-drive')),
 
     // Fuel in a new drone's hold (#324 step 8): actions burn it
     'starting_fuel' => 100,

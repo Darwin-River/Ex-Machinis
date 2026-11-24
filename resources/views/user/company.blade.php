@@ -217,15 +217,18 @@
                             <form method="POST" action="{{ url('startups/' . $user->user_id . '/close') }}"
                                   onsubmit="return confirm('Close this startup? This pushes code that calls close_company(): within a real minute its credits go back to the bank, its drones become empty wrecks, and its debt is cancelled.')">{{ csrf_field() }}
                                 <button class="button button-secondary" type="submit" id="close-button">Close it (debt cancelled)</button></form>
-                            <details id="startup-push">
+                            <details id="startup-push" @if(session('drone_test_drive')) open @endif>
                                 <summary class="button button-secondary" style="display: inline-block">Push new code (free)</summary>
                                 <form method="POST" action="{{ url('startups/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
                                     <label for="startup-script">New script (Lua): its working drones drop what they run and start it</label>
                                     @include('partials.lua-editor')
                                     <textarea v-pre class="form-control" id="startup-script" name="script" rows="10" spellcheck="false" data-lua-editor
-                                              maxlength="{{ config('forge.max_script_length') }}" required>{{ $code['current']['script'] ?? '' }}</textarea>
+                                              maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $code['current']['script'] ?? '') }}</textarea>
                                     <button class="button button-primary mt-2" type="submit">Push it</button>
+                                    {{-- A test drive (#1007): this draft against the world now, on its first drone, changing nothing --}}
+                                    <button class="button button-secondary mt-2" type="submit" formaction="{{ url('startups/' . $user->user_id . '/test-drive') }}">Test drive (changes nothing)</button>
                                 </form>
+                                @include('partials.drone-test-drive')
                             </details>
                         </div>
                     @endif
@@ -321,15 +324,18 @@
                         @if($playerShares['on_offer'])
                             <p id="push-on-offer"><small>Its shares are on offer, so its code can't change: withdraw your sell orders to change it.</small></p>
                         @else
-                            <details id="outright-push" class="mb-2">
+                            <details id="outright-push" class="mb-2" @if(session('drone_test_drive')) open @endif>
                                 <summary class="button button-secondary" style="display: inline-block">Push new code (free)</summary>
                                 <form method="POST" action="{{ url('startups/' . $user->user_id . '/push') }}" class="mt-2">{{ csrf_field() }}
                                     <label for="outright-script">New script (Lua): its working drones drop what they run and start it</label>
                                     @include('partials.lua-editor')
                                     <textarea v-pre class="form-control" id="outright-script" name="script" rows="10" spellcheck="false" data-lua-editor
-                                              maxlength="{{ config('forge.max_script_length') }}" required>{{ $code['current']['script'] ?? '' }}</textarea>
+                                              maxlength="{{ config('forge.max_script_length') }}" required>{{ old('script', $code['current']['script'] ?? '') }}</textarea>
                                     <button class="button button-primary mt-2" type="submit">Push it</button>
+                                    {{-- A test drive (#1007): this draft against the world now, on its first drone, changing nothing --}}
+                                    <button class="button button-secondary mt-2" type="submit" formaction="{{ url('startups/' . $user->user_id . '/test-drive') }}">Test drive (changes nothing)</button>
                                 </form>
+                                @include('partials.drone-test-drive')
                             </details>
                             <form method="POST" action="{{ url('startups/' . $user->user_id . '/close') }}" class="mb-2"
                                   onsubmit="return confirm('Close this company? This pushes code that calls close_company(): within a real minute its credits go to you, its shareholder, and its drones become wrecks with what they hold.')">{{ csrf_field() }}
