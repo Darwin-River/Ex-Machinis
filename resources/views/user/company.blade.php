@@ -129,6 +129,10 @@
                 <p class="stat-meta" id="startup">Matured on {{ \App\Services\DronePage::when((int) $user->matured_t) }}.{{ \App\Services\Ownership::owner((int) $user->user_id) === null ? ' Its code is locked: more than one holder owns its shares.' : ' One player owns all its shares, so its code can still change.' }}</p>
             @endif
 
+            @if($sheet ?? null)
+                @include('partials.investor-sheet', ['sheet' => $sheet])
+            @endif
+
             @if($road)
                 {{-- The road to maturity (#697): its credits against its debt and the mark it matures at --}}
                 @php($scale = max($road['mature_at'], $road['cap'] ?? 0, $road['credits'], 1) * 1.04)
