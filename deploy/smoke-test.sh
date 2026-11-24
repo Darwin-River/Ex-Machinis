@@ -811,7 +811,7 @@ FORGE_NAME=$(sql "select name from agents where agent_id=$FORGE_DRONE")
 wait_for 30 "the drone's page shows the reply" sh -c "curl -fsS http://localhost/spacecraft/$FORGE_DRONE | grep -q 'forge-release-ok7'"
 # Starter scripts and game names (#324 step 15): the Release page fills in
 # a starter, and a drone knows the game's names (the library's version: 20)
-grep -qF "richer(kunspar, wolfite)" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
+grep -qF "ores = {kunspar, wolfite}" <<<"$(fetch -b "$JAR" "http://localhost/release?starter=miner")" || fail "the Release page did not offer the miner starter"
 echo "ok: the Release page offers the starter scripts"
 wait_for 60 "a drone knows the game's names" replied $FORGE_DRONE "game-words 20 10 1100 true true"
 
