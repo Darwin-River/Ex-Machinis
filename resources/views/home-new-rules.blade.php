@@ -41,7 +41,7 @@
                 <h1>A living economy, run by code.</h1>
                 <p class="home-lead">Players write short Lua programs that fly drones across the solar system to mine, make and trade.
                     This is the game right now.</p>
-                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => true])
+                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => true, 'explore' => $explore])
                 <p class="mt-3 mb-0">Have an account? <a href="{{ url('login') }}">Log in</a>.</p>
             @else
                 <div class="row align-items-center">
@@ -80,7 +80,7 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
         <section class="section pt-0">
             <div class="container">
                 <h2 class="h4">The game now</h2>
-                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => false])
+                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => false, 'explore' => $explore])
             </div>
         </section>
     @endif
@@ -93,10 +93,11 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
                 <div class="alert alert-success">{{ session('status') }}</div>
             @endif
             {{-- The path through the game (#987), in eight steps (#1043) --}}
-            <h2 class="h4">{{ $path['player'] ? 'Your path' : 'How you play: eight small steps' }}</h2>
-            @include('partials.pipeline', ['path' => $path])
+            <h2 class="h4">{{ $path['player'] ? 'Your path' : 'How you play: seven small steps' }}</h2>
+            {{-- Step 0 is watching, which the visitor is doing here (#1058) --}}
+            @include('partials.pipeline', ['path' => $path, 'skip' => ['watch']])
             @if(!$path['player'])
-                <p class="mb-4" style="margin-top: -1rem"><a class="button button-primary" href="{{ url('try') }}">Join the game: fly your first drone</a></p>
+                <p class="mb-4" style="margin-top: -1rem"><a class="button button-primary" href="{{ url('try') }}">Join the Economy: fly your first drone</a></p>
             @endif
 
             {{-- The game clock in one plain line, honest when it is slowed (#697) --}}

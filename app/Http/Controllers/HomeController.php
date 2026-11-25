@@ -62,6 +62,8 @@ class HomeController extends Controller
             return view('home-new-rules', ['feed' => \App\Services\World::feedGrouped(8), 'clock' => $clock,
                 'status' => \App\Services\LaunchQueue::status(), 'startup' => $startup,
                 'dash' => \App\Services\Dashboard::compact(), 'map' => \App\Services\LiveMap::now(),
+                // Every company, good and place, to sort and filter (#1059)
+                'explore' => \App\Services\Explorer::data(),
                 'trading' => ($full['trading'] ?? ['places' => [], 'days' => []]) + ['today' => $full['today'] ?? null]]);
         }
         // What's happening in the world (#324 step 17)

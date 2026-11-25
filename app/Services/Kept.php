@@ -63,6 +63,7 @@ class Kept
             'dashboard:full' => [Dashboard::TTL, fn () => Dashboard::buildNow()],
             \App\Http\Controllers\WorldController::sharesKey() => [\App\Http\Controllers\WorldController::SHARES_TTL,
                 fn () => \App\Http\Controllers\WorldController::sharesWork()],
+            Explorer::KEY => [Explorer::KEEP, fn () => Explorer::work()],
         ];
     }
 
