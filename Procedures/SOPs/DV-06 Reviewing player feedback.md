@@ -72,7 +72,7 @@
 
 5. # <a id="5"></a>Procedures
 
-   1. <a id="5.1"></a>**Setting up.** When the project lead asks, Claude sets up one recurring scheduled task: once a week, on Monday, a few hours after the cohort's round is closed ([DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §5.8) and before the weekly balance review ([DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) §5.4), it starts a fresh Claude session from the current `main`, in the cohort's environment: "Apply DV-06-M1". To pause the routine, Claude disables the task. The project lead may also run it by hand.
+   1. <a id="5.1"></a>**Setting up.** When the project lead asks, Claude sets up one recurring scheduled task: once a week, early on Tuesday (UTC), a few hours after the cohort's round is closed on Monday ([DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §5.8), so that the next weekly balance review ([DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) §5.4) reads its summary, it starts a fresh Claude session from the current `main`, in the cohort's environment: "Apply DV-06-M1". To pause the routine, Claude disables the task. The project lead may also run it by hand.
 
    2. <a id="5.2"></a>**The weekly review**, per [DV-06-M1](../Attachments/DV-06-M1%20Machine%20instructions%20for%20the%20weekly%20feedback%20review.md):
 
