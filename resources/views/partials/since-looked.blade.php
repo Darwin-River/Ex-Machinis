@@ -6,7 +6,7 @@
         <ul class="mb-1">
             @foreach($card['companies'] as $c)
                 @if(!empty($c['at_cap']))<li><strong>{{ $c['name'] }} is ready to mature:</strong> what it earns above {{ number_format($c['credit_cap']) }} now goes to the bank.
-                    <a href="{{ url('companies/' . $c['company_id']) }}#road-to-maturity">Mature it</a>.</li>@endif
+                    <a href="{{ url('companies/' . $c['company_id']) }}#road-to-maturity">Claim its shares</a>.</li>@endif
                 <li><a href="{{ url('companies/' . $c['company_id']) }}">{{ $c['name'] }}</a>{{ $c['startup'] ? ' (startup)' : '' }}
                     sold {{ number_format($c['sales']) }} and bought {{ number_format($c['purchases']) }} credits' worth
                     @if(isset($c['share_change']) && $c['share_change'] !== null); its shares are worth {{ number_format($c['share_now']) }},

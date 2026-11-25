@@ -39,6 +39,7 @@ class LoanController extends Controller
             return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
         $r = Loans::back($user, $id, (int) $request->input('credits'));
+        \App\Services\CompanyNow::forget($user);   // a first loan: the next step moves on (#1044)
         return $r['ok'] ? back()->withSuccess('You lent ' . number_format($r['lent']) . ' credits: it owes you '
             . number_format($r['owed']) . ' on ' . $r['due'] . '.') : back()->with('error', $r['error']);
     }
@@ -58,6 +59,7 @@ class LoanController extends Controller
             return response()->json(['error' => 'Send your API token as a Bearer token.'], 401);
         }
         $r = Loans::back($user, $id, (int) $request->input('credits'));
+        \App\Services\CompanyNow::forget($user);   // a first loan: the next step moves on (#1044)
         return $r['ok'] ? response()->json($r) : response()->json(['error' => $r['error']], $r['status']);
     }
 

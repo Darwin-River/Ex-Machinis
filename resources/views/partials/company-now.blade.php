@@ -10,7 +10,7 @@
                     <span class="cn-figs">{{ number_format($s['credits']) }} / {{ number_format($s['need']) }}</span>
                     @if($s['can_mature'])
                         <form method="POST" action="{{ url('startups/' . $s['company'] . '/mature') }}" class="d-inline">
-                            {{ csrf_field() }}<button class="button button-primary button-sm cn-mature" type="submit">Mature</button>
+                            {{ csrf_field() }}<button class="button button-primary button-sm cn-mature" type="submit">Claim my {{ \App\Services\Startups::SHARES }} shares</button>
                         </form>
                         @if($s['at_cap'])<span class="cn-warn" style="color: #f0b429">at its cap: what it earns now goes to the bank</span>@endif
                     @elseif($s['minutes'] !== null)

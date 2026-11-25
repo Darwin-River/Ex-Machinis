@@ -42,14 +42,17 @@ class NewRulesHomeTest extends TestCase
 
     public function testTheHomePageForTheNewRules()
     {
+        // A visitor's home page opens on a starter drone to watch, change, test drive and keep (#1042)
         $this->get('/')->assertOk()
             ->assertSee('Write the code.')->assertSee('Your drones run the company.')
-            ->assertSee('Make an account (free)')->assertSee('Every startup belongs to a player')->assertDontSee('found a startup now')
-            ->assertSee('A sketch of the Miner starter')
+            ->assertSee('id="try-drone"', false)->assertSee('Test drive')->assertSee('Keep my drone')->assertDontSee('found a startup now')
             // The path's numbers come from the config (#987): 4,200 owed and 500 to work with, 4,700 to mature
-            ->assertSee('id="pipeline"', false)->assertSee('At 4,700 credits it repays the bank')->assertSee('100 shares are yours')
-            ->assertSee('id="economy-banner"', false)->assertSee('See the whole economy')
-            ->assertSee('Make an account')->assertDontSee('No account needed');
+            ->assertSee('id="pipeline"', false)->assertSee('At 4,700 credits it repays the bank')->assertSee('claim its 100 shares')
+            ->assertSee('id="economy-banner"', false)->assertSee('See the whole economy');
+        // A player's opens on their next step, beside a sketch of the Miner
+        $this->actingAs($this->player('Home Owner'))->get('/')->assertOk()->assertSee('A sketch of the Miner starter')
+            ->assertSee('Next: Found a startup');
+        auth()->logout();
         config(['forge.startup_fee' => 300, 'forge.startup_mature_margin' => 800]);
         $this->get('/')->assertOk()->assertSee('At 5,100 credits');
     }
@@ -110,7 +113,7 @@ class NewRulesHomeTest extends TestCase
         $this->actingAs($owner)->get("/companies/$id")->assertOk()->assertSee('It can mature now.')
             ->assertSee('action="' . url('startups/' . $id . '/mature') . '"', false);
         // The button works through the existing route
-        $this->actingAs($owner)->post("/startups/$id/mature")->assertRedirect('/account#startups');
+        $this->actingAs($owner)->post("/startups/$id/mature")->assertRedirect('/market/shares/first');   // claiming leads to investing (#1040)
         $this->get("/companies/$id")->assertOk()->assertSee('Matured')->assertDontSee('Road to maturity');
     }
 

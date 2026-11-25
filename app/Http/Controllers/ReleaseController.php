@@ -53,6 +53,17 @@ class ReleaseController extends Controller
             }
         }
 
+        // The drone a visitor test drove before signing up (#1041, #1042): its code fills the form,
+        // unless this visit asks for a starter or a drone's code
+        $draft = null;
+        if ($starter === null && !request()->filled('starter') && !request()->filled('copy')) {
+            $draft = \App\Services\GuestDrive::draft();
+            if ($draft !== null) {
+                $starter = $draft['script'];
+                $kit = Release::STARTER_KITS[$draft['starter']] ?? $kit;
+            }
+        }
+
         // Starting a fixed copy of a company that ended (#773): its post-mortem above the editor
         $fixing = $copiedFrom && request()->filled('fix') ? \App\Services\PostMortem::of((int) request('fix')) : null;
 
@@ -67,7 +78,10 @@ class ReleaseController extends Controller
             $sources[$name] = Release::starter($name);
         }
         $picked = preg_replace('/\.lua$/', '', (string) request('starter'));
-        if ($starter !== null) {
+        if ($draft !== null) {
+            // The guest's drone: its starter's card, when it is still that starter's code as it came
+            $picked = ($sources[$draft['starter']] ?? null) === $draft['script'] ? $draft['starter'] : null;
+        } elseif ($starter !== null) {
             // A drone's code, or a starter the cards don't show, picks no card
             $picked = $copiedFrom === null && array_key_exists($picked, $sources) ? $picked : null;
         } else {
@@ -75,7 +89,7 @@ class ReleaseController extends Controller
             $starter = $sources[$picked];
         }
 
-        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit', 'sources', 'picked', 'fixing'));
+        return view('release', compact('starters', 'starter', 'copiedFrom', 'copiedWord', 'clock', 'kits', 'kit', 'sources', 'picked', 'fixing', 'draft'));
     }
 
     /**
@@ -139,7 +153,10 @@ class ReleaseController extends Controller
                 return back()->withErrors(['company_name' => $made['error']])->withInput();
             }
             $agent = $made['agent'];
-            $redirect = redirect('/spacecraft/' . $agent->agent_id)->withSuccess('Released! ' . $request->input('company_name')
+            \App\Services\GuestDrive::forget();   // the drone a guest test drove is a startup now (#1042)
+            // A player's startup opens on its page, at its first-hour checklist (#1043)
+            $to = $player ? '/companies/' . $agent->company_id . '#first-hour' : '/spacecraft/' . $agent->agent_id;
+            $redirect = redirect($to)->withSuccess('Released! ' . $request->input('company_name')
                 . ' is a startup: it owes the bank ' . number_format(\App\Services\Startups::grant())
                 . ' credits for its drone, its starting credits and a fee, and trades only with the House until it matures. '
                 . 'Its drone ' . $agent->name . ' is loading your script.')

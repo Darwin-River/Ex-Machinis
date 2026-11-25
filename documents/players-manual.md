@@ -70,6 +70,7 @@ The reference material is at the back: [what an error or a failure code means](#
     - [Waiting](#waiting)
     - [Traveling between locations](#traveling-between-locations)
     - [Time and distance](#time-and-distance)
+    - [Drones that work anywhere](#drones-that-work-anywhere)
   - [Chapter 6: Reports, trying your code, and starting over](#chapter-6-reports-trying-your-code-and-starting-over)
     - [What your drone says](#what-your-drone-says)
     - [Saying what it's doing](#saying-what-its-doing)
@@ -166,7 +167,7 @@ This is the whole game. Each line is explained where it first matters to you.
 3. A startup trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like, for free.
 4. When it holds its debt and a little more, you may mature it: it can trade with everyone, and you get its 100 shares. While you hold all of them its code is still yours to change; the first share you sell makes it public and locks its code.
 5. Your account starts with no credits: they come from your shares, the first once you mature a startup. Each game day a matured company pays half its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss.
-6. Trade shares with players at any price you agree, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
+6. Once you own a matured company, you may buy shares in other players' companies too. Trade shares with players at any price you agree, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. A company's code is private while one player owns it outright, and public once its shares are offered. A public company's code can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and by how much it grew today in percent (a short season, a real day), on the Players page; your account page keeps your records.
 
@@ -185,39 +186,43 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 - **Failing is free.** A new company is a **startup**, and the bank lends it its drone and its credits. If it goes wrong, close it: its debt is cancelled, and a game day later its slot is free for the next one. You can own up to five companies outright at once, startups included.
 - **Release, watch, learn.** Read your drone's reports, its page's activity and trades, and its post-mortem when it becomes a wreck. Each one tells you something about your program or the market.
 - **Iterate.** Fix the flaw and send the fix to your startup, or try a different idea as a new startup. A good player has a lineage of companies, each better than the last, not one company kept alive at all costs.
+- **Give it an objective, not an address.** Write what the drone is for (metals, rods, a margin on trade) and let it ask the game where to pursue it: where its ore yields most now, where its goods sell best, where fuel is cheapest. A drone written for one place fails when that place gets crowded, its prices fall or a better place opens, and every drone written the same way crowds the same place. See [Drones that work anywhere](#drones-that-work-anywhere).
 - **Expect the unexpected.** The game has no safety nets for a drone that runs out of fuel, overspends or gets stuck. If a drone should survive something, its program must handle it. Once a company has matured, the market may help as well: other players' drones buy, sell and deliver whatever pays (see [Running low on fuel](#running-low-on-fuel)). A startup has only the House and its own drones.
 - **Release early, release often.** There is no test world: every release is live. A startup costs you nothing, so release a script as soon as it might work, watch it, and send it a better one, or close it and start again. Failing costs nothing but the lesson.
 - **Learn from others.** A public company's code is there for anyone to read, and so is an ended company's (a company one player owns outright keeps its code private until its shares are offered). The [Strategy Blog](/blog) shows how the best companies in our playtests were written: state machines, standing buy orders for fuel and supplies, messages between drones, finding a niche, and iterating.
 
 ### Your first startup, step by step
 
-1. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address to verify your account (see [Making an account](#making-an-account)). It starts with no credits: they come from your shares, once your first startup matures.
-2. **Found a startup.** On the **Found a startup** page (the button at the top of every page), pick a starter (the Miner is picked for you) or write your own script, name your company, and press **Found startup**. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **startup**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a startup](#releasing-a-startup)).
-3. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
-4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Found a startup page say the pace right now.
-5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)). Each starter matures as it is; the three settings marked **TRY FIRST** in its comments are the ones to change first.
-6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Mature** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when a matured company of yours is counting down to dissolving. Maturing repays the debt, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
-7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Part IV](#part-iv-going-public)). While you hold all 100 you still own it outright, and can change its code; the first share you sell makes it public and locks its code (see [Owned outright, or public](#owned-outright)).
+1. **Try a drone, no account needed.** The home page plays a starter drone, the Miner: its code beside what it did. Change a number in its code and press **Test drive** to see what your version would do, against the live world, changing nothing in it. **Try a drone** (`/try`) does the same with each starter. Like it? Press **Keep my drone** (see [Test driving your code](#test-driving-your-code)).
+2. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address to verify your account (see [Making an account](#making-an-account)). It starts with no credits: they come from your shares, once your first startup matures. Making it takes you straight to the next step, with the drone you tried, if you did.
+3. **Found a startup.** On the **Found a startup** page, pick a starter (the Miner is picked for you) or write your own script (the drone you kept is loaded for you), name your company, and press **Found startup**. Its page opens at **Your first hour**, below. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **startup**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a startup](#releasing-a-startup)).
+4. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
+5. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Found a startup page say the pace right now.
+6. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)). Each starter matures as it is; the three settings marked **TRY FIRST** in its comments are the ones to change first.
+7. **Claim its shares.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Claim my 100 shares** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when a matured company of yours is counting down to dissolving. Claiming them matures it: it repays the debt, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
+8. **Own its shares, and invest.** Its **100 shares** are now yours, and you can buy shares in other players' companies too: claiming takes you to **Your first share**, one company's share to buy with one button. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Part IV](#part-iv-going-public)). While you hold all 100 you still own it outright, and can change its code; the first share you sell makes it public and locks its code (see [Owned outright, or public](#owned-outright)).
 
 If it fails on the way, close it and start another. That costs you nothing.
 
-**Your first mission.** Until you own a matured company, your startup's page shows a short mission over its Road to maturity: found a startup (done), **change one number** (it names the first TRY FIRST setting in your code and its line, so you know exactly what to edit) and **mature it**, with a target time in real minutes from the starter's usual range at today's pace.
+**Your first hour.** Until you own a matured company, your startup's page shows a checklist over its Road to maturity: found a startup (done), **its first trip**, **its first sale**, **change one number** (it names the first TRY FIRST setting in your code and its line, so you know exactly what to edit), **a quarter of the way** to maturing, and **claim its shares**, with a target time in real minutes from the starter's usual range at today's pace. If its drone crashes, **its first crash** is ticked too: that is where you learn the most. Its drone's page says which line failed; fix it and push, or found another.
 
-**The strip under the menu.** When you're logged in, a line under the menu says your **next step** on the path (mature a startup; then buy a share in another player's company, or sell one of yours; then back a loan, with a bar of your credits toward the 5,000 that lending needs). **The rules so far** opens to the rules you need now: the basics at first (your code, startups, maturing, fuel and travel), then owning companies once one of yours has matured, then investing and lending once you invest or reach 5,000 credits. Nothing is switched off: every rule applies from the start, and the strip only shows what matters next. The whole rulebook is in this manual.
+**The path.** The home page and your account page show the whole path in eight steps: watch a drone, try it, keep it (make an account), found a startup, fix it as it runs, claim its shares, invest, and lend. Each step's page shows a thin line of the eight, with the step you're on. The steps suggest an order; only investing waits for something (a matured company of your own).
+
+**The strip under the menu.** When you're logged in, the button at the top right of every page is your **next step** on the path, and a line under the menu says it in words (found a startup; push a fix; claim a startup's shares; then buy a share in another player's company, or sell one of yours; then back a loan, with a bar of your credits toward the 5,000 that lending needs). **The rules so far** opens to the rules you need now: the basics at first (your code, startups, maturing, fuel and travel), then owning companies once one of yours has matured, then investing and lending once you invest or reach 5,000 credits. Nothing is switched off: every rule applies from the start, and the strip only shows what matters next. The whole rulebook is in this manual.
 
 ### Making an account
 
 Your account is you in the game: it owns your startups and your shares, and it is what the players' leaderboards rank. Make one on the website (**Log in**, then **Make an account**) or with the API (`POST /api/v1/accounts`, below):
 
 - **A name**, 3 to 32 letters, digits, spaces, dots, dashes or underscores. It is public: it shows on the leaderboards. **Don't use your real name.**
-- **A password** of at least 8 characters.
+- **A password** of at least 8 characters. You type it once: **Show** lets you check it.
 - **An e-mail address.** It is private: only you see it. It verifies your account, and gets the e-mail notices you choose (below; two start on), and nothing else. One account per address.
 
 We send an e-mail to the address with a **Verify my account** button, good for 2 real days (the link is there as text too). Opening it **verifies** your account. Your account must be verified before you can mature a startup. Lost the link? The account page sends it again.
 
-Your account has **credits** of its own, and starts with none: they are what your shares bring you, from dividends and payouts, from selling them, and from a company closing. Your first come from maturing a startup: its 100 shares are yours, to keep for their dividends or to sell. Your credits buy shares at any price (see [Trading shares with other players](#trading-shares-with-other-players)).
+Your account has **credits** of its own, and starts with none: they are what your shares bring you, from dividends and payouts, from selling them, and from a company closing. Your first come from maturing a startup: its 100 shares are yours, to keep for their dividends or to sell. Once you own a matured company, your credits buy shares in others at any price (see [Trading shares with other players](#trading-shares-with-other-players)).
 
-**Starting credits.** Until November 2026 a new account got **5,000 starting credits**, which can only buy shares. New accounts, class accounts included, get none now. Starting credits already given stay until spent, and still buy only at or below the bank's selling price (its cash-out value).
+**Starting credits.** Until November 2026 a new account got **5,000 starting credits**, which can only buy shares. New accounts, class accounts included, get none now. Starting credits already given stay until spent, and still buy only at or below the bank's selling price (its cash-out value), once the account owns a matured company.
 
 **E-mail notices.** On your account page, under **E-mail notices**, pick what we may e-mail you about. Two start on once your address is verified, **A startup of mine can mature** and **A startup of mine is past its credit cap**; the rest are off until you turn them on, and you can turn any off:
 
@@ -246,7 +251,7 @@ All but the digest and filled orders come together in one e-mail, at most one a 
 
 **From a program.** Everything on the account page works through the [API](api.md) too, with a **token** sent as `Authorization: Bearer` and the token. `POST /api/v1/accounts` with `name`, `email` and `password` makes an account and returns a token; `POST /api/v1/login` with `name` (or the e-mail address) and `password` returns a new one; the account page's **Make a new API token** does the same. A new token replaces the old one.
 
-**No account?** Make one first: it is free, and every startup belongs to a player. (Guests could found startups until November 2026; one of those still running can be claimed with its **claim code** on your account page, or `POST /api/v1/startups/claim`.)
+**No account?** You can watch and test drive a drone without one. To found a startup, make one: it is free, and every startup belongs to a player. (Guests could found startups until November 2026; one of those still running can be claimed with its **claim code** on your account page, or `POST /api/v1/startups/claim`.)
 
 ### Class groups
 
@@ -280,7 +285,7 @@ A company name is 3 to 45 characters, and nobody else's may have it, nor a name 
 
 **FORTH has been retired.** Drones already running FORTH programs carry on as before, but every new release and check takes Lua only.
 
-A script can be at most 16,000 characters, comments included. A release checks your script first. It reports a syntax error with its line number, and warns you about two mistakes that would otherwise only show once the drone runs:
+A drone's real limit is **memory**: its Lua holds at most 256 KB, and the game's library already takes about 113 KB of that. Once loaded, your script must leave 64 KB for the drone's data (its tables, strings and the answers to its questions). Comments and blank lines take no memory, so explain your code as much as you like. Code does take memory, about 2 to 3 bytes for each character of it, so a script with up to about 30,000 characters of code fits. A script can also be at most 64,000 characters in all, comments included, and a line at most 16,000. A release checks your script first. It reports a syntax error with its line number, and warns you about two mistakes that would otherwise only show once the drone runs:
 
 - a name your script uses that nothing defines (`crowed(phobos)` for `crowd`): calling it would crash your drone;
 - a game name your script sets (`best_bid = 30`): the game's own functions keep working, but your code gets your value from then on, which is rarely what you want. Rename yours.
@@ -312,13 +317,23 @@ Prefer to play from a program, or to have an AI agent play? The [API](api.md) re
 
 Not sure where to begin? The Found a startup page offers three starter scripts as cards: the **Miner** is picked when the page opens, and clicking **Refiner** or **Maker** loads that one into the script box instead. Each buys its own equipment at Earth first. They are the files `examples/starters/miner.lua`, `refiner.lua` and `maker.lua`. Each is explained in its comments and works as a startup: it sells straight to the House, posts no standing orders, and launches no copies until it has matured, so it saves its credits for its debt. Its **Settings** at the top are the numbers to change first (when to refuel, when to grow, how big a load); then change its plan to make it yours.
 
-- **Miner** (Mining Kit): mines wolfite on the Moon (the richer of kunspar and wolfite there, `richer`: kunspar is only found far away now), refines it and sells the metals (and wolfite's Inorganics A2). Mining sites never run dry, but a crowded one yields less a run, so it works the Moon, nearest the markets, and moves to whichever of the Moon, Phobos and Deimos yields at least 2 more a run once a run where it is yields less than `move_below` (3); set `crowd_limit` above 0 to have it start at the quieter of Phobos and Deimos when more drones than that work the Moon, and its copies spread out. Once matured, it offers them to other drones first, halfway between the best buy order and the cheapest other sell order, and sells the rest into the best buy orders. Its code for dry deposits (waiting, then trying Phobos and Deimos) only matters if deposits are made to run dry again. It sells where the House pays most for its metals (`best_market`): of the Moon Depot, the Mars Exchange and the Earth Exchange, the one whose bids now, for as many as each still takes (`house_demand`), come to most once the trip there and back is counted (`hour_value`, 4 credits a game hour; at 10 it sold at Mars for 2 to 5 a metal from Phobos and Deimos), and if 60 or more (`haul_at`) are still unsold it flies them to the next best (in one playtest, startups at Phobos and Deimos hoarded 70 to 110 metals, selling only at Mars, which often bid nothing). It buys its fuel wherever it's cheapest; where nobody sells it (Phobos and Deimos), it posts a fuel buy order at 7, waits two game hours for a courier, then flies to the Mars Exchange if none came. A startup's order brings no courier (only the House and its own drones may trade with it), so a startup flies to the market at once. It does the same when it runs low while waiting on a dry deposit (it used to rest there for good).
-- **Refiner** (Mining Kit): mines yalspar and vladnium and refines them into the organics and inorganics that factories turn into fuel and polymers. It sells them the same way: once 48 are aboard, where the House pays most after the trip, the Moon or Earth (`hour_value` says what an hour of its time is worth). It works the Moon and, like the Miner, moves to a quieter site when a run of yalspar yields less than `move_below` (3) where it is; set `spread_copies` to 1 to send two in three copies to Phobos and Deimos.
-- **Maker** (Factory Kit): buys metals where they cost least. As a startup it asks `house_supply` where the House sells them before it flies anywhere, and picks the exchange where a unit costs least once the trip is shared over what it buys there (at most a tenth of the House's stock at a time); once matured it buys at the Moon from whoever is cheapest. It makes them into alloys and rods, and sells the rods where they pay best: at the Moon, or at Earth when rods fetch enough more there to pay for the trip. A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays (it hauled rods between Earth and Mars on other drones' bids it couldn't sell to). Short of credits for metals, it rests two game hours at a time instead of looping (each turn costs processor tax). Once matured, with enough credits it launches a copy of itself. Its share investing, from the old rules, is gone: companies can't trade shares (-18), so it only wasted work.
+The starters name no place (#1034). Each states what it produces and asks the game where to pursue it, so it goes where that pays now, finds a new exchange or a new season's sites without a change of code, and chooses again when something fails. [Drones that work anywhere](#drones-that-work-anywhere) explains how.
 
-The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a startup can't.
+- **Miner** (Mining Kit): its objective is metals. Its `ores` are kunspar and wolfite, which its Refinery makes into metals (and wolfite's Inorganics A2).
+  - **Where it mines.** `choose_site` asks `best_sites` where its ores are found and what a run yields there now; a crowded site yields less. It rates each site by units an hour over a stay of `hours_per_stay` (120), counting the trip there, and leaves out any place the game gives no trip to. Of the sites within `percent_from_best_still_good` (10) of the best, it takes the one its drone number picks, so drones running the same code split the good sites instead of piling onto one.
+  - **Moving.** Every `rounds_between_looks` (6) rounds, and at once when a run where it is yields less than `look_now_if_run_below` (3), it looks again. It moves only when another site pays `percent_better_to_move` (25) more an hour. At a dry site it waits `dry_hours_before_moving` (6) hours, then tries the next best, and rests when there is none.
+  - **Selling.** Once matured, it offers its metals to other drones first, halfway between the best buy order and the cheapest other sell order. Once `metals_per_sale` (40) are aboard, it sells them wherever the House's bids (`house_demand`), for as many as each still takes, come to most once the trip there and back is counted (`credits_per_game_hour`, 4). It takes every exchange the House bids at into account, a new one too. If 60 or more (`unsold_to_haul_onward`) are still unsold, it flies them to the next best.
+  - **Fuel.** It buys fuel where it is. Failing that, a matured Miner posts a fuel buy order at 7 and waits two game hours for a courier, then flies to wherever the House sells a tankful for least after the trip (`cheapest_fuel_stop`). A startup's order brings no courier, since only the House and its own drones may trade with it, so a startup flies at once.
+- **Refiner** (Mining Kit): its objective is what factories need to brew fuel and make polymers. It mines yalspar and vladnium and refines them into organics, inorganics and metals. It chooses its site like the Miner, rating each by what both ores yield together, and mines each one found there, a load at a time. It sells the same way, once `goods_per_sale` (48) are aboard, wherever the House pays most after the trip.
+- **Maker** (Factory Kit): its objective is rods.
+  - **Buying metals.** As a startup it asks `house_supply` where the House sells metals, and picks the exchange where a unit costs least once the trip is shared over what it buys there (at most a tenth of the House's stock at a time). Once matured, it goes wherever a batch costs least after the trip (`where_to_buy`).
+  - **Making and selling.** It makes the metals into alloys and rods. It sells the rods where it is, unless another place pays `credits_more_elsewhere_to_fly` (20) more a rod (`where_to_sell`). A startup sells only to the House, so it picks the exchange whose House bid now, for as many rods as it still takes, comes to most after the trip (`house_rods`, from `house_demand`), and waits when none pays.
+  - **Short of credits** for metals, it rests two game hours at a time instead of looping, since each turn costs processor tax.
+  - **Growing.** Once matured, with enough credits it launches a copy of itself.
 
-Time to mature at the normal pace (48 real seconds a game day), as the starter cards give it: an unchanged Maker takes about 25 to 70 game days (20 to 56 real minutes), an unchanged Miner about 45 to 80 (36 to 64 minutes) and an unchanged Refiner about 40 to 85 (32 to 68 minutes), the range measured over three playtest rounds. The same code takes longer in some rounds than others because the market it meets differs: what the House pays, what it has on sale, and how many others are selling the same goods (in one playtest the Maker earned less than half as much in its first days as in the one before). The Maker became the fastest once a startup could always buy at least 5 of a good a game day; the Miner and Refiner gained 25 and 7 game days once they sold bigger loads and filled their tanks whenever they sold. A crowded world takes longer. A startup Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low.
+The **Trader** starter (`trader.lua`) isn't offered under the new rules: it makes its living buying from other drones, and a startup can't. It too names no place. It buys metals wherever they are on sale cheapest after the trip (`where_to_buy`), hauls them to wherever they sold for most over the last game day (`price_board`), and chooses again after each trip, so it follows the miners wherever they go.
+
+Time to mature at the normal pace (48 real seconds a game day), as the starter cards give it (measured on the starters before they named no place, #1034; new playtests will update it): an unchanged Maker takes about 25 to 70 game days (20 to 56 real minutes), an unchanged Miner about 45 to 80 (36 to 64 minutes) and an unchanged Refiner about 40 to 85 (32 to 68 minutes), the range measured over three playtest rounds. The same code takes longer in some rounds than others because the market it meets differs: what the House pays, what it has on sale, and how many others are selling the same goods (in one playtest the Maker earned less than half as much in its first days as in the one before). The Maker became the fastest once a startup could always buy at least 5 of a good a game day; the Miner and Refiner gained 25 and 7 game days once they sold bigger loads and filled their tanks whenever they sold. A crowded world takes longer. A startup Maker checks that the House's best bid for rods pays for their metals (two to a rod) before it buys, sizes its batch by the price there, and keeps 60 credits once its tank is full, 300 when it is low.
 
 Five more show one idea each of the new rules (#932), small enough to copy into your own script, and each has a chapter of its own: [copies that vary](#chapter-13-copies-that-vary-with-lineage) (`varied.lua`), [a sell-out routine](#chapter-18-an-exit-routine) (`exit.lua`), [a borrower](#chapter-21-loan-requests) (`borrower.lua`), [a salvager](#chapter-11-salvage) (`salvager.lua`) and [a hauler](#chapter-10-hauling-far-away-goods) (`hauler.lua`).
 
@@ -371,13 +386,18 @@ Lua is case-sensitive (`Moon` is not `moon`) and doesn't care about line breaks 
 The Miner starter ([`examples/starters/miner.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/starters/miner.lua)) is written the same way, only longer: settings first, then the functions, then `launched`. Its settings are the numbers to change first:
 
 ```lua
--- Settings: change these numbers to make it your own. It matures as it is;
--- the three marked TRY FIRST are the ones to change first
-low_fuel = 40      -- TRY FIRST: fuel units below which it buys more (higher: safer, but more credits sit in its tank)
-dry_tries = 12     -- dry tries at the Moon before it tries Phobos (large: stay)
-grow_at = 7000     -- credits at which a matured drone launches a copy (6500 at least)
-work_cash = 1500   -- credits the company keeps per drone, so copies don't starve it
+-- Settings: change these to make it your own. It matures as it is; start
+-- with the three marked TRY FIRST.
+refuel_below = 40                 -- TRY FIRST: fuel units (higher: safer, but more credits sit in its tank)
+metals_per_sale = 40              -- TRY FIRST: fewer sells sooner, in more trips
+credits_per_game_hour = 4         -- TRY FIRST: what its time is worth on a trip (lower: flies further for a better price)
+copy_at_credits = 7000            -- once matured
+credits_kept_per_drone = 1500
+hours_per_stay = 120              -- game hours it expects to stay at a site
+percent_better_to_move = 25
 ```
+
+Each name says what the number controls, so a comment is needed only for a unit, a catch, or the `TRY FIRST` mark that the site's first-hour checklist reads to suggest your first change. None of its settings is a place: where it works is the game's answer, not part of the code.
 
 The rest of this chapter teaches the Lua you need to read all of it.
 
@@ -501,7 +521,7 @@ Comments remind you, and anyone who copies your code, what a function is for. Lu
 dig_size = 20   -- how many mining runs before refining
 ```
 
-A comment should say **why**, not **what**: the code already says what. If you need a comment to explain what a line does, try renaming things first.
+A comment should say **why**, not **what**: the code already says what. If you need a comment to explain what a line does, rename things first. `dig_size = 20 -- how many mining runs before refining` needs its comment; `ore_per_refining = 20` doesn't. The starters are written this way: about one line in twenty is a comment, and those say why (why drones split sites by number rather than `math.random`, why a startup's fuel bid brings no courier). See [Code investors can read](#code-investors-can-read).
 
 ### Sending greetings
 
@@ -835,13 +855,15 @@ Mining takes 1 hour of game time (1 minute at the live world's normal pace). The
 
 **Mining sites never run dry.** Each mining run at a place yields what the mineral's abundance there gives (5 units), however many drones are mining it, yours or anyone else's. (Until November 2026 each place held a deposit of 400 runs' worth that refilled by 80 a game day, and crowded sites ran dry: new Miners in a playtest waited at dry sites for most of their first 40 game days. The game can turn that rule back on, so the deposit functions below still work.)
 
-**Crowded sites yield less.** When more than 10 drones have mined the same mineral at a place in the last game hour, each run there yields less: its abundance × 10 ÷ the number of drones, rounded down, and never less than 1 unit. With 20 drones mining wolfite at the Moon, a run yields 2 instead of 5. A startup's drone counts as half a drone. So a busy site is worth leaving: `mine_yield(mineral)` says what a run would yield here now, and `mine_yield(mineral, place)` what it would yield somewhere else, and `best_yield(mineral, {moon, phobos, deimos})` picks the best of a list of places:
+**Crowded sites yield less.** When more than 10 drones have mined the same mineral at a place in the last game hour, each run there yields less: its abundance × 10 ÷ the number of drones, rounded down, and never less than 1 unit. With 20 drones mining wolfite at the Moon, a run yields 2 instead of 5. A startup's drone counts as half a drone. So a busy site is worth leaving. `mine_yield(mineral)` says what a run would yield here now, and `mine_yield(mineral, place)` what it would yield somewhere else. `best_sites(mineral)` lists the places it is found, best yield now first, so a drone needn't know any place by name:
 
 ```lua
 local here = mine_yield(wolfite)
-local place, best = best_yield(wolfite, {moon, phobos, deimos})
-if best >= here + 2 then go(place) end
+local best = best_sites(wolfite)[1]
+if best and best.yield >= here + 2 then go(best.place) end
 ```
+
+That moves every drone running it to the same best site, which then gets crowded. The starters count the trip and split the nearly-as-good sites between drones; see [Drones that work anywhere](#drones-that-work-anywhere).
 
 When a deposit runs low, mining gets only what is left. When it is empty, mining still succeeds but brings in nothing (`mine` returns 0, the same as a full run, so check your hold). Move on to another place, or come back later.
 
@@ -1144,6 +1166,49 @@ A few consequences are worth planning for:
 - **Released drones steer themselves.** A released drone takes no commands: it runs the script you gave it, calls `launched`, and decides everything else for itself. The only way to change what a company's drones do is for the player who owns it outright to push new code to it (see [Pushing new code](#pushing-new-code)), which reaches each drone at the speed of light, so a drone around Neptune gets it four hours later. A public company's code never changes.
 - **Replies arrive late.** What a script prints reaches its page when `launched` ends (or calls `report()`), after the action it waited for and the light delay home.
 
+### Drones that work anywhere
+
+A drone that works one place by name is a bet that the place stays good. It rarely does. A site gets crowded and each run yields less. Prices at an exchange fall as everyone sells there. A new season moves the richest deposits, and a new exchange opens. And every drone written the same way makes the same choice at the same moment: in November 2026 up to 39 drones mined wolfite at Deimos for 1 unit a run while the Moon paid 5. So write drones around **what they produce**, and let them ask the game **where**. The starters work this way (#1034). Six habits:
+
+1. **State the objective, not the place.** At the top of the script, say what the drone is for: the ores it mines, the goods it makes, the goods it sells. Keep place names out of the logic. A list like `{moon, phobos, deimos}` is a bet that those three stay the best.
+2. **Ask the game where.** The game answers, for the place you are at and for any other:
+   - `best_sites(ore)` and `mine_yield(ore, place)`: where an ore is found and what a run yields now;
+   - `house_demand(good)` and `house_supply(good)`: where the House buys and sells, at what price, and how many it still takes today;
+   - `where_to_buy(good, n)` and `where_to_sell(good, n)`: every place with orders for it, best first once the trip is counted;
+   - `price_board(good)`: what it traded for, and where, over the last game day;
+   - `trip_to(place)`: how long the trip takes.
+3. **Score the options, counting the trip.** A site 2 game days away that yields 5 a run isn't better than one 2 hours away that yields 4. The Miner rates a site by units an hour over a stay:
+
+   ```lua
+   function units_an_hour(place, yield)
+     local hours = hours_to(place)
+     if hours == UNREACHABLE then return 0 end
+     return yield * hours_per_stay / (hours_per_stay + hours)
+   end
+   ```
+
+4. **Don't all choose the same.** If every drone on your code picks the single best site, they crowd it together. Take every option nearly as good as the best and let each drone pick one by its own number. `math.random` won't do: a drone that is rebuilt after a restart would roll differently. Here is the Miner's choice:
+
+   ```lua
+   local good = {}
+   for place, rate in pairs(rated) do
+     if rate * 100 >= top * (100 - percent_from_best_still_good) then table.insert(good, place) end
+   end
+   table.sort(good)
+   local pick = good[me() % #good + 1]
+   ```
+
+5. **Move for a clear gain, not every flicker.** A trip costs fuel and hours, and crowding changes hour by hour. Look again every few rounds, and move only when another option beats this one by a margin (the Miner's `percent_better_to_move`, 25). Otherwise drones chase each other back and forth.
+6. **Recover by choosing again.** When something fails, don't wait for ever where you are; ask the game again:
+   - the site runs dry or gets crowded;
+   - nobody sells fuel here;
+   - a trip is refused;
+   - an exchange stops bidding.
+
+   Write `launched` so it can run again from the top (see [launched() may run again](#launched-may-run-again)), and give the drone a status line that says why it is doing what it does, so you can read its choices from its page.
+
+**Try it.** Read `choose_site`, `move_if_clearly_better` and `handle_dry_deposit` in the Miner. Change `percent_from_best_still_good` to 0 and release two copies of it as startups: watch where each mines. Then set it back to 10 and watch again. The [solar system map](/map) shows where each ore pays most now, crowding counted.
+
 **Exercise.** Give your miner a [fuel floor](#fuel-floor) and a reserve: before each selling trip, call `fuel_for` (from [Two habits that keep a drone alive](#fuel-strategy)) with the trip's fuel, and set a status line when it can't buy enough. Use `trip(place)` to print how long the trip will take.
 
 **You've mastered this when** your drone has gone 30 game days without running dry, and the fuel line on its page never touches 0.
@@ -1255,6 +1320,8 @@ What it can't show you:
 
 So a test drive is for "does it do what I meant, in the order I meant": the right place, the right goods, no crash. Whether it *earns* more you still learn by pushing it and comparing (see below).
 
+**Without an account.** On the home page and on **Try a drone** (`/try`), anyone can test drive a starter, changed or not, before making an account (#1042). It runs the same way, as a brand-new startup's drone would: in orbit around Earth with 100 fuel and the starting credits, owing the bank its grant, with no trades, orders, copies or shares of its own yet. A visitor may run 20 an hour. **Keep my drone** saves the code for the visit: making an account then takes you to **Found a startup** with it loaded. The home page's replay of the Miner is such a drive, recorded once from the live world and kept, so it reads the same every time.
+
 ### Pushing new code
 
 You can send new code to the drones of a company you own outright (a startup, or a matured company whose shares you hold all of: see [Owned outright, or public](#owned-outright)) whenever you like, without starting over: from its page (**Push new code (free)**), from your account page (**Change its code**, under a startup), or with `POST /api/v1/startups/{id}/push` and your token. This is called **pushing** new code.
@@ -1264,7 +1331,7 @@ You can send new code to the drones of a company you own outright (a startup, or
 - **The drone starts over on it.** When it arrives, the drone drops what it was running and calls the new code's `launched()`, with fresh variables. It keeps its hold, its place and its equipment. An action under way finishes, and a drone on a trip finishes the trip first: its new `launched()` starts where it arrives. A copy forgets anything its parent told it in a variable: use `lineage()` to tell a copy from the released drone.
 - **Everyone can see that it changed.** The company's page and the API list each push, so anyone can see when a company's code changed. The code itself stays private while you own the company outright (see [Who sees a company's code](#who-sees-code)).
 - **See what it did**. For each of the last three pushes, the company's page (under **New code**, and the latest beside the Road to maturity) compares the same span on each side of the push, up to 3 game days and never back past the push before: its trading net (sales after tax less purchases), its sales and its failed actions, each a game day, with a line saying what changed ("it earns more from trading (50 → 500 a game day); it fails less"). It compares only once 6 game hours have passed. Prices and crowds move too, so trust a large change more than a small one.
-- **A script can be at most 16,000 characters**, comments included, for a push as for a release. `/check` reports its length.
+- **A script must fit its drone's memory** once loaded, leaving 64 KB for its data, and be at most 64,000 characters, comments included, for a push as for a release. `/check` reports both its length and its `memory`; comments take no memory.
 - **Put what must happen at once first.** The new `launched()` starts from the top: code that must run straight away (a price change, say) belongs before a long trip, or it waits for the trip.
 - **Standing orders stay.** A drone's standing buy and sell orders for goods are the drone's, not the script's, so they outlive a push and keep trading (in one playtest, a miner pushed into a foundry kept selling the foundry's own metals). The push preview (`/check` with `company`) lists them. `standing_orders()` lists a drone's own, and `cancel_orders()` withdraws them: call it first in the new `launched()` if the new code shouldn't keep them. An order can't be deleted, only replaced, so each is replaced by one that can't trade, an action each. An open order in its first 12 game hours can't be withdrawn (see [Adjusting your orders](#adjusting-your-orders)), so `cancel_orders()` returns how many it withdrew, which can be fewer than you had.
 - **Not while its shares are on offer.** While a standing sell order of yours for its shares stands, a push is refused (409): buyers get the code they watched run. Withdraw the order first.
@@ -1326,21 +1393,21 @@ Keep what your drone must remember (a site, a count, the last price it saw) in g
 
 Your drone's Lua stays in the game engine's memory between turns. If the engine restarts, or `launched` crashes, the drone loads its script again as above (after a crash, without its saved variables) and calls `launched()` again from the top. A drone that was in the middle of a trip or a build starts its plan over.
 
-So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. The Miner starter keeps a global `started`, so a drone that has already chosen its site keeps it:
+So write `launched` to do only what still needs doing. `await_kit()` and `unpack()` pass at once when the tools are already unpacked, and `go` stays put when the drone is already there. The Miner starter keeps a global `started` holding the number of the drone that chose its site. A drone that has already chosen keeps its site; a copy inherits its parent's `started`, sees a number not its own, and chooses for itself:
 
 ```lua
-started, copy, site_no = false, false, 0
+started, site = 0, 0
 
 function launched()
   equip(mining_kit)
-  if not started then
-    if copy then site_no = me() % 3 end   -- a copy picks its own site
-    copy, started = true, true            -- its own copies will know they are copies
+  if started ~= me() then
+    site = choose_site() or location()   -- where its ores pay most now (see Drones that work anywhere)
+    started = me()
   end
-  if site_no == 0 then go(moon) else go(phobos) end
+  go(site)
   while true do
-    mine(kunspar)
-    refine(kunspar)
+    mine(wolfite)
+    refine(wolfite)
   end
 end
 ```
@@ -1351,9 +1418,9 @@ end
 
 A startup runs on borrowed credits. Once it can pay its way, you mature it, and it becomes a company of its own, owned by whoever holds its shares. This section is about maturing; [Part III](#part-iii-growing) and [Part IV](#part-iv-going-public) are about what happens then: copies, shares, dividends and the bank.
 
-**When.** A startup may mature once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh startup (100 more for each paid push it had before push fees were retired in November 2026). Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Mature** button beside the startup when it can; `GET /api/v1/startups` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
+**When.** A startup may mature (you **claim its shares**) once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh startup (100 more for each paid push it had before push fees were retired in November 2026). Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Claim my 100 shares** button beside the startup when it can; `GET /api/v1/startups` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
 
-**How.** Press **Mature** on your account page or on the startup's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/startups/{id}/mature` with your token. It is refused (409) while the startup can't, with how much it still needs.
+**How.** Press **Claim my 100 shares** on your account page or on the startup's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/startups/{id}/mature` with your token. It is refused (409) while the startup can't, with how much it still needs.
 
 **What happens.**
 
@@ -1361,12 +1428,13 @@ A startup runs on borrowed credits. Once it can pay its way, you mature it, and 
 - Its code stays **yours to change** while you hold all its shares: you still own it outright, and it counts against your 5 (see [Owned outright, or public](#owned-outright)).
 - It trades with everyone: other players' drones, and the House.
 - You get its **100 shares**.
+- **Investing opens.** From now on you may buy shares in other players' companies (#1040). The button takes you to **Your first share** (`/market/shares/first`): one company's share, with what it paid out a share over the last 7 game days, a link to its code and a **Buy 1 share** button. The company is picked by one rule, printed on the page: the public company that paid out the most over the last 7 game days for each credit a share costs now, among those with a share you can buy now. It never looks at who owns a company. The whole exchange is a link away.
 
 **After.** A matured company runs until it fails. Its drones can now sell to other players' standing orders and post their own, buy from anyone, and plunder wrecks. The starters launch copies once matured, which spends credits on hulls and kits and lowers the company's cash-out value for a while (see [Cash-out value](#cash-out-value-what-a-share-is-worth)). Two of one player's matured companies may trade with each other; their dealings are flagged on both companies' pages and in your digest.
 
 **Don't wait.** A startup keeps all it earns (its credit cap was retired in November 2026), but until it matures it trades only with the House. Mature it as soon as you can.
 
-**Exercise.** Push a change to your startup (a different `hold_cap`, say). After 6 game hours, read the push's comparison on the company page, under **New code**. If it does worse, push the old code back, or close the startup and press **Start a fixed copy** to start over.
+**Exercise.** Push a change to your startup (a different `metals_per_sale`, say). After 6 game hours, read the push's comparison on the company page, under **New code**. If it does worse, push the old code back, or close the startup and press **Start a fixed copy** to start over.
 
 **You've mastered this when** you can find out why a drone stopped from its page, its status line and its post-mortem, and fix it with a push or a fresh startup.
 
@@ -1766,7 +1834,7 @@ end
 
 Small steps keep the drone responsive. A function that makes one alloy and then returns lets the drone look at prices again before the next one; a function that makes twenty commits it for two game days, whatever happens to the market. Each mode also needs a way out. Use `ticks` so a drone doesn't rest or shop forever, and check credits and fuel so it can't spend its last credit on goods it then can't move.
 
-The Adaptive design (`examples/companies/adaptive.lua`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under what rods fetched at Earth yesterday, from whoever sells them cheapest. It sells its alloys at the Moon instead of making rods when the Moon pays nearly as much. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.lua`), Electronics (`electronics.lua`) and Foundry (`foundry.lua`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
+The Adaptive design (`examples/companies/adaptive.lua`, released with the Factory Kit) puts all of this together. It buys metals only while they cost well under the best price rods fetched anywhere yesterday (`price_board`), where they cost least after the trip (`where_to_buy`). It sells its alloys where it works instead of making rods when they pay nearly as much there, and hauls rods to wherever they pay most after the trip (`where_to_sell`, or the House's best bid). Like every design in `examples/companies/` since #1037, it names no place: every "where" is a question to the game. And when nothing pays, it rests. Read it, then make your own. The other designs in `examples/companies/` are worth reading too: the Systems shop (`systems.lua`), Electronics (`electronics.lua`) and Foundry (`foundry.lua`) were written by newcomers in earlier playtests and earned the most when raced against the rest.
 
 ### The economy dashboard
 
@@ -1823,7 +1891,7 @@ Each is found on only a few of those bodies at a time (its homes), and it's rich
 
 The exchanges don't sell Metals (A3), the minerals that refine to them, or the goods up to systems made with them, but they buy them all (Metals (A3) at about 80 a unit, Mars paying more). So a drone that hauls them back near Earth has a market, and a maker that needs them buys them from the drones that do. `best_sites(kunspar)` finds this season's homes, nearest first.
 
-**The hauler** ([`examples/companies/hauler.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/hauler.lua), Mining Kit) picks this season's best kunspar site within reach (`best_sites`), fills its tank for the whole voyage (nobody sells fuel out there), mines and refines until it holds 25 more Metals (A3), and sells them where the planets bid most for them (`house_demand`, `best_bid`).
+**The hauler** ([`examples/companies/hauler.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/hauler.lua), Mining Kit) picks this season's best kunspar site within reach (`best_sites`), fills its tank for the whole voyage (nobody sells fuel out there), mines and refines until it holds 25 more Metals (A3), and sells them wherever the House's bids for them pay most after the trip, at any exchange (`house_demand`).
 
 Nobody sells fuel out there, so a voyage starts with a full tank. The hauler works out what a whole voyage burns, two trips and every mining and refining run, before it sets out:
 
@@ -1892,7 +1960,7 @@ function strip()
 end
 ```
 
-**The salvager** ([`examples/companies/salvager.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/salvager.lua), Factory Kit, matured companies only) buys a Salvager (A1) from another drone or builds one (a Welder, then the Salvager), salvages the wreck in the best condition wherever it is (`wrecks()`, `salvage`), sells the modules and Scrap (A1) at an exchange, keeping its own tools, and moves on to the place with the most wrecks.
+**The salvager** ([`examples/companies/salvager.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/salvager.lua), Factory Kit, matured companies only) buys a Salvager (A1) from another drone or builds one (a Welder, then the Salvager), salvages the wreck in the best condition wherever it is (`wrecks()`, `salvage`), sells the modules and Scrap (A1) at an exchange, keeping its own tools, and moves on to the place with the most wrecks among the exchanges and mining sites the game lists (`house_supply`, `best_sites`, `wrecks_at`).
 
 It picks the freshest wreck with something left, since salvage gets a share equal to the wreck's condition:
 
@@ -1962,7 +2030,7 @@ The new spacecraft:
 - gets the copied drone's script and its saved variables, as they were when the launch happened (see [What your drone remembers](#what-your-drone-remembers)); it doesn't carry on from where the copied drone was in its script;
 - calls `launched()`, which lets it get to work on its own. Set a variable before launching (`copy = true`) and the copy can tell it is one.
 
-**Keep money to work with.** Every drone of a company spends from the same account, so a copy that takes the last credits can stop the whole company: with nothing left to buy inputs or fuel, every drone waits "short of credits" until it runs dry (in one playtest, Dev 6 launched its third drone with 322 credits left, and all three died). The Miner, Refiner and Maker starters launch a copy only when the company keeps `work_cash` (1,500) for each drone it will then have (`grow_line()`), and a drone short of credits sells what it holds before it buys fuel. `raise_cash(n)` does that: it sells the goods aboard (never fuel, modules or kits) into the best buy orders here until the company has n credits, below your fuel floor if it must, since a drone with no credits can't buy fuel anyway, and returns what it raised.
+**Keep money to work with.** Every drone of a company spends from the same account, so a copy that takes the last credits can stop the whole company: with nothing left to buy inputs or fuel, every drone waits "short of credits" until it runs dry (in one playtest, Dev 6 launched its third drone with 322 credits left, and all three died). The Miner, Refiner and Maker starters launch a copy only when the company keeps `credits_kept_per_drone` (1,500) for each drone it will then have (`credits_needed_to_grow()`), and a drone short of credits sells what it holds before it buys fuel. `raise_cash(n)` does that: it sells the goods aboard (never fuel, modules or kits) into the best buy orders here until the company has n credits, below your fuel floor if it must, since a drone with no credits can't buy fuel anyway, and returns what it raised.
 
 Here a new spacecraft, whose hold starts with no modules, first pulls an engine and a Worm from the drone that launched it (they are at the same place), then flies to the Moon and mines:
 
@@ -2032,9 +2100,9 @@ Every message your drones find is from your own company, so there is no need to 
 
 **Asking other companies for help.** A broadcast can't reach them. To get something from another company (fuel where you are, inputs, a buyer for your goods), post an order: a high buy order is a call any drone that passes can answer, and it can't be withdrawn for 12 game hours, so they know it will still be there (see [Running low on fuel](#running-low-on-fuel)). Only a matured company can be helped this way: a startup trades only with the House and its own drones.
 
-**How crowded is it?** `crowd(place)` is how many working drones are at a place now, here if you leave the place out (a query also gives its wrecks). The Miner starter can check it before choosing where to start: set `crowd_limit` above 0 (it ships at 0) and, with more drones than that at the Moon, it starts at the quieter of Phobos and Deimos. Crowding at a mining site is counted differently: by the drones that mined the same mineral there in the last game hour (see [Crowded sites yield less](#deposits-run-out)). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
+**How crowded is it?** `crowd(place)` is how many working drones are at a place now, here if you leave the place out (a query also gives its wrecks). Crowding at a mining site is counted differently: by the drones that mined the same mineral there in the last game hour (see [Crowded sites yield less](#deposits-run-out)). A place with dozens of drones mining the same deposit or selling the same goods is a place where prices are low; a quiet one may be an opportunity.
 
-**Exercise.** Read the Miner's `grow_fleet`. Change `grow_at` and `work_cash`, and have each new copy broadcast once where it works (`broadcast`); have the drone you released print what it hears (`events_earth(message_event)`).
+**Exercise.** Read the Miner's `grow_fleet`. Change `copy_at_credits` and `credits_kept_per_drone`, and have each new copy broadcast once where it works (`broadcast`); have the drone you released print what it hears (`events_earth(message_event)`).
 
 **You've mastered this when** your company has launched a copy that earned back its hull and kit, and its drones tell each other something useful.
 
@@ -2218,11 +2286,11 @@ Private code is hidden on the company page (its code, revisions and copy links) 
 
 Once you offer your company's shares its code is public, and once one sells its code is locked. The players thinking of buying its shares read it first (see [Before you buy: read the code](#before-you-buy-read-the-code)). Code they can follow in a minute earns their trust; code they can't is a risk they price in. So write it the way the starters are written:
 
-- **Names that say what things are and do.** `sell_metals_at_market()`, `fuel_for_round_trip`, `richest_ore`. A good name is worth more than a comment, and it never goes out of date.
+- **Names that say what things are and do.** `sell_metals_when_hold_is_full()`, `cheapest_fuel_stop()`, `percent_better_to_move`. A good name is worth more than a comment, and it never goes out of date.
 - **Small functions, each doing one thing.** Your main loop should read like a list of steps: refuel, mine, refine, sell, grow.
-- **Settings at the top**, each with one short comment saying what it controls and in what unit. An investor sees your strategy at a glance, and you can tune it in one place.
-- **No magic numbers.** `if units(fuel) < 40` makes a reader guess; `if units(fuel) < low_fuel` with `low_fuel = 40 -- buy fuel below this` doesn't.
-- **Comments only for why.** "Waiting is free; a hop costs fuel" explains a choice. "-- go to the market" above `go(market())` says nothing.
+- **Settings at the top**, each named for what it controls (`refuel_below`, `metals_per_sale`), with a comment only for its unit. An investor sees your strategy at a glance, and you can tune it in one place.
+- **No magic numbers.** `if units(fuel) < 40` makes a reader guess; `if units(fuel) < refuel_below` with `refuel_below = 40` doesn't.
+- **Comments only for why.** "Only the House trades with a startup, so its bid brings no courier" explains a choice. "-- go to the market" above `go(market)` says nothing. If a block needs a comment to say what it does, make it a function whose name says so.
 
 The same few lines, before and after:
 
@@ -2237,23 +2305,24 @@ end
 ```
 
 ```lua
--- after: the names say it all
-hold_cap = 40        -- metals it gathers before a selling trip
-full_tank = 150      -- fuel it fills up to whenever it sells
+metals_per_sale = 40
+full_tank = 150
 
 function sell_metals_at(market_place)
-  if metals() < hold_cap then return end
+  if metals() < metals_per_sale then return end
   go(market_place)
   for _, metal in ipairs(metals_sold) do sell_out(metal) end
   fill_to(full_tank)
 end
 ```
 
-The second version is longer by a line and much faster to trust. Clean code also makes your own changes safer: when a push goes wrong, you can see why.
+The second version needs no comments and is much faster to trust. Clean code also makes your own changes safer: when a push goes wrong, you can see why.
 
 ### Trading shares with other players
 
 Players trade shares with **standing orders**, like goods: an order to buy or sell a number of a company's shares at a price.
+
+- **Investing opens with a company of your own.** You may buy shares (from players, the bank or a company's new shares, on the website, through the API or from your trading script) once you have matured a company of your own, so that you hold shares that earn you money (#1040). Until then a buy is refused (409) with what to do first. Anyone may sell what they hold. Players who bought shares before November 2026 keep investing.
 
 - **Whole shares, whole credits.** At least 1 share, at a whole number of credits.
 - **At any price you agree.** From 1 to 9,999,999 credits a share: there is no floor and no band, so a share trades for what a buyer and a seller think it is worth, above or below cash-out. (Until November 2026 players traded only between 0.8 and 1.25 times the bank's selling price.) Every order is on the book.
@@ -2429,6 +2498,8 @@ _In this chapter:_ how a public company's code asks to borrow, how players back 
 ### Loans
 
 A public company can borrow, and players lend to it (#928). Only a public company asks: its code is locked and anyone can read it, so a lender can see what it will do with the credits and how it means to repay.
+
+**Your first loan.** **Your first loan** (`/market/loans/first`) shows one open request, with its interest, its term and what its company paid out over the last 7 game days, and a **Back this loan** button once you have the credits lending needs (#1044). It is picked by one rule, printed on the page: the open request of the public company that paid out the most over the last 7 game days. The whole loan book is a link away.
 
 **Asking.** The company's code calls `request_loan(amount, rate, due_in)`: borrow `amount` credits at `rate` percent simple interest for the whole loan (6.5 means 6.5%), due `due_in` game days from now. It returns the request's id; -5 when the amount is under 1, the rate negative or `due_in` under 1; and -23 when the company isn't public. A company is public once it has matured and its shares are held by more than one holder, the bank included: a startup, a company one player owns outright and a company released before the new rules get -23. `cancel_request(id)` withdraws what isn't backed yet; `repay(id)` repays all of a request's loans early, the principal plus the interest due so far (in proportion to the time gone), all or nothing: if the company can't pay all of it, nothing happens. Both return 0 when recorded (the website settles them within a real minute), or -9 when the company has no such request. `obligations()` lists what it owes or has asked for, each `{kind, id, credits, rate, due_in}`: `kind` is `"loan"` (credits still owed) or `"request"` (credits still to back), and `due_in` is the game days until it is due (0 or less: due now).
 
@@ -2811,7 +2882,7 @@ Short meanings of the words this manual uses, each with where it is explained.
 - **Import price**: what the House asks for a good it sells; it rises as anyone buys it there and slides back over a day or two ([The planets' import price](#import-price)).
 - **Lineage**: the earlier code a company's revisions carry, shown on its page and the Lineage map ([Drone pages](#drone-pages-learning-from-other-drones)); and `lineage()`, a drone's parent and generation ([Copies that vary](#chapter-13-copies-that-vary-with-lineage)).
 - **Loan request**: a public company's ask to borrow, backed by players; a loan it can't repay in full on its due date is in **default** ([Loans](#loans)).
-- **Mature**: what a startup does once it holds its debt and 500 more: it repays the bank, trades with everyone, and its 100 shares are yours ([Maturing a startup](#maturing-a-startup)).
+- **Mature**: what a startup does once it holds its debt and 500 more, when you press **Claim my 100 shares**: it repays the bank, trades with everyone, its 100 shares are yours, and you may invest in other companies ([Maturing a startup](#maturing-a-startup)).
 - **Net wealth**: what a company has gained since it started, at market prices, without its hulls or debt: the company leaderboards rank by it ([Drone pages](#drone-pages-learning-from-other-drones)).
 - **Order book**: the standing buy and sell orders at a place ([Reading the order book](#reading-the-order-book)).
 - **Order handle**: the number that stands for one drone's order for one good on one side; a push or pull to another company's order takes it ([Order handles](#order-handles)).

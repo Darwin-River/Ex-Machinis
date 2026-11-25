@@ -98,7 +98,7 @@ end
 
 - A run that brings nothing still burns a fuel. On a busy deposit, other drones can take what `deposit` reported before your run lands, so `dig` compares the units before and after each run and waits when nothing came. Without that check, a drone can burn its whole tank on empty runs (a Refiner died that way in round 16).
 - Mining takes from a deposit shared by every drone there. Moon kunspar is usually mined out, while the Moon's yalspar and vladnium are not.
-- The Miner and Refiner starters move between Phobos and Deimos instead of waiting. Moving costs 5 fuel each way, so check fuel when you do.
+- The Miner and Refiner starters name no place (#1034). They rate every site `best_sites` lists by units an hour over a stay (`units_an_hour`), counting the trip, and split the nearly-as-good ones between drones by drone number. They move only when another site pays `percent_better_to_move` more, and after `dry_hours_before_moving` dry hours they choose again. Moving costs 5 fuel each way, so check fuel when you do. See the players' manual, "Drones that work anywhere".
 
 ## Fuel
 
@@ -112,7 +112,7 @@ function brew_fuel() return make(fuel) end
 
 - Start brewing well before you run out: below 40, not 25. A drone that starts brewing with too little fuel dies halfway through.
 
-**`top_up(n, m)`**: with less than n fuel, buy m here, cheapest first (`buy_here`: any drone's sell orders, a station drone's included). Example: `top_up(40, 30)`. Used by: Smith, Trader (as `fuel_up`).
+**`top_up(n, m)`**: with less than n fuel, buy m here, cheapest first (`buy_here`: any drone's sell orders, a station drone's included). Example: `top_up(40, 30)`. Used by: the Trader (as `fuel_up`).
 
 ```lua
 function top_up(n, m)
@@ -196,14 +196,20 @@ Every drone also knows `buy_price`, `sell_price`, `best_offer`, `best_bid` and `
 
 The order books never name another company's drone (#927). Each order carries an **order handle** instead: a number above 1,000,000,000 that stands for that drone's order for that good on that side, and says nothing about who posted it. `best_offer(r)` returns price, handle, units; pass the handle to `pull` (or, from `best_bid`, to `push`) to trade with that order. The records from `sell_orders`, `buy_orders` and `orders_everywhere` carry it in their `drone` field, with `planets` (1 for the planets' orders) and `mine` (1 for your drone's own). Who you traded with shows afterwards on your company's page and history.
 
-**`board_price(resource, place)`** (built in): what a good traded for, a unit, at a place over the last game day (query 680, the public price board); 0 if none traded there. Example: `board_price(rods, earth)`. Used by: Adaptive.
+**`board_price(resource, place)`** (built in): what a good traded for, a unit, at a place over the last game day (query 680, the public price board); 0 if none traded there. Example: `board_price(rods, earth)`. `price_board(r)` gives every place's at once. Used by: Adaptive (as `price_board`).
 
 - A buyer pays less as its stock fills: when many drones sell to the same buyer, the board shows by how much.
 
-**`overstocked(product)`** (#380): true when the drone holds more than half of what sold at Earth yesterday (`sold`, query 682). Check it before making more of a product, and sell first or make something else. Change `earth` to the place where you sell.
+**`overstocked(product)`** (#380): true when the drone holds more than half of what sold everywhere yesterday (`sales`, query 682). Check it before making more of a product, and sell first or make something else.
 
 ```lua
-function overstocked(product) return units(product) * 2 > sold(product, 1, earth) end
+function sold_everywhere_yesterday(product)
+  local total = 0
+  for _, sale in ipairs(sales(product, 1)) do total = total + sale.units end
+  return total
+end
+
+function overstocked(product) return units(product) * 2 > sold_everywhere_yesterday(product) end
 ```
 
 ## Asking about other exchanges

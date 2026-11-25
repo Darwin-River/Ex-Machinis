@@ -41,6 +41,7 @@ class OwnershipTest extends TestCase
     {
         $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
         $user = Players::create($name, 'long-enough', $email);
+        $this->canInvest((int) $user->user_id);   // buyers here are investors (#1040)
         Players::verify($user->user_id, sha1($email));
         DB::table('users')->where('user_id', $user->user_id)->update(['credits' => $credits, 'share_credits' => 0]);
         return User::where('user_id', $user->user_id)->first();

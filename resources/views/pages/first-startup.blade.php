@@ -65,7 +65,7 @@
     </x-page-header>
     <section class="section section-xs section-first">
         <div class="container fs" id="first-startup">
-            @if(config('forge.new_rules'))@include('partials.pipeline', ['here' => 'code'])@endif
+            @if(config('forge.new_rules'))@include('partials.ladder', ['here' => 'found'])@endif
             <p class="fs-lead">A <b>startup</b> is a company the bank lends you for free. Your Lua code runs its drone on its
                 own; if it fails, close it and it costs you nothing. Here is the whole way from nothing to its
                 {{ $startup['shares'] }} shares, with the numbers in force today.</p>
@@ -141,10 +141,9 @@
                         compare a few game days later. For example, the Miner sells once it has 40 metals aboard; with more aboard it
                         makes fewer trips, each worth more, if the <a href="{{ url('market') }}">Market board</a> shows the House
                         still wants them:</p>
-<pre class="fs-code lua" v-pre aria-label="A one-line change to the Miner"><span class="c">-- metals it keeps on offer before it goes to sell</span>
-<del>- hold_cap = 40</del>
-<ins>+ hold_cap = 60</ins></pre>
-                    <p>It may help or not: in one playtest, a Miner told its time was worth less (<code>hour_value</code> 2) flew to the
+<pre class="fs-code lua" v-pre aria-label="A one-line change to the Miner"><del>- metals_per_sale = 40</del>
+<ins>+ metals_per_sale = 60</ins></pre>
+                    <p>It may help or not: in one playtest, a Miner told its time was worth less (<code>credits_per_game_hour</code> 2) flew to the
                         lowest bids and matured later than an unchanged one. A change that doesn't
                         work is fine: push another, or <b>close</b> the startup. Its debt is cancelled, and a game day later its slot is
                         free (you own up to {{ $startup['max'] }} companies outright at a time, startups included). Break, learn, repeat.</p>
@@ -152,7 +151,7 @@
 
                 <li class="fs-step" id="mature">
                     <h2>When is it mine? <span class="fs-time">when it gets there</span></h2>
-                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
+                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more), a <b>Claim my {{ $startup['shares'] }} shares</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
                         Maturing repays the bank. From then on it trades with everyone, and its
                         {{ $startup['shares'] }} shares are yours. Its code stays yours to change until you sell a share, which makes it
                         public and locks its code: each game day it pays half its profit to its shareholders.

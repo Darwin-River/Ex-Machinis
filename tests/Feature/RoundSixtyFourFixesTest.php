@@ -131,7 +131,7 @@ class RoundSixtyFourFixesTest extends TestCase
             $this->assertStringContainsString('if started ~= me() then', $src, $name);
             $this->assertStringContainsString('copy, started = true, me()', $src, $name);
             $this->assertStringNotContainsString('math.max(offer - 1, 0)', $src, $name);
-            $this->assertMatchesRegularExpression('/^min_ask = \d+/m', $src, $name);
+            $this->assertMatchesRegularExpression('/^lowest_ask = \d+/m', $src, $name);
         }
     }
 

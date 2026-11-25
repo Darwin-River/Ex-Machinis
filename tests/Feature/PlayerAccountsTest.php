@@ -64,8 +64,9 @@ class PlayerAccountsTest extends TestCase
     public function testSignUpVerifyLogInAndOut()
     {
         $this->get('/signup')->assertOk()->assertSee("Don't use your real name", false)->assertSee('one account per address');
-        $this->post('/signup', ['name' => 'Star Hauler', 'email' => ' Star@Example.com ', 'password' => 'long-enough',
-            'password_confirmation' => 'long-enough'])->assertRedirect('/account');
+        // The password once (#1041), and straight on to founding a startup
+        $this->post('/signup', ['name' => 'Star Hauler', 'email' => ' Star@Example.com ', 'password' => 'long-enough'])
+            ->assertRedirect('/release');
         $this->assertAuthenticated();
         $row = DB::table('users')->where('login', 'Star Hauler')->first();
         $this->assertSame('star@example.com', $row->email, 'kept trimmed and in lower case');
@@ -140,8 +141,7 @@ class PlayerAccountsTest extends TestCase
         $this->expectProblem(fn () => Players::create('Fine Name', 'long-enough', 'TAKEN@example.com'), 'already uses', 'one account per address');
         $this->expectProblem(fn () => Players::create('Fine Name', 'long-enough', 'not-an-address'), "doesn't look", '');
         $this->expectProblem(fn () => Players::create('Fine Name', 'long-enough', null), "doesn't look", 'a player needs one');
-        $this->post('/signup', ['name' => 'Mismatch', 'email' => 'mm@example.com', 'password' => 'long-enough',
-            'password_confirmation' => 'other-one'])->assertSessionHasErrors('password');
+        $this->post('/signup', ['name' => 'No Password', 'email' => 'np@example.com'])->assertSessionHasErrors('password');
         $this->post('/signup', ['name' => 'No Mail', 'password' => 'long-enough', 'password_confirmation' => 'long-enough'])
             ->assertSessionHasErrors('email');
         // The game's own owners have no login and can't sign in

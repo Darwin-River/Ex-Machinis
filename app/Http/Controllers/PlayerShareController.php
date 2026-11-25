@@ -133,6 +133,7 @@ class PlayerShareController extends Controller
         }
         $limit = $request->filled('limit') ? self::whole($request, 'limit') : null;
         $r = \App\Services\ShareTicket::now($user, $id, (string) $request->input('side'), self::whole($request, 'units'), $limit);
+        \App\Services\CompanyNow::forget($user);   // a first share: the next step moves on (#1044)
         return $this->back($r, $r['ok'] ? self::nowWords($r) : '');
     }
 

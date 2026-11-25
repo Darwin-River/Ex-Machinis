@@ -1,10 +1,7 @@
 {{-- The strip under the menu (#932): a logged-in player's next step on the path (#987), and the rules revealed in layers as each is earned --}}
 @php($stripUser = auth()->user())
 @if(config('forge.new_rules') && $stripUser && $stripUser->login !== null)
-    @php($strip = \Illuminate\Support\Facades\Cache::remember('next-strip:' . $stripUser->user_id, 60, function () use ($stripUser) {
-        $path = \App\Services\Pipeline::for($stripUser);
-        return ['path' => $path, 'rules' => \App\Services\Pipeline::rules($path)];
-    }))
+    @php($strip = \App\Services\Pipeline::cached($stripUser))
     @php($nextKey = $strip['path']['next'])
     @php($next = $nextKey ? collect($strip['path']['steps'])->firstWhere('key', $nextKey) : null)
     @php($openRules = collect($strip['rules'])->where('open', true))
@@ -14,7 +11,9 @@
             @if($next)
                 <span id="next-step"><b style="color: #4cc9f0">Next:</b>
                     @switch($nextKey)
-                        @case('code') mature a startup into a company of your own. @break
+                        @case('found') found your first startup: your code runs a company of its own. @break
+                        @case('fix') change one number in your startup's code and push the fix. @break
+                        @case('own') grow a startup to its mark, then claim its shares. @break
                         @case('invest') buy a share in another player's company, or sell one of yours to go public. @break
                         @case('lend') back a company's loan request. @break
                         @default {{ $next['title'] }}.

@@ -10,6 +10,13 @@
  *   defined"). A misspelt game word otherwise fails only once the drone runs
  *   it (#380 round 35), as FORTH's undefined-word warning catches for FORTH.
  *
+ * - With the library, a last line "memory: <script> <in use> <cap> <headroom>"
+ *   (#1035): the bytes the compiled script holds, all a drone's Lua holds once
+ *   the library and the script are loaded, the most it may hold
+ *   (LUA_MEMORY_CAP), and what a script must leave of that for its data
+ *   (LUA_DATA_HEADROOM). Comments cost nothing here; code does. The website
+ *   refuses a script that leaves less than the headroom.
+ *
  * The website's /check and Release page use it (config forge.lua_check).
  */
 #include <stdio.h>
@@ -22,6 +29,7 @@
 #include "lstate.h"
 #include "lopcodes.h"
 #include "ldebug.h"
+#include "lua_limits.h"
 
 #define MAX_NAMES 4096
 
@@ -70,10 +78,34 @@ static void scan(const Proto *p)
 
 static int noop(lua_State *L) { (void)L; return 0; }
 
+/* Counts what the state holds, as a drone's allocator does */
+static size_t in_use = 0;
+static void *counting_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
+{
+    (void)ud;
+    size_t old = ptr ? osize : 0;
+    if(nsize == 0) {
+        in_use -= old;
+        free(ptr);
+        return NULL;
+    }
+    void *p = realloc(ptr, nsize);
+    if(p) in_use = in_use - old + nsize;
+    return p;
+}
+
+static int panic(lua_State *L)
+{
+    fprintf(stderr, "lua-check: %s\n", lua_tostring(L, -1));
+    return 0;
+}
+
 /* A state with what a drone has: Lua's libraries and the game's */
 static lua_State *drone_like(const char *library)
 {
-    lua_State *L = luaL_newstate();
+    lua_State *L = lua_newstate(counting_alloc, NULL);
+    if(!L) return NULL;
+    lua_atpanic(L, panic);
     luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
     luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1);
     luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
@@ -115,6 +147,8 @@ int main(int argc, char **argv)
 
     lua_State *L = drone_like(argc > 1 ? argv[1] : NULL);
     if(!L) return 2;
+    lua_gc(L, LUA_GCCOLLECT);
+    size_t before = in_use;
     if(luaL_loadbuffer(L, text, size, "=script") != LUA_OK) {
         printf("%s\n", lua_tostring(L, -1));
         return 1;
@@ -134,5 +168,7 @@ int main(int argc, char **argv)
         if(!seen && !known(L, name))
             printf("warning: line %d: %s is used but never defined\n", reads[r].line, name);
     }
+    lua_gc(L, LUA_GCCOLLECT);
+    printf("memory: %zu %zu %d %d\n", in_use - before, in_use, LUA_MEMORY_CAP, LUA_DATA_HEADROOM);
     return 0;
 }

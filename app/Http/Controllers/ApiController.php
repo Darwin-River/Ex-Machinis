@@ -559,6 +559,13 @@ class ApiController extends Controller
             $warning = trim(($warning ?? '') . ' Your script is ' . number_format($length) . ' characters long, close to the '
                 . number_format($max) . ' a release or push takes.');
         }
+        // What it holds of its drone's memory once loaded (#1035): the real limit
+        $memory = Release::isLua($script) ? Release::luaMemory($script) : null;
+        if ($problem === null && $memory && $memory['in_use'] > $memory['allowance'] * 0.9) {
+            $warning = trim(($warning ?? '') . ' Once loaded, your script and the game\'s library hold '
+                . number_format($memory['in_use'] / 1024) . ' KB of the ' . number_format($memory['allowance'] / 1024)
+                . ' KB a script may use, close to the limit.');
+        }
         $out = [
             'ok' => $problem === null,
             'error' => $problem,
@@ -571,6 +578,7 @@ class ApiController extends Controller
             'language' => Release::isLua($script) ? 'lua' : 'forth',   // #380
             'length' => $length,
             'max_length' => $max,
+            'memory' => $memory,
         ];
         // A push preview (#558): what pushing this to the company would cost now
         if ($request->filled('company')) {
