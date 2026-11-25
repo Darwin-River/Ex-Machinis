@@ -46,6 +46,9 @@ class TryController extends Controller
                 . 'or keep your drone and found it, which is free.');
         }
         session([\App\Services\Pipeline::TRIED => true]);   // step 2 of the ladder (#1043)
+        if (($player = auth()->user()) && $player->login !== null) {
+            \App\Services\Badges::award('player', (int) $player->user_id, 'test_pilot');   // #1048
+        }
         return redirect('/try#result')->with('guest_drive', GuestDrive::run($script));
     }
 

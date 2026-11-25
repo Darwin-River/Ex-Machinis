@@ -35,6 +35,7 @@
             @endif
             {{-- Where you are on the path, and the next step (#987) --}}
             @include('partials.pipeline')
+            @include('partials.badges', ['badges' => \App\Services\Badges::of('player', (int) auth()->user()->user_id), 'title' => 'Your badges', 'id' => 'account-badges'])
             <h2 class="h4">{{ $account['name'] }}</h2>
             @if(!$account['verified'])
                 <div class="alert alert-warning" style="white-space: normal">

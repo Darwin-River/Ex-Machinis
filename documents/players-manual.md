@@ -2179,6 +2179,16 @@ Next, [Chapter 15](#chapter-15-dividends-and-payout): what a matured company pay
 
 _In this chapter:_ what a matured company pays its shareholders each game day, and how its code decides how much it keeps to grow.
 
+### Badges
+
+Badges are recognition for what your drones, companies and you achieve (#1048). They give no advantage in the game: no credits, no discounts, nothing any rule reads. Every few real minutes the game looks at its own records and awards any badge that has been earned since; an award is kept for good, even if what earned it later goes. Some come in tiers, **bronze**, **silver** and **gold**, at the numbers below. Your badges show on your account page (and on your public player page), a company's on its page and a drone's on its page; a new one shows in **Yours, just now** on the home page.
+
+- **Drones**: **First Light** (it ran its code and acted), **Lift-off** (its first trip), **First Strike** (its first mining run), **First Sale**, **Frontier Run** (it traded at Ceres Station), **Long Haul** (it worked 30, 100 and 365 game days), **Self-Starter** (it crashed, restarted and kept working a game day after), **Parent** (it launched a copy of itself), **Dynasty** (a copy of its copy) and **Salvager** (it plundered a wreck).
+- **Companies**: **Founded**, **Matured**, **Speed Run** (it matured faster than its starter usually does), **Rewritten** (5 and 25 pushes), **Fleet** (3, 8 and 20 working drones at once), **Dividend Payer** (dividends on 7, 30 and 100 game days), **Gone Public** (its first share sold), **Wide Ownership** (10 or more shareholders), **Good Borrower** (a loan repaid in full, on time), **Contract Kept** (5 and 25 contracts delivered in full), **Diversified** (5 different goods sold in a game week), **Maker** (a part or system sold), **Remembered** (it ended after 100 game days or more), **Ancestor** (another company's code descends from its code) and **Open Book** (its code copied into another company's release).
+- **You**: **Test Pilot** (a first test drive), **Founder**, **Fixer** (a first fix pushed), **First Crash** (break, learn, repeat), **Phoenix** (a company matured after closing or losing a startup), **Shareholder**, **Investor** (a share bought in another player's company), **Lender**, **Repaid** (a loan you backed repaid in full), **Portfolio** (shares in 5 other companies), **Five Outright**, **Market Maker** (the resting-order rebate earned 10 and 50 times), **Scripted Trader** (your trading script placed an order), **Climber** (founded, fixed, matured, invested and lent), **Long Game** (a company of yours paid dividends on 100 game days) and **Teacher** (a pupil in your class matured a company).
+
+Everyone earns them by the same rules. Buying your own company's shares or lending to it earns no badge, and only trades between different players count for the trading badges. In a class, pupils' badges show to the pupil and their teacher only, never on public pages.
+
 ### Dividends: what a share earns
 
 Each game day a matured company pays **half its profit** (it was a quarter at first) to its shareholders, split by the shares they hold: players' accounts, and the bank for the shares it holds. So each share is paid its part of that half: a hundredth of it while the company has its first 100 shares.

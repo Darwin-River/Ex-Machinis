@@ -132,6 +132,20 @@ class SinceLooked
                 'text' => 'You ' . $f['side'] . ' ' . number_format($f['units']) . ' ' . $f['name'] . ' shares at ' . number_format($f['price'])
                     . ' ' . ($f['side'] === 'sold' ? 'to' : 'from') . ' ' . $f['with']];
         }
+        // Badges earned (#1048), as receipts: "You earned Investor", "Hour Co earned Matured"
+        foreach (array_slice(Badges::since((int) $user->user_id, 0), 0, $limit) as $b) {
+            [, $name, , $tiers] = Badges::CATALOG[$b->badge] ?? [null, null, null, null];
+            if ($name === null) {
+                continue;
+            }
+            $who = match ($b->kind) {
+                'player' => 'You',
+                'company' => (string) (DB::table('companies')->where('company_id', $b->subject_id)->value('name') ?? 'A company of yours'),
+                default => 'Drone ' . (string) (DB::table('agents')->where('agent_id', $b->subject_id)->value('name') ?? $b->subject_id),
+            };
+            $rows[] = ['game_time' => (int) $b->game_t, 'when' => DronePage::when((int) $b->game_t),
+                'text' => $who . ' earned the ' . ($tiers ? Badges::TIER_NAMES[(int) $b->tier] . ' ' : '') . $name . ' badge'];
+        }
         usort($rows, fn ($a, $b) => $b['game_time'] <=> $a['game_time']);
         return array_slice($rows, 0, $limit);
     }

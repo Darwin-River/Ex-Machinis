@@ -33,6 +33,10 @@ class AccountController extends Controller
             return back()->withErrors(['name' => $e->getMessage()])->withInput($request->except('password', 'password_confirmation'));
         }
         Players::countSignUp((string) $request->ip());
+        // A visitor who test drove before signing up has earned Test Pilot (#1048)
+        if (session(\App\Services\Pipeline::TRIED)) {
+            \App\Services\Badges::award('player', (int) $user->user_id, 'test_pilot');
+        }
         Auth::login($user);
         $request->session()->regenerate();
         $sent = Players::sendVerification($user);
