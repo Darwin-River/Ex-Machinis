@@ -128,6 +128,7 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/account/classes', 'AccountController@createClassGroup');
     Route::post('/account/bot-keys', 'AccountController@makeBotKey');
     Route::post('/account/bot-keys/{id}/revoke', 'AccountController@revokeBotKey')->whereNumber('id');
+    Route::get('/account/cohort-feedback', 'AccountController@cohortFeedback');
     Route::get('/account/classes/{id}', 'AccountController@classGroup')->whereNumber('id');
     Route::post('/account/classes/{id}/reset', 'AccountController@resetPupil')->whereNumber('id');
     // Opt-in e-mail notices (#761)

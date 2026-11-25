@@ -40,7 +40,9 @@ class RouteServiceProvider extends ServiceProvider
     public static function caller(Request $request): string
     {
         $token = $request->bearerToken();
-        $user = ($token ? \App\Services\Players::byToken($token) : null) ?? \App\Services\Bots::actingPlayer($request);
+        $user = ($token ? \App\Services\Players::byToken($token) : null) ?? \App\Services\Bots::actingPlayer($request)
+            // an operator's own calls (making players, their notes and feedback) count against the operator (#1052)
+            ?? \App\Services\Bots::operatorFor($request->header(\App\Services\Bots::HEADER));
         return $user ? 'user:' . $user->user_id : 'ip:' . $request->ip();
     }
 

@@ -84,6 +84,40 @@ class BotApiController extends Controller
             : response()->json(['error' => $r['error']], str_starts_with($r['error'], 'No ') ? 404 : 422);
     }
 
+    /** GET /api/v1/bots/feedback?q=&persona=&round=&kind=&limit=: search the cohort's feedback log (#1052) */
+    public function feedback(Request $request): JsonResponse
+    {
+        if (!$operator = $this->operator($request)) {
+            return $this->refused();
+        }
+        return response()->json(['round_now' => \App\Services\CohortFeedback::round(),
+            'entries' => \App\Services\CohortFeedback::search($operator, $request->only(['q', 'persona', 'round', 'kind', 'limit']))]);
+    }
+
+    /** POST /api/v1/bots/{name}/feedback {round?, experience, recommendations, ratings?}: a player's end-of-round report */
+    public function report(Request $request, string $name): JsonResponse
+    {
+        return $this->saveFeedback($request, $name);
+    }
+
+    /** POST /api/v1/bots/feedback {round?, experience, recommendations}: the cohort's weekly review */
+    public function review(Request $request): JsonResponse
+    {
+        return $this->saveFeedback($request, null);
+    }
+
+    private function saveFeedback(Request $request, ?string $name): JsonResponse
+    {
+        if (!$operator = $this->operator($request)) {
+            return $this->refused();
+        }
+        $r = \App\Services\CohortFeedback::save($operator, $name, $request->only(['round', 'experience', 'recommendations', 'ratings']));
+        if (!$r['ok']) {
+            return response()->json(['error' => $r['error']], str_starts_with($r['error'], 'No ') ? 404 : 422);
+        }
+        return response()->json($r['entry'], 201);
+    }
+
     /** GET /api/v1/bots: the operator's Claude players */
     public function index(Request $request): JsonResponse
     {

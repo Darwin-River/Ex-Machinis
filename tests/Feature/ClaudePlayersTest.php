@@ -164,6 +164,57 @@ class ClaudePlayersTest extends TestCase
             \Illuminate\Http\Request::create('/', 'POST', [], [], [], ['HTTP_X_BOT_KEY' => $key, 'HTTP_X_BOT_PLAYER' => 'Rafa Quinn'])));
     }
 
+    public function testTheCohortsFeedbackLogIsSearchableOnlyByItsOperator()
+    {
+        // #1052: end-of-round reports and weekly reviews, kept in the database
+        $lead = $this->player('Log Lead');
+        $rival = $this->player('Log Rival');
+        config(['forge.operators' => ['Log Lead', 'Log Rival']]);
+        $key = Bots::makeKey($lead);
+        $rivalKey = Bots::makeKey($rival);
+        foreach (['Ada Vance' => 'C-01', 'Ben Okoro' => 'C-02'] as $name => $pid) {
+            $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots', ['name' => $name])->assertStatus(201);
+            $this->withHeader('X-Bot-Key', $key)->putJson('/api/v1/bots/' . $name, ['profile' => "# $pid\n\nStatus: active"])->assertOk();
+        }
+        $this->assertSame('2026-W48', \App\Services\CohortFeedback::round(strtotime('2026-11-25 12:00:00 UTC')));
+
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Ada Vance/feedback', ['round' => '2026-W48',
+            'experience' => 'My miner stalled when fuel ran low.', 'recommendations' => 'Warn before fuel runs out.',
+            'ratings' => ['fun' => 7, 'clarity' => 6]])->assertStatus(201)->assertJsonPath('persona', 'C-01')->assertJsonPath('ratings.fun', 7);
+        // A second report for the round replaces the first
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Ada Vance/feedback', ['round' => '2026-W48',
+            'experience' => 'My miner stalled twice when fuel ran low.', 'recommendations' => 'Warn before fuel runs out.'])->assertStatus(201);
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Ben Okoro/feedback', ['round' => '2026-W48',
+            'experience' => 'Trading was smooth.', 'recommendations' => 'Show more history on the exchange.'])->assertStatus(201);
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/feedback', ['round' => '2026-W48',
+            'experience' => 'Two of two players matured.', 'recommendations' => 'A fuel warning (two asked).'])->assertStatus(201)
+            ->assertJsonPath('persona', 'cohort')->assertJsonPath('kind', 'review');
+        // Refused: no experience, a bad round, out-of-range ratings, another's player
+        Cache::flush();   // the operator's 10 writes a minute
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Ben Okoro/feedback', ['recommendations' => 'x'])->assertStatus(422);
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Ben Okoro/feedback', ['round' => 'week 48', 'experience' => 'x', 'recommendations' => 'y'])->assertStatus(422);
+        $this->withHeader('X-Bot-Key', $key)->postJson('/api/v1/bots/Ben Okoro/feedback', ['experience' => 'x', 'recommendations' => 'y', 'ratings' => ['fun' => 11]])->assertStatus(422);
+        $this->withHeader('X-Bot-Key', $rivalKey)->postJson('/api/v1/bots/Ben Okoro/feedback', ['experience' => 'x', 'recommendations' => 'y'])->assertStatus(404);
+
+        // Search: every word, in either field; by persona, round and kind
+        $this->assertSame(4 - 1, count(\App\Services\CohortFeedback::search($lead)));
+        $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots/feedback?q=fuel')->assertOk()->assertJsonCount(2, 'entries');
+        $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots/feedback?q=fuel+twice')->assertOk()->assertJsonCount(1, 'entries')
+            ->assertJsonPath('entries.0.persona', 'C-01');
+        $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots/feedback?kind=report&round=2026-W48')->assertOk()->assertJsonCount(2, 'entries');
+        $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots/feedback?persona=C-02')->assertOk()->assertJsonCount(1, 'entries');
+        $this->withHeader('X-Bot-Key', $key)->getJson('/api/v1/bots/feedback?q=' . urlencode('50%'))->assertOk()->assertJsonCount(0, 'entries');
+        // Another operator sees none of it; no key, nothing
+        $this->withHeader('X-Bot-Key', $rivalKey)->getJson('/api/v1/bots/feedback')->assertOk()->assertJsonCount(0, 'entries');
+        $this->flushHeaders();
+        $this->getJson('/api/v1/bots/feedback')->assertStatus(401);
+
+        // The operator's page; nobody else's
+        $this->actingAs($lead)->get('/account/cohort-feedback?q=fuel')->assertOk()->assertSee('stalled twice')->assertDontSee('Trading was smooth');
+        $plain = $this->player('Log Plain');
+        $this->actingAs($plain)->get('/account/cohort-feedback')->assertNotFound();
+    }
+
     public function testWriteLimitsCountPerAccount()
     {
         // Ten writes a minute: an account with a good token has its own count,

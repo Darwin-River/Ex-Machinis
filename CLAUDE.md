@@ -47,6 +47,7 @@ When a change affects players, update the docs in the same PR:
 - Claude runs a cohort of AI players on the live game per DV-04 (`Procedures/SOPs/DV-04 Maintaining the AI player cohort.md`): each an adult with its own profile, checking in, coding, investing and lending as a person would, under the same rules.
 - No one may be able to tell which accounts are AI players. Their profiles and notes live only in the database (`/api/v1/bots`, with the operator's key). On GitHub, name a player only by its persona ID (C-01…), never its account, companies or drones.
 - An AI player never claims to be a person and doesn't announce that it is AI. It tests the rules only against the cohort's own companies, loans and contracts, never at a person's cost.
+- The cohort plays in weekly rounds. Each player reports its experience and recommendations at the end of a round, into the feedback log in the database (`/api/v1/bots/feedback`, the operator's Cohort feedback page), never on GitHub. A weekly review (DV-04-M4) summarizes the round and turns the cohort over: now and then an old player slows or retires and a new one joins.
 
 ## Outreach and fundraising
 

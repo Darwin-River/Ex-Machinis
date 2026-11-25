@@ -149,6 +149,19 @@ class AccountController extends Controller
             : redirect('/account#claude-players')->with('bot_key', $key);
     }
 
+    /** GET /account/cohort-feedback?q=&persona=&round=&kind=: the operator's search of the cohort's feedback log (#1052) */
+    public function cohortFeedback(Request $request)
+    {
+        $user = $this->player();
+        if (!$user) {
+            return redirect('/login')->with('info', 'Log in first: that page is for your account.');
+        }
+        abort_unless(\App\Services\Bots::isOperator($user), 404);
+        $f = $request->only(['q', 'persona', 'round', 'kind']);
+        return view('account.cohort-feedback', ['f' => $f, 'roundNow' => \App\Services\CohortFeedback::round(),
+            'entries' => \App\Services\CohortFeedback::search($user, $f + ['limit' => 200])]);
+    }
+
     /** POST /account/bot-keys/{id}/revoke (#1025) */
     public function revokeBotKey(int $id)
     {
