@@ -58,10 +58,11 @@ class PipelineTest extends TestCase
         // The home page is the first step: watching it counts, and trying comes next
         $home = $this->get('/')->assertOk()->assertSee('id="pipeline"', false)->getContent();
         $this->assertSame([$this->done(['watch']), 'try'], $this->state(null));
-        // In order, each with its way in
+        // In order, each with its way in; not step 0, which the visitor is doing there (#1058)
+        $this->assertStringNotContainsString('id="pipeline-watch"', $home);
         $at = fn ($t) => strpos($home, $t);
         $last = 0;
-        foreach (self::KEYS as $key) {
+        foreach (array_slice(self::KEYS, 1) as $key) {
             $this->assertGreaterThan($last, $at('id="pipeline-' . $key . '"'), "$key in order");
             $last = $at('id="pipeline-' . $key . '"');
         }

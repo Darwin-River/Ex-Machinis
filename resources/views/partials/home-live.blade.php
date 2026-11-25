@@ -1,6 +1,6 @@
 {{-- The game in action (#1049): the live map beside the numbers and a chart of trade, and the call to join.
      $map: LiveMap::now(); $trading: Dashboard::full()['trading'] with 'today'; $tiles: Dashboard::compact()['tiles'];
-     $join: show the Join the game button (a visitor) --}}
+     $join: show the Join the Economy button (a visitor) --}}
 @php($n = fn ($v) => number_format((int) $v))
 @php($working = collect($map['bodies'])->sum('working'))
 @once
@@ -39,7 +39,7 @@
         <div class="ex-chart" id="home-trading" aria-label="Credits traded each game day, by place, over the last {{ \App\Services\Dashboard::DAYS }} game days"></div>
         @if($join)
             <div class="home-join">
-                <a class="button button-primary button-lg" href="{{ url('try') }}" id="join-game">Join the game</a>
+                <a class="button button-primary button-lg" href="{{ url('try') }}" id="join-game">Join the Economy</a>
                 <p>Fly your first drone in your browser, in a few lines of code. No account needed to try it.</p>
             </div>
         @endif
