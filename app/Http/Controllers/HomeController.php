@@ -386,6 +386,12 @@ class HomeController extends Controller
             $rows->count(), $resultsPerPage, $current, ['path' => $request->url(), 'query' => $request->query()]);
         return response()->json($page->toArray() + ['window' => self::EVENTS_WINDOW], 200);
     }
+    /** Every badge, what earns it and how many have it (#1055): each badge shown on the site links here */
+    public function badges()
+    {
+        return view('pages.badges', ['catalog' => \App\Services\Badges::catalog()]);
+    }
+
     /**
      * Displays the About Us information page
      * @return View

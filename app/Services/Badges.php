@@ -272,6 +272,39 @@ class Badges
         return $out;
     }
 
+    /** What each kind of badge is earned by, for the Badges page's headings (#1055) */
+    public const GROUPS = ['drone' => 'Drones', 'company' => 'Companies', 'player' => 'Players'];
+
+    /**
+     * Every badge for the Badges page (#1055), grouped by kind in the
+     * catalogue's order: kind => [{key, name, text, tiers: [{tier, name,
+     * threshold, earned}], unit, earned}]. `earned` counts how many have it
+     * (a tier's, how many reached that tier): counts only, naming no one.
+     */
+    public static function catalog(): array
+    {
+        $counts = [];
+        if (Schema::hasTable('badges')) {
+            foreach (DB::table('badges')->groupBy('badge', 'tier')->selectRaw('badge, tier, COUNT(*) AS n')->get() as $r) {
+                $counts[$r->badge][(int) $r->tier] = (int) $r->n;
+            }
+        }
+        $out = array_fill_keys(array_keys(self::GROUPS), []);
+        foreach (self::CATALOG as $key => [$kind, $name, $text, $tiers, $unit]) {
+            $out[$kind][] = ['key' => $key, 'name' => $name, 'text' => $text, 'unit' => $unit,
+                'tiers' => $tiers ? array_map(fn ($t, $i) => ['tier' => $i + 1, 'name' => self::TIER_NAMES[$i + 1], 'threshold' => $t,
+                    'earned' => $counts[$key][$i + 1] ?? 0], $tiers, array_keys($tiers)) : [],
+                'earned' => $counts[$key][1] ?? 0];
+        }
+        return $out;
+    }
+
+    /** A badge's address on the Badges page */
+    public static function url(string $key): string
+    {
+        return url('badges') . '#' . $key;
+    }
+
     /**
      * May this viewer see these badges? A pupil's (or their companies' and
      * drones') show only to the pupil and their teacher: never on public pages

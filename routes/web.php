@@ -26,6 +26,8 @@ Route::get('/home', 'HomeController@index')->name('home');
 // the guide sends an old /getting-started#anchor link on to the manual
 Route::get('/getting-started', 'HomeController@firstStartup');
 Route::get('/manual', 'HomeController@playersManual');
+// Every badge described, each at its own anchor (#1055)
+Route::get('/badges', 'HomeController@badges');
 Route::get('/manual/images/{file}', 'HomeController@playersManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::get('/getting-started/images/{file}', 'HomeController@oldManualImage')->where('file', '[A-Za-z0-9_-]+\.(png|jpg|jpeg|gif|svg)');
 Route::redirect('/players-manual', '/manual', 301);
