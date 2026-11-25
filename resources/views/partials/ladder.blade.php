@@ -31,5 +31,5 @@
             </li>
         @endforeach
     </ol>
-    <span class="ladder-label">@if($hereStep)Step {{ $hereStep['n'] }} of {{ count($path['steps']) }}: <b>{{ $hereStep['title'] }}</b>@else{{ count(array_filter(array_column($path['steps'], 'done'))) }} of {{ count($path['steps']) }} steps done @endif</span>
+    <span class="ladder-label">@if($hereStep)Step {{ $hereStep['n'] }} of {{ count($path['steps']) - 1 }}: <b>{{ $hereStep['title'] }}</b>@else{{ count(array_filter(array_column($path['steps'], 'done'))) }} of {{ count($path['steps']) }} steps done @endif</span>
 </nav>

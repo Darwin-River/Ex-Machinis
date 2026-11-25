@@ -166,13 +166,13 @@ class MarketBoardTest extends TestCase
             ->assertDontSee('alert-info', false)
             ->assertDontSee('Hello from orbit')
             ->getContent();
-        $this->assertSame(3, substr_count($html, 'class="rl-card"'), 'Miner, Refiner and Maker');
-        foreach (['miner', 'refiner', 'maker'] as $name) {
+        $this->assertSame(4, substr_count($html, 'class="rl-card"'), 'the Shuttle (#1050), Miner, Refiner and Maker');
+        foreach (['shuttle', 'miner', 'refiner', 'maker'] as $name) {
             $this->assertStringContainsString('data-starter="' . $name . '"', $html);
         }
         $this->assertStringNotContainsString('data-starter="trader"', $html);
-        $this->assertMatchesRegularExpression('/data-starter="miner"\s+role="button" aria-pressed="true"/', $html, 'the Miner is picked');
-        $this->assertStringContainsString(e(substr(Release::starter('miner'), 0, 60)), $html, 'its code in the editor');
+        $this->assertMatchesRegularExpression('/data-starter="shuttle"\s+role="button" aria-pressed="true"/', $html, 'the Shuttle is picked');
+        $this->assertStringContainsString(e(substr(Release::starter('shuttle'), 0, 50)), $html, 'its code in the editor');
         // The cards carry each starter's code for the editor
         $this->assertStringContainsString('window.exStarters = ', $html);
 

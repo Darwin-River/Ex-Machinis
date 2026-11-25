@@ -59,7 +59,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 @if($navVisitor)
                 {{-- A visitor's menus (#1045): watch and try a drone, explore the world, learn the game --}}
                 <ul class="navbar-nav mr-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url('/') }}#replay" id="nav-watch">Watch</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url('/') }}#home-live" id="nav-watch">Watch</a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-explore" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Explore</a>
                         <div class="dropdown-menu" aria-labelledby="nav-explore">
@@ -85,11 +85,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-learn" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Learn</a>
                         <div class="dropdown-menu" aria-labelledby="nav-learn">
-                            <a class="dropdown-item" href="{{ url('try') }}">Try a drone (no account)</a>
+                            <a class="dropdown-item" href="{{ url('try') }}">Fly your first drone (no account)</a>
                             <a class="dropdown-item" href="{{ url('getting-started') }}">First startup (5 minutes)</a>
                             <a class="dropdown-item" href="{{ url('release') }}">Found a startup</a>
                             <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
                             <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
+                            <a class="dropdown-item" href="{{ url('badges') }}">Badges</a>
                             <div class="dropdown-divider"></div>
                             {{-- These open GitHub: said so (#885) --}}
                             <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
@@ -159,6 +160,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <a class="nav-link dropdown-toggle" href="#" id="nav-reference" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Reference</a>
                         <div class="dropdown-menu" aria-labelledby="nav-reference">
                             <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
+                            <a class="dropdown-item" href="{{ url('badges') }}">Badges</a>
                             {{-- These open GitHub: said so (#885) --}}
                             <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
                             <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
@@ -187,7 +189,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     @endif
                     {{-- One button: for a visitor, try a drone (#1045); for a player, their next step (#1041); else the action's one name (#719) --}}
                     @if($navVisitor)
-                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('try') }}" id="nav-cta">Try it free</a></li>
+                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('try') }}" id="nav-cta">Join the game</a></li>
                     @elseif($navNextStep)
                         <li class="nav-item"><a class="button button-primary button-sm" href="{{ $navNextStep['url'] }}" id="nav-cta">Next: {{ $navNextStep['action'] }}</a></li>
                     @else

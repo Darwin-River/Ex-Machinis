@@ -18,14 +18,14 @@ class MenusTest extends TestCase
         'nav-play' => ['try', 'release', 'startups/race', 'getting-started', 'market/shares/first', 'market/loans/first'],
         'nav-market' => ['market', 'market/house', 'market/history', 'market/shares', 'market/trade', 'dashboard'],
         'nav-companies' => ['leaderboard', 'players', 'companies', 'spacecraft', 'lineage', 'events', 'map'],
-        'nav-reference' => ['manual', 'technology', 'resources', 'protocols', 'queries', 'locations', 'blog'],
+        'nav-reference' => ['manual', 'badges', 'technology', 'resources', 'protocols', 'queries', 'locations', 'blog'],
     ];
 
     /** A visitor's menus (#1045): Watch, Explore and Learn hold the same pages */
     private const VISITOR_MENUS = [
         'nav-explore' => ['market', 'market/house', 'market/history', 'market/shares', 'market/loans', 'market/trade', 'dashboard',
             'leaderboard', 'players', 'companies', 'startups/race', 'spacecraft', 'lineage', 'events', 'map'],
-        'nav-learn' => ['try', 'getting-started', 'release', 'manual', 'blog', 'technology', 'resources', 'protocols', 'queries', 'locations'],
+        'nav-learn' => ['try', 'getting-started', 'release', 'manual', 'blog', 'badges', 'technology', 'resources', 'protocols', 'queries', 'locations'],
     ];
 
     private function assertMenus(string $html, array $menus): void

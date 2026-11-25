@@ -7,7 +7,9 @@ use Tests\TestCase;
 /**
  * #1034: the starters pursue a production objective and ask the game where
  * to pursue it. None names a place in its logic, so a new exchange, a new
- * season's sites or a crowded site needs no change of code.
+ * season's sites or a crowded site needs no change of code. The Shuttle
+ * (#1050), a first drone in a few lines, names its route in two settings
+ * a player chooses from /try's route table; its logic names no place.
  */
 class SiteAgnosticStartersTest extends TestCase
 {
@@ -33,6 +35,11 @@ class SiteAgnosticStartersTest extends TestCase
         $this->assertNotEmpty($files);
         foreach ($files as $file) {
             $logic = self::logic((string) file_get_contents($file));
+            // The Shuttle (#1050), the first drone on /try, names its route in its settings, which the route table
+            // fills in: places are allowed there and nowhere else in its code
+            if (basename($file) === 'shuttle.lua') {
+                $logic = preg_replace('/^(mine_at|sell_at)\s*=[^\n]*$/m', '', $logic);
+            }
             foreach (self::PLACES as $place) {
                 $this->assertDoesNotMatchRegularExpression('/\b' . $place . '\b/', $logic,
                     basename($file) . " names $place: ask the game where instead");

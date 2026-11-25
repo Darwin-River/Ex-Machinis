@@ -58,6 +58,10 @@
     </x-page-header>
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
+            {{-- Its badges (#1048); a pupil's only to them and their teacher --}}
+            @if(\App\Services\Badges::visible(isset($user->owner_id) ? (int) $user->owner_id : null, auth()->user()))
+                @include('partials.badges', ['badges' => \App\Services\Badges::of('company', (int) $user->user_id), 'id' => 'company-badges'])
+            @endif
             {{-- Its owner sees what changed since they last looked (#771) --}}
             @if(auth()->check() && ($user->owner_id ?? null) !== null && (int) $user->owner_id === (int) auth()->user()->user_id)
                 @include('partials.since-looked')

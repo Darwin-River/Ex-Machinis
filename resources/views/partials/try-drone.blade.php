@@ -35,7 +35,7 @@
         <label for="try-script" class="sr-only">Your drone's Lua code</label>
         <textarea v-pre class="form-control" id="try-script" name="script" rows="16" spellcheck="false" data-lua-editor
                   aria-describedby="try-hint">{{ $script }}</textarea>
-        <p class="try-note" id="try-hint">Change a number marked <code>TRY FIRST</code> near the top, then press <b>Test drive</b>.</p>
+        <p class="try-note" id="try-hint">Change a setting at the top (the one marked <code>TRY FIRST</code> is a good start), or choose a route below, then press <b>Test drive</b>.</p>
         @if($errors->has('script'))<p class="text-danger mb-0" role="alert" v-pre>{{ $errors->first('script') }}</p>@endif
         <div class="try-actions">
             <button class="button button-primary" type="submit" id="try-run">Test drive</button>

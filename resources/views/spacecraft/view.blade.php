@@ -116,6 +116,11 @@
 
             <div class="row row-30">
                 <div class="col">
+                    {{-- Its badges (#1048); a pupil's drone's only to them and their teacher --}}
+                    @php($droneOwner = \Illuminate\Support\Facades\DB::table('companies')->where('company_id', $agent->company_id)->value('owner_id'))
+                    @if(\App\Services\Badges::visible($droneOwner !== null ? (int) $droneOwner : null, auth()->user()))
+                        @include('partials.badges', ['badges' => \App\Services\Badges::of('drone', (int) $agent->agent_id), 'id' => 'drone-badges'])
+                    @endif
                     <h2 class="" id="cargo">Cargo</h2>
                 </div>
             </div>

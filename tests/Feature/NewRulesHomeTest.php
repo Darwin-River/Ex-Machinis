@@ -42,10 +42,10 @@ class NewRulesHomeTest extends TestCase
 
     public function testTheHomePageForTheNewRules()
     {
-        // A visitor's home page opens on a starter drone to watch, change, test drive and keep (#1042)
+        // A visitor's home page opens on the game in action, and a button to join (#1049): no code until /try
         $this->get('/')->assertOk()
-            ->assertSee('Write the code.')->assertSee('Your drones run the company.')
-            ->assertSee('id="try-drone"', false)->assertSee('Test drive')->assertSee('Keep my drone')->assertDontSee('found a startup now')
+            ->assertSee('A living economy, run by code.')->assertSee('id="live-map"', false)->assertSee('Join the game')
+            ->assertDontSee('id="try-drone"', false)->assertDontSee('found a startup now')
             // The path's numbers come from the config (#987): 4,200 owed and 500 to work with, 4,700 to mature
             ->assertSee('id="pipeline"', false)->assertSee('At 4,700 credits it repays the bank')->assertSee('claim its 100 shares')
             ->assertSee('id="economy-banner"', false)->assertSee('See the whole economy');

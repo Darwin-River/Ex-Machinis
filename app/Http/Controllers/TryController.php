@@ -23,12 +23,15 @@ class TryController extends Controller
         if (array_key_exists($asked, $starters) && (!$draft || $draft['starter'] !== $asked)) {
             $draft = ['starter' => $asked, 'script' => (string) Release::starter($asked)];
         }
-        $draft ??= ['starter' => 'miner', 'script' => (string) Release::starter('miner')];
+        // The first drone, the Shuttle, unless they asked for another (#1050)
+        $draft ??= ['starter' => Replay::FIRST, 'script' => (string) Release::starter(Replay::FIRST)];
         $script = old('script', $draft['script']);
         return view('pages.try', ['starters' => $starters, 'starter' => $draft['starter'], 'script' => $script,
             'drive' => session('guest_drive'),
             // The replay is of the starter as it comes: not beside a visitor's own changes
-            'replay' => $script === Release::starter($draft['starter']) ? Replay::of($draft['starter']) : null]);
+            'replay' => $script === Release::starter($draft['starter']) ? Replay::of($draft['starter']) : null,
+            // Routes for the Shuttle's settings, to choose from (#1050)
+            'routes' => $draft['starter'] === 'shuttle' ? \App\Services\Routes::best(2) : []]);
     }
 
     public function drive(Request $request)
@@ -43,6 +46,9 @@ class TryController extends Controller
                 . 'or keep your drone and found it, which is free.');
         }
         session([\App\Services\Pipeline::TRIED => true]);   // step 2 of the ladder (#1043)
+        if (($player = auth()->user()) && $player->login !== null) {
+            \App\Services\Badges::award('player', (int) $player->user_id, 'test_pilot');   // #1048
+        }
         return redirect('/try#result')->with('guest_drive', GuestDrive::run($script));
     }
 
@@ -64,7 +70,7 @@ class TryController extends Controller
         $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length'),
             'starter' => 'nullable|string|max:32']);
         $starter = (string) $request->input('starter');
-        $starter = array_key_exists($starter, GuestDrive::starters()) ? $starter : 'miner';
+        $starter = array_key_exists($starter, GuestDrive::starters()) ? $starter : 'shuttle';
         $script = str_replace("\r\n", "\n", (string) $request->input('script'));
         if ($problem = Release::scriptProblem($script)) {
             return [null, redirect('/try#editor')->withErrors(['script' => $problem])->withInput()];

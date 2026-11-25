@@ -77,7 +77,10 @@ class PlayerBoards
             ->get(['c.company_id', 'c.name', 's.units'])->map(fn ($s) => ['company_id' => (int) $s->company_id, 'name' => $s->name,
                 'units' => (int) $s->units])->all();
         return ['name' => $u->login, 'rank' => $rank, 'players' => count($board['wealth']), 'wealth' => $me['wealth'] ?? null,
-            'season_percent' => $season['percent'] ?? null, 'companies' => $companies, 'shares' => $shares];
+            'season_percent' => $season['percent'] ?? null, 'companies' => $companies, 'shares' => $shares,
+            // Badges (#1048): the public boards list no pupil, so these are never a pupil's
+            'badges' => array_map(fn ($b) => ['key' => $b['key'], 'name' => $b['name'], 'tier' => $b['tier_name'], 'earned' => $b['when']],
+                Badges::of('player', (int) $u->user_id))];
     }
 
     /** Each player account's wealth: [user_id => [name, credits, shares, bank_due, wealth, class_group_id]] */

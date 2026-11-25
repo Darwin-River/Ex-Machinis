@@ -5,23 +5,24 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * The fixed replay on the home page (#1042, part of #1039): a starter's guest
- * test drive (GuestDrive) against the live world, recorded once and kept, so
- * the home page shows the same run every time and never a crash.
+ * The fixed replay of the first drone (#1042; on /try since #1049, of the
+ * Shuttle since #1050): a starter's guest test drive (GuestDrive) against the
+ * live world, recorded once and kept, so it shows the same run every time
+ * and never a crash.
  *
  * The live server records it by itself: while there is none, the scheduler's
  * tick tries once an hour (recordIfMissing), and keeps a drive only when it
  * shows the drone at work (travelling, mining, refining or selling, not only
  * waiting). Once kept it doesn't change; `php artisan forge:record-replay
- * miner` records it again on purpose.
+ * shuttle` records it again on purpose.
  */
 class Replay
 {
     /** How many of a drive's actions a replay keeps */
     public const MAX_LINES = 14;
 
-    /** The starter the home page replays */
-    public const HOME = 'miner';
+    /** The starter replayed beside its code on /try (#1050; the home page's until #1049) */
+    public const FIRST = 'shuttle';
 
     public static function path(string $starter): string
     {
@@ -79,12 +80,12 @@ class Replay
         return $replay;
     }
 
-    /** From the tick: records the home page's replay while there is none, trying at most once an hour */
+    /** From the tick: records the first drone's replay while there is none, trying at most once an hour */
     public static function recordIfMissing(): void
     {
-        if (self::of(self::HOME) !== null || !Cache::add('replay-tried:' . self::HOME, 1, 3600)) {
+        if (self::of(self::FIRST) !== null || !Cache::add('replay-tried:' . self::FIRST, 1, 3600)) {
             return;
         }
-        self::record(self::HOME);
+        self::record(self::FIRST);
     }
 }
