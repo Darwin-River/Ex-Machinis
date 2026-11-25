@@ -41,7 +41,7 @@
                 <h1>A living economy, run by code.</h1>
                 <p class="home-lead">Players write short Lua programs that fly drones across the solar system to mine, make and trade.
                     This is the game right now.</p>
-                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => true])
+                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => true, 'explore' => $explore])
                 <p class="mt-3 mb-0">Have an account? <a href="{{ url('login') }}">Log in</a>.</p>
             @else
                 <div class="row align-items-center">
@@ -80,7 +80,7 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
         <section class="section pt-0">
             <div class="container">
                 <h2 class="h4">The game now</h2>
-                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => false])
+                @include('partials.home-live', ['map' => $map, 'trading' => $trading, 'tiles' => $dash['tiles'] ?? [], 'join' => false, 'explore' => $explore])
             </div>
         </section>
     @endif

@@ -57,6 +57,28 @@ class NewRulesHomeTest extends TestCase
         $this->get('/')->assertOk()->assertSee('At 5,100 credits');
     }
 
+    public function testTheHomePageIsExplorable()
+    {
+        // Every view is something to explore (#1059): the map's two views and its flights, the chart's period
+        // and places, and every company, good and place as a table to sort, filter and search
+        $owner = $this->player('explorer');
+        $id = Startups::start($owner, 'Explorable Co', 'function launched() wait(60) end')['company'];
+        $data = \App\Services\Explorer::data();
+        $this->assertSame(['companies', 'company_count', 'goods', 'places'], array_keys($data));
+        $row = collect($data['companies'])->firstWhere('id', $id);
+        $this->assertSame('Explorable Co', $row['name']);
+        $this->assertSame('startup', $row['status']);
+        $this->assertSame(count($data['companies']), min($data['company_count'], \App\Services\Explorer::COMPANIES));
+        $this->assertArrayHasKey(\App\Services\Explorer::KEY, \App\Services\Kept::jobs(), 'the scheduler keeps it warm');
+        $page = $this->get('/')->assertOk()
+            ->assertSee('data-view="whole"', false)->assertSee('data-flights', false)->assertSee('id="map-place"', false)
+            ->assertSee('data-days="7"', false)->assertSee('id="home-trading-legend"', false)
+            ->assertSee('Explore the world')->assertSee('data-tab="goods"', false)->assertSee('id="explore-search"', false)
+            ->assertSee('Explorable Co');
+        // A player sees it too
+        $this->actingAs($owner)->get('/')->assertOk()->assertSee('Explore the world');
+    }
+
     public function testTheClockLineIsHonestWhenSlowed()
     {
         $now = time();
