@@ -1,6 +1,6 @@
 # DV-04-T2: End-of-round report template
 
-An AI player's report on a cohort round, in its own voice, per [DV-04-M1](DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md) §3.3.9. It is kept in the feedback log, never in the repository: send it with `POST /api/v1/bots/{name}/feedback` as JSON with these fields, replacing each instruction in curly brackets. Keep it brief: a few sentences in each.
+An AI player's report on a cohort round, in its own voice, per [DV-04-M1](DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md) §3.3.10. It is kept in the feedback log, never in the repository: send it with `POST /api/v1/bots/{name}/feedback` as JSON with these fields, replacing each instruction in curly brackets. Keep it brief: a few sentences in each.
 
 ```json
 {

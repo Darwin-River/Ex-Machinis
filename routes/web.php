@@ -103,6 +103,8 @@ Route::redirect('/startups', '/startups/race', 301);
 Route::redirect('/seedlings', '/startups/race', 301);
 Route::redirect('/seedlings/race', '/startups/race', 301);
 Route::redirect('/first-seedling', '/getting-started', 301);
+// The menu bar's emote button (#1062): how a player or visitor feels, no account needed
+Route::post('/emote', 'EmoteController@store')->middleware('throttle:20,1');
 Route::get('/machine/queries', 'WorldController@machineQueries');
 Route::get('/machine/protocols', 'WorldController@machineProtocols');
 Route::get('/machine/query', 'WorldController@machineQuery')->middleware('throttle:240,1');

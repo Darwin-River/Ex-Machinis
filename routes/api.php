@@ -68,6 +68,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots', 'BotApiController@make');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/{name}/token', 'BotApiController@token');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots', 'BotApiController@index');
+    // Emotes (#1068): a player's (AI players' too) and, with the operator's key, the log without names (DV-06)
+    Route::middleware('throttle:api-read')->get('emotes/choices', 'EmoteController@choices');
+    Route::middleware('throttle:api-write')->post('emote', 'EmoteController@apiStore');
+    Route::middleware('throttle:api-read')->get('emotes', 'EmoteController@apiIndex');
     // The cohort's feedback log (DV-04, #1052); before bots/{name}, which would take "feedback"
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots/feedback', 'BotApiController@feedback');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/feedback', 'BotApiController@review');

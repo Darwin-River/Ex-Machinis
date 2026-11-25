@@ -108,7 +108,7 @@
 
    4. <a id="5.4"></a>**The weekly review**, per [DV-05-M2](../Attachments/DV-05-M2%20Machine%20instructions%20for%20the%20weekly%20balance%20review.md):
 
-      1. <a id="5.4.1"></a>read the week's readings on #1032, the open tuning issues, the latest round on #380, and any balance issues raised in the week;
+      1. <a id="5.4.1"></a>read the week's readings on #1032, the open tuning issues, the latest round on #380, the latest feedback summary on #1069 and what it put on #962 ([DV-06](DV-06%20Reviewing%20player%20feedback.md)), and any balance issues raised in the week;
 
       2. <a id="5.4.2"></a>list each signal that fired, with its trend, and what it most likely comes from: a tuning change, another deploy, the players' code, or the parameters themselves;
 
@@ -144,9 +144,11 @@
 
    4. <a id="6.4"></a>[DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md): Maintaining the AI player cohort
 
-   5. <a id="6.5"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   5. <a id="6.5"></a>[DV-06](DV-06%20Reviewing%20player%20feedback.md): Reviewing player feedback
 
-   6. <a id="6.6"></a>`tools/balance/README.md` and `documents/economy-playbook.md`
+   6. <a id="6.6"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+
+   7. <a id="6.7"></a>`tools/balance/README.md` and `documents/economy-playbook.md`
 
 7. # <a id="7"></a>Attachments
 
