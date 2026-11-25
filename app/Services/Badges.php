@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\Schema;
  *   teacher only, never on public pages.
  * - No farming: ownership and trading badges count only trades between
  *   different players, never a player with their own companies.
+ * - What no other table keeps goes in badge_marks (#1057): the places a drone
+ *   was seen at, and when it was last found with an empty tank. Refining is
+ *   read from `actions` from a watermark, never `events`.
  */
 class Badges
 {
@@ -46,6 +49,11 @@ class Badges
         'parent' => ['drone', 'Parent', 'It launched a copy of itself.', null, null],
         'dynasty' => ['drone', 'Dynasty', 'Its line reached a third generation: a copy of its copy.', null, null],
         'salvager' => ['drone', 'Salvager', 'It plundered a wreck.', null, null],
+        'smelter' => ['drone', 'Smelter', 'It refined ore for the first time.', null, null],
+        'far_traveller' => ['drone', 'Far Traveller', 'It went to this many different places (arrived, mined or traded there).', [5, 10], 'places'],
+        'never_ran_dry' => ['drone', 'Never Ran Dry', 'It worked 30 game days and was never found with an empty fuel tank.', null, null],
+        'deep_hauler' => ['drone', 'Deep Hauler', 'It mined a far mineral and sold Metals (A3).', null, null],
+        'courier' => ['drone', 'Courier', 'It delivered a contract in full.', null, null],
         // Companies
         'founded' => ['company', 'Founded', 'It was founded.', null, null],
         'matured' => ['company', 'Matured', 'It repaid the bank and its shares were claimed.', null, null],
@@ -62,6 +70,7 @@ class Badges
         'remembered' => ['company', 'Remembered', 'It ended after 100 game days or more.', null, null],
         'ancestor' => ['company', 'Ancestor', 'Another company\'s code descends from its code.', null, null],
         'open_book' => ['company', 'Open Book', 'Its code was copied into another company\'s release.', null, null],
+        'top_ten' => ['company', 'Top Ten', 'It ranked in the leaderboard\'s top 10 by net worth.', null, null],
         // Players
         'test_pilot' => ['player', 'Test Pilot', 'A first test drive.', null, null],
         'founder' => ['player', 'Founder', 'A first startup.', null, null],
@@ -79,7 +88,18 @@ class Badges
         'climber' => ['player', 'Climber', 'Climbed the whole ladder: founded, fixed, matured, invested and lent.', null, null],
         'long_game' => ['player', 'Long Game', 'Owns a company that paid dividends on 100 game days.', null, null],
         'teacher' => ['player', 'Teacher', 'A pupil in their class matured a company.', null, null],
+        'season_winner' => ['player', 'Season Winner', 'Grew the most of anyone in a day\'s season on the Players board.', null, null],
+        'lineage' => ['player', 'Lineage', 'Five of their companies in one line of code descent, each from the one before.', null, null],
     ];
+
+    /** The refining protocols (Refine magmite, ...): Smelter */
+    private const REFINE_PROTOCOLS = [21000, 21999];
+
+    /** Real seconds before a refining action counts: it has had time to finish or fail */
+    private const REFINE_SETTLE = 600;
+
+    /** Metals (A3), the far minerals' good: Deep Hauler */
+    private const METALS_A3 = 2013;
 
     /** From the tick: an award pass, at most every AWARD_EVERY real seconds */
     public static function awardDue(): int
@@ -94,6 +114,9 @@ class Badges
     public static function awardAll(): int
     {
         $new = 0;
+        // What the badge queries read: the places and empty tanks (badge_marks), and the new trades' places
+        self::marks();
+        $new += self::fromTrades();
         foreach (self::values() as $key => $sql) {
             [$kind, , , $tiers] = self::CATALOG[$key];
             foreach ($tiers ?? [1] as $i => $threshold) {
@@ -102,9 +125,11 @@ class Badges
                     [$kind, $key, $tiers ? $i + 1 : 1, World::gameNow(), $tiers ? $threshold : 1]);
             }
         }
-        $new += self::fromTrades();
         $new += self::speedRuns();
         $new += self::fiveOutright();
+        $new += self::smelters();
+        $new += self::seasonWinners();
+        $new += self::lineages();
         return $new;
     }
 
@@ -139,6 +164,13 @@ class Badges
             'parent' => 'SELECT DISTINCT parent_id AS subject, 1 AS value FROM agents WHERE parent_id IS NOT NULL',
             'dynasty' => 'SELECT DISTINCT p.parent_id AS subject, 1 AS value FROM agents c JOIN agents p ON p.agent_id = c.parent_id WHERE p.parent_id IS NOT NULL',
             'salvager' => 'SELECT DISTINCT plundered_by AS subject, 1 AS value FROM agents WHERE plundered_by IS NOT NULL',
+            'far_traveller' => "SELECT subject_id AS subject, COUNT(*) AS value FROM badge_marks WHERE kind = 'drone' AND mark LIKE 'place:%' GROUP BY subject_id",
+            // Active days since it was last found dry, and since marks began (a drone's earlier days can't be vouched for)
+            'never_ran_dry' => 'SELECT d.drone AS subject, COUNT(*) AS value FROM drone_days d LEFT JOIN badge_marks m ON m.kind = \'drone\' '
+                . 'AND m.subject_id = d.drone AND m.mark = \'ran_dry\' WHERE d.actions > 0 AND d.first_t > GREATEST(IFNULL(m.game_t, 0), '
+                . self::marksSince() . ') GROUP BY d.drone HAVING value >= 30',
+            // The drone the engine records as delivering (contracts.pending_drone) on a contract kept in full
+            'courier' => "SELECT DISTINCT pending_drone AS subject, 1 AS value FROM contracts WHERE outcome = 'kept' AND pending_drone IS NOT NULL",
             // Companies
             'founded' => 'SELECT company_id AS subject, 1 AS value FROM companies WHERE owner_id IS NOT NULL',
             'matured' => 'SELECT company_id AS subject, 1 AS value FROM companies WHERE matured_t IS NOT NULL',
@@ -155,6 +187,10 @@ class Badges
                 . "AND eliminated_at - founded_t >= 100 * $day",
             'ancestor' => 'SELECT DISTINCT pr.company_id AS subject, 1 AS value FROM code_parents cp JOIN code_revisions r ON r.id = cp.revision_id '
                 . 'JOIN code_revisions pr ON pr.id = cp.parent_id WHERE pr.company_id <> r.company_id',
+            // The latest hourly leaderboard snapshot's top 10 (Leaderboard::snapshotIfDue): a pass every
+            // 15 real minutes sees every snapshot
+            'top_ten' => 'SELECT company_id AS subject, 1 AS value FROM (SELECT company_id FROM wealth_snapshots WHERE company_id IS NOT NULL '
+                . 'AND taken_at = (SELECT MAX(taken_at) FROM wealth_snapshots WHERE company_id IS NOT NULL) ORDER BY wealth DESC LIMIT 10) AS top',
             'open_book' => 'SELECT DISTINCT src.company_id AS subject, 1 AS value FROM releases r JOIN agents src ON src.agent_id = r.copied_from '
                 . 'WHERE r.copied_from IS NOT NULL AND src.company_id <> r.company_id',
             // Players
@@ -204,6 +240,13 @@ class Badges
         $insert('drone', 'first_sale', "SELECT DISTINCT t.seller AS subject FROM trades t WHERE $range AND t.units > 0", [$from, $to]);
         $insert('drone', 'frontier_run', "SELECT DISTINCT t.seller AS subject FROM trades t WHERE $range AND t.location = 191 "
             . "UNION SELECT DISTINCT t.buyer FROM trades t WHERE $range AND t.location = 191", [$from, $to, $from, $to]);
+        // Deep Hauler: sold Metals (A3) and has mined a far mineral
+        $insert('drone', 'deep_hauler', "SELECT DISTINCT t.seller AS subject FROM trades t WHERE $range AND t.resource = " . self::METALS_A3
+            . " AND t.units > 0 AND EXISTS (SELECT 1 FROM mining_runs r WHERE r.drone = t.seller AND r.resource IN (SELECT resource FROM far_minerals))", [$from, $to]);
+        // Far Traveller: where each drone traded
+        DB::statement("INSERT INTO badge_marks (kind, subject_id, mark, game_t) SELECT 'drone', v.drone, CONCAT('place:', v.location), ? FROM "
+            . "(SELECT t.seller AS drone, t.location FROM trades t WHERE $range UNION SELECT t.buyer, t.location FROM trades t WHERE $range) AS v "
+            . 'WHERE v.drone IS NOT NULL AND v.location IS NOT NULL ON DUPLICATE KEY UPDATE game_t = VALUES(game_t)', [$now, $from, $to, $from, $to]);
         $insert('company', 'maker', "SELECT DISTINCT a.company_id AS subject FROM trades t JOIN agents a ON a.agent_id = t.seller "
             . "WHERE $range AND t.resource BETWEEN 3000 AND 4999 AND t.units > 0", [$from, $to]);
         // Five different goods sold in a game week, among the companies that sold in this stretch
@@ -211,6 +254,140 @@ class Badges
             . "WHERE t.game_t > ? AND t.units > 0 AND a.company_id IN (SELECT DISTINCT a2.company_id FROM trades t2 JOIN agents a2 ON a2.agent_id = t2.seller WHERE t2.id > ? AND t2.id <= ?) "
             . "GROUP BY a.company_id HAVING COUNT(DISTINCT t.resource) >= 5", [$now - 7 * 86400, $from, $to]);
         DB::statement('INSERT INTO site_counts (name, n) VALUES (?, ?) ON DUPLICATE KEY UPDATE n = VALUES(n)', ['badges_trade_watermark', $to]);
+        return $new;
+    }
+
+    /** When badge_marks began (game time), kept so Never Ran Dry counts only days it watched */
+    private static function marksSince(): int
+    {
+        return (int) (DB::table('site_counts')->where('name', 'badges_marks_since')->value('n') ?? World::gameNow());
+    }
+
+    /**
+     * What no other table keeps (#1057): each place a players' drone is at now
+     * or has mined at (Far Traveller; trades add theirs in fromTrades), and each
+     * working drone found with no fuel now (Never Ran Dry). A drone is checked
+     * once a pass, so a tank that is empty between passes can go unseen.
+     */
+    private static function marks(): void
+    {
+        $now = World::gameNow();
+        DB::statement('INSERT IGNORE INTO site_counts (name, n) VALUES (?, ?)', ['badges_marks_since', $now]);
+        DB::statement("INSERT INTO badge_marks (kind, subject_id, mark, game_t) SELECT 'drone', agent_id, CONCAT('place:', object_id), ? FROM agents "
+            . 'WHERE station_id IS NULL AND wrecked_at IS NULL AND arrived_t IS NOT NULL AND object_id IS NOT NULL '
+            . 'ON DUPLICATE KEY UPDATE game_t = VALUES(game_t)', [$now]);
+        DB::statement("INSERT IGNORE INTO badge_marks (kind, subject_id, mark, game_t) SELECT DISTINCT 'drone', drone, CONCAT('place:', object_id), ? "
+            . 'FROM mining_runs WHERE drone IS NOT NULL', [$now]);
+        DB::statement("INSERT INTO badge_marks (kind, subject_id, mark, game_t) SELECT 'drone', a.agent_id, 'ran_dry', ? FROM agents a "
+            . 'LEFT JOIN (SELECT drone, SUM(units) AS units FROM holdings WHERE resource = ? GROUP BY drone) f ON f.drone = a.agent_id '
+            . 'WHERE a.station_id IS NULL AND a.wrecked_at IS NULL AND IFNULL(f.units, 0) <= 0 '
+            . 'ON DUPLICATE KEY UPDATE game_t = VALUES(game_t)', [$now, Release::FUEL]);
+    }
+
+    /**
+     * Smelter: a refining action that finished without failing (not aborted,
+     * no failing outcome), read from the last action a pass saw, once each
+     * has had REFINE_SETTLE real seconds to run
+     */
+    private static function smelters(): int
+    {
+        $from = (int) (DB::table('site_counts')->where('name', 'badges_action_watermark')->value('n') ?? 0);
+        $to = (int) (DB::table('actions')->where('id', '>', $from)->where('timestamp', '<', now()->subSeconds(self::REFINE_SETTLE))
+            ->where('id', '<=', $from + 200000)->max('id') ?? 0);
+        if ($to <= $from) {
+            return 0;
+        }
+        $new = DB::affectingStatement("INSERT IGNORE INTO badges (kind, subject_id, badge, tier, game_t) SELECT DISTINCT 'drone', drone, 'smelter', 1, ? "
+            . 'FROM actions WHERE id > ? AND id <= ? AND protocol BETWEEN ? AND ? AND aborted = 0 AND outcome IS NULL AND drone IS NOT NULL',
+            [World::gameNow(), $from, $to, self::REFINE_PROTOCOLS[0], self::REFINE_PROTOCOLS[1]]);
+        DB::statement('INSERT INTO site_counts (name, n) VALUES (?, ?) ON DUPLICATE KEY UPDATE n = VALUES(n)', ['badges_action_watermark', $to]);
+        return $new;
+    }
+
+    /**
+     * Season Winner: each finished season (a real day, PlayerBoards) that no
+     * pass has settled, won by the player on the public Players board who grew
+     * most in percent from that day's start to the next day's (as their
+     * records count a day), with something made
+     */
+    private static function seasonWinners(): int
+    {
+        $last = (string) (DB::table('site_counts')->where('name', 'badges_season_day')->value('n') ?? '0');
+        $today = (int) str_replace('-', '', PlayerBoards::day());
+        $days = DB::table('player_wealth_days')->whereRaw('CAST(REPLACE(day, \'-\', \'\') AS UNSIGNED) > ?', [(int) $last])
+            ->distinct()->orderBy('day')->limit(60)->pluck('day')->map(fn ($d) => (string) $d)->values();
+        if ($days->isEmpty()) {
+            return 0;
+        }
+        $public = PlayerBoards::played(DB::table('users')->whereNotNull('login')->whereNull('class_group_id')->whereNotNull('email_verified_at'))
+            ->pluck('user_id')->all();
+        $new = 0;
+        $settled = (int) $last;
+        foreach ($days as $day) {
+            $key = (int) str_replace('-', '', $day);
+            $next = DB::table('player_wealth_days')->where('day', '>', $day)->min('day');
+            if ($key >= $today || $next === null) {
+                break;   // a season still running, or one with no next day's start yet
+            }
+            $start = DB::table('player_wealth_days')->where('day', $day)->whereIn('user_id', $public ?: [0])->pluck('start_wealth', 'user_id');
+            $end = DB::table('player_wealth_days')->where('day', $next)->whereIn('user_id', $public ?: [0])->pluck('start_wealth', 'user_id');
+            $best = null;
+            foreach ($start as $id => $s) {
+                if ((int) $s <= 0 || !isset($end[$id]) || (int) $end[$id] <= (int) $s) {
+                    continue;
+                }
+                $row = [100 * ((int) $end[$id] - (int) $s) / (int) $s, (int) $end[$id] - (int) $s, -(int) $id];
+                if ($best === null || $row > $best) {
+                    $best = $row;
+                }
+            }
+            if ($best !== null && self::award('player', -$best[2], 'season_winner')) {
+                $new++;
+            }
+            $settled = $key;
+        }
+        DB::statement('INSERT INTO site_counts (name, n) VALUES (?, ?) ON DUPLICATE KEY UPDATE n = VALUES(n)', ['badges_season_day', $settled]);
+        return $new;
+    }
+
+    /**
+     * Lineage: five companies a player owns in one line of code descent, each
+     * company's code descending from the one before (code_parents across
+     * companies, as Ancestor reads them), the longest line counted
+     */
+    private static function lineages(): int
+    {
+        $edges = DB::select('SELECT DISTINCT c.owner_id AS owner, r.company_id AS child, pr.company_id AS parent FROM code_parents cp '
+            . 'JOIN code_revisions r ON r.id = cp.revision_id JOIN code_revisions pr ON pr.id = cp.parent_id '
+            . 'JOIN companies c ON c.company_id = r.company_id JOIN companies pc ON pc.company_id = pr.company_id '
+            . 'WHERE pr.company_id <> r.company_id AND c.owner_id IS NOT NULL AND pc.owner_id = c.owner_id');
+        $parents = [];
+        foreach ($edges as $e) {
+            $parents[(int) $e->owner][(int) $e->child][] = (int) $e->parent;
+        }
+        $new = 0;
+        foreach ($parents as $owner => $of) {
+            $memo = [];
+            // The longest line ending at a company, in companies; a loop in the code's history counts once
+            $depth = function (int $c, array $seen) use (&$depth, &$memo, $of): int {
+                if (isset($memo[$c])) {
+                    return $memo[$c];
+                }
+                $best = 1;
+                foreach ($of[$c] ?? [] as $p) {
+                    if (!isset($seen[$p])) {
+                        $best = max($best, 1 + $depth($p, $seen + [$p => true]));
+                    }
+                }
+                return $memo[$c] = $best;
+            };
+            foreach (array_keys($of) as $c) {
+                if ($depth($c, [$c => true]) >= 5) {
+                    $new += self::award('player', $owner, 'lineage') ? 1 : 0;
+                    break;
+                }
+            }
+        }
         return $new;
     }
 
