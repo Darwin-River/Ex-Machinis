@@ -51,30 +51,80 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="site-nav">
+                @php($navPlayer = auth()->check() && auth()->user()->login !== null ? auth()->user() : null)
+                @php($navVisitor = config('forge.new_rules') && !$navPlayer)
+                {{-- The next step on the Player Ladder (#1039, #1041): the menu's button, kept a minute with the strip's --}}
+                @php($navNext = config('forge.new_rules') && $navPlayer ? \App\Services\Pipeline::cached($navPlayer)['path'] : null)
+                @php($navNextStep = $navNext && $navNext['next'] ? \App\Services\Pipeline::step($navNext, $navNext['next']) : null)
+                @if($navVisitor)
+                {{-- A visitor's menus (#1045): watch and try a drone, explore the world, learn the game --}}
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item"><a class="nav-link" href="{{ url('/') }}#replay" id="nav-watch">Watch</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-explore" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Explore</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-explore">
+                            <h6 class="dropdown-header">Market</h6>
+                            <a class="dropdown-item" href="{{ url('market') }}">Goods</a>
+                            <a class="dropdown-item" href="{{ url('market/house') }}">House</a>
+                            <a class="dropdown-item" href="{{ url('market/history') }}">Price history</a>
+                            <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
+                            <a class="dropdown-item" href="{{ url('market/loans') }}">Loans</a>
+                            <a class="dropdown-item" href="{{ url('market/trade') }}">Trading desk</a>
+                            <a class="dropdown-item" href="{{ url('dashboard') }}">Economy dashboard</a>
+                            <h6 class="dropdown-header">Companies</h6>
+                            <a class="dropdown-item" href="{{ url('leaderboard') }}">Leaderboard</a>
+                            <a class="dropdown-item" href="{{ url('players') }}">Players</a>
+                            <a class="dropdown-item" href="{{ url('companies') }}">All companies</a>
+                            <a class="dropdown-item" href="{{ url('startups/race') }}">Startup race</a>
+                            <a class="dropdown-item" href="{{ url('spacecraft') }}">Drones</a>
+                            <a class="dropdown-item" href="{{ url('lineage') }}">Lineage</a>
+                            <a class="dropdown-item" href="{{ url('events') }}">Events</a>
+                            <a class="dropdown-item" href="{{ url('map') }}">Map</a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="nav-learn" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Learn</a>
+                        <div class="dropdown-menu" aria-labelledby="nav-learn">
+                            <a class="dropdown-item" href="{{ url('try') }}">Try a drone (no account)</a>
+                            <a class="dropdown-item" href="{{ url('getting-started') }}">First startup (5 minutes)</a>
+                            <a class="dropdown-item" href="{{ url('release') }}">Found a startup</a>
+                            <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
+                            <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
+                            <div class="dropdown-divider"></div>
+                            {{-- These open GitHub: said so (#885) --}}
+                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
+                            <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
+                            <a class="dropdown-item" href="{{ url('protocols') }}">Protocols</a>
+                            <a class="dropdown-item" href="{{ url('queries') }}">Queries</a>
+                            <a class="dropdown-item" href="{{ url('locations') }}">Locations</a>
+                        </div>
+                    </li>
+                @else
                 {{-- Menus by what a player is trying to do (#843): play, trade, see who does well, look things up --}}
                 <ul class="navbar-nav mr-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="nav-play" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Play</a>
                         <div class="dropdown-menu" aria-labelledby="nav-play">
-                            {{-- In the order of the path through the game (#987): account, code drones, invest, lend --}}
+                            {{-- In the order of the path through the game (#987, #1043) --}}
                             @if(config('forge.new_rules'))
-                                <h6 class="dropdown-header">1. Account</h6>
-                                @if(auth()->check() && auth()->user()->login !== null)
-                                    <a class="dropdown-item" href="{{ url('account') }}">Your companies and shares</a>
-                                @else
-                                    <a class="dropdown-item" href="{{ url('signup') }}">Make an account</a>
-                                @endif
-                                <h6 class="dropdown-header">2. Code drones</h6>
+                                <h6 class="dropdown-header">Start</h6>
+                                <a class="dropdown-item" href="{{ url('try') }}">Try a drone</a>
                             @endif
                             {{-- The five-minute guide and the manual are two pages (#719) --}}
                             <a class="dropdown-item" href="{{ url('getting-started') }}">First startup (5 minutes)</a>
                             <a class="dropdown-item" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a>
                             @if(config('forge.new_rules'))
                                 <a class="dropdown-item" href="{{ url('startups/race') }}">Startup race</a>
-                                <h6 class="dropdown-header">3. Invest</h6>
+                                <h6 class="dropdown-header">Own</h6>
+                                <a class="dropdown-item" href="{{ url('account') }}">Your companies and shares</a>
+                                <h6 class="dropdown-header">Invest</h6>
+                                <a class="dropdown-item" href="{{ url('market/shares/first') }}">Your first share</a>
                                 <a class="dropdown-item" href="{{ url('market/shares') }}">Stock exchange</a>
                                 <a class="dropdown-item" href="{{ url('market/trade') }}">Trading desk</a>
-                                <h6 class="dropdown-header">4. Lend</h6>
+                                <h6 class="dropdown-header">Lend</h6>
+                                <a class="dropdown-item" href="{{ url('market/loans/first') }}">Your first loan</a>
                                 <a class="dropdown-item" href="{{ url('market/loans') }}">Loan requests</a>
                             @endif
                         </div>
@@ -122,6 +172,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('blog') }}">Strategy blog</a>
                         </div>
                     </li>
+                @endif
                     <li class="nav-item"><a class="nav-link" href="{{ url('about-us') }}">About</a></li>
                 </ul>
                 <ul class="navbar-nav nav-actions">
@@ -134,8 +185,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <li class="nav-item"><a class="nav-link" href="{{ url('login') }}">Log in</a></li>
                         @endif
                     @endif
-                    {{-- The action's one name (#719) --}}
-                    <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a></li>
+                    {{-- One button: for a visitor, try a drone (#1045); for a player, their next step (#1041); else the action's one name (#719) --}}
+                    @if($navVisitor)
+                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('try') }}" id="nav-cta">Try it free</a></li>
+                    @elseif($navNextStep)
+                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ $navNextStep['url'] }}" id="nav-cta">Next: {{ $navNextStep['action'] }}</a></li>
+                    @else
+                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('release') }}" id="nav-cta">{{ config('forge.new_rules') ? 'Found a startup' : 'Release a drone' }}</a></li>
+                    @endif
                 </ul>
             </div>
         </nav>

@@ -20,7 +20,9 @@
 
       3. <a id="3.2.3"></a>the latest round on #380;
 
-      4. <a id="3.2.4"></a>issues opened in the week that raise a balance concern.
+      4. <a id="3.2.4"></a>issues opened in the week that raise a balance concern;
+
+      5. <a id="3.2.5"></a>the Player Ladder's step counts (`GET /api/v1/ladder` with the operator's key, #1045): how many people's accounts reached each step, all told and among those made in the week, and the guest test drives. Put them in the review as one line, with the step that lost the most new accounts. They are counts only: never name or single out a player.
 
    3. <a id="3.3"></a>Build one table of every signal that fired in the week: its trend over the seven readings (from the readings' data lines), the objective it bears on, and its likely source: a tuning change being measured, another deploy, the players' code, or the parameters themselves.
 

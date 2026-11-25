@@ -56,7 +56,7 @@ class CompanyNowTest extends TestCase
         $this->assertSame([$need - 1000, $need, false, 100], [$s['credits'], $s['need'], $s['can_mature'], $s['pace']]);
         $this->assertGreaterThan(0, $s['minutes'], 'about 10 game days at 100 a day');
         $this->actingAs($p)->get('/market')->assertOk()->assertSee('id="company-now"', false)->assertSee('Now Co')
-            ->assertSee('matures in about')->assertDontSee('>Mature</button>', false);
+            ->assertSee('matures in about')->assertDontSee('>Claim my 100 shares</button>', false);
         // Its Road to maturity projects the date (#744), from the same pace
         $f = CompanyNow::forecast(DB::table('companies')->where('company_id', $id)->first(), $need, $need - 1000, false);
         $this->assertNotNull($f['game_t']);
@@ -66,7 +66,7 @@ class CompanyNowTest extends TestCase
         // Enough to mature: the button, on any page; it matures from there
         DB::table('companies')->where('company_id', $id)->update(['credits' => $need]);
         CompanyNow::forget($p);
-        $this->actingAs($p)->get('/companies')->assertOk()->assertSee('>Mature</button>', false)
+        $this->actingAs($p)->get('/companies')->assertOk()->assertSee('>Claim my 100 shares</button>', false)
             ->assertSee(url('startups/' . $id . '/mature'), false);
         $this->actingAs($p)->post('/startups/' . $id . '/mature')->assertRedirect();
         $this->assertNull(CompanyNow::for($p), 'nothing left to show once matured');

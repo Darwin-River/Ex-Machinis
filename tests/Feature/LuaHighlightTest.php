@@ -86,6 +86,11 @@ LUA;
     public function testTheHomePageAndCompanyCodeAreColoured()
     {
         config(['forge.new_rules' => true]);
+        // The sketch is on a player's home page; a visitor's opens on the Miner itself (#1042)
+        $email = 'lua.reader@example.com';
+        $u = \App\Services\Players::create('Lua Reader', 'long-enough', $email);
+        \App\Services\Players::verify($u->user_id, sha1($email));
+        $this->actingAs(\App\User::where('user_id', $u->user_id)->first());
         $this->get('/')->assertOk()->assertSee('<pre class="lua home-code" aria-label="A sketch of the Miner starter script" v-pre>', false)
             ->assertSee('<span class="c">-- A sketch of the Miner starter</span>', false);
 

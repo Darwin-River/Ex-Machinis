@@ -35,6 +35,7 @@ class PlayerSharesTest extends TestCase
     {
         $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
         $user = Players::create($name, 'long-enough', $email);
+        $this->canInvest((int) $user->user_id);   // buyers here are investors (#1040)
         Players::verify($user->user_id, sha1($email));
         return User::where('user_id', $user->user_id)->first();
     }
@@ -357,6 +358,7 @@ class PlayerSharesTest extends TestCase
         $teacher = $this->player('Class Teacher');
         $group = Players::createClassGroup($teacher, 'Nebula', 1);
         $pupil = User::where('login', 'Nebula 1')->first();
+        $this->canInvest($pupil);   // an investor, so only the class rule stops the trade (#1040)
         PlayerShares::order($owner, $id, 'sell', 10, $p['sells_at']);
         $r = PlayerShares::order($pupil, $id, 'buy', 2, $p['sells_at']);
         $this->assertSame(0, $r['traded'], 'the public sells to the public');

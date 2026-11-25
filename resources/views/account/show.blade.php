@@ -12,7 +12,7 @@
                     <b>While you were away</b> (since {{ $digest['since'] }}{{ !empty($digest['capped']) ? ', the last ' . \App\Services\PlayerBoards::DIGEST_MAX_DAYS . ' game days' : '' }}):
                     <ul class="mb-0">
                         @foreach($digest['companies'] as $c)
-                            @if(!empty($c['at_cap']))<li><strong>{{ $c['name'] }} is ready to mature:</strong> what it earns above {{ number_format($c['credit_cap']) }} now goes to the bank. <a href="{{ url('companies/' . $c['company_id']) }}#road-to-maturity">Mature it</a>.</li>@endif
+                            @if(!empty($c['at_cap']))<li><strong>{{ $c['name'] }} is ready to mature:</strong> what it earns above {{ number_format($c['credit_cap']) }} now goes to the bank. <a href="{{ url('companies/' . $c['company_id']) }}#road-to-maturity">Claim its shares</a>.</li>@endif
                             <li>{{ $c['name'] }}{{ $c['startup'] ? ' (startup)' : '' }}@if(!empty($c['to_bank'])) gave the bank {{ number_format($c['to_bank']) }} over its cap,@endif sold {{ number_format($c['sales']) }} and bought
                                 {{ number_format($c['purchases']) }} credits' worth.@if(($c['ended'] ?? null) === 'closed') You closed it.@elseif($c['ended'] ?? null) It has ended.@endif</li>
                         @endforeach
@@ -204,8 +204,8 @@
                             <td class="text-right">
                                 @if($seed['can_mature'] && $account['verified'])
                                     <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/mature') }}" class="d-inline"
-                                          onsubmit="return confirm('Mature this startup? It repays its debt and its 100 shares are yours; its code stays yours to change until you sell a share.')">
-                                        {{ csrf_field() }}<button class="button button-primary button-sm" type="submit">Mature</button>
+                                          onsubmit="return confirm('Claim its shares? It repays its debt and its 100 shares are yours; its code stays yours to change until you sell a share. Then you can invest in other companies too.')">
+                                        {{ csrf_field() }}<button class="button button-primary button-sm" type="submit">Claim my {{ \App\Services\Startups::SHARES }} shares</button>
                                     </form>
                                 @endif
                                 <form method="POST" action="{{ url('startups/' . $seed['company_id'] . '/close') }}" class="d-inline"

@@ -63,7 +63,7 @@ class FirstSuccessTest extends TestCase
         $id = Startups::start($me, 'Mission Co', $miner)['company'];
         $try = FirstMission::tryFirst($miner);
         $page = $this->actingAs($me)->get('/companies/' . $id)->assertOk()
-            ->assertSee('id="first-mission"', false)->assertSee('Your first mission:')
+            ->assertSee('id="first-mission"', false)->assertSee('Your first hour:')
             ->assertSee('change ' . $try['name'] . ' on line ' . $try['line'])->assertSee('id="mission-time"', false)
             ->assertSee('id="mission-line"', false);
         // Others don't see it
@@ -86,14 +86,14 @@ class FirstSuccessTest extends TestCase
         $this->get('/')->assertOk()->assertDontSee('id="next-strip"', false);
         // The basics only: 5 rules of 10, fuel and travel among them
         $html = $this->actingAs($me)->get('/market')->assertOk()->assertSee('id="next-strip"', false)
-            ->assertSee('mature a startup into a company of your own')->assertSee('The rules so far (5 of 10)')
+            ->assertSee('found your first startup')->assertSee('The rules so far (5 of 11)')
             ->assertSee('Fuel and travel')->assertSee('More rules appear here when you own a matured company')
             ->assertDontSee('Only public companies borrow')->getContent();
         // Owning a matured company opens the next layer
         $id = Startups::start($me, 'Strip Co', 'function launched() wait(60) end')['company'];
         DB::table('companies')->where('company_id', $id)->update(['credits' => 6000]);
         $this->assertTrue(Startups::mature($me, $id)['ok']);   // forgets the strip
-        $this->actingAs($me)->get('/market')->assertOk()->assertSee('The rules so far (8 of 10)')
+        $this->actingAs($me)->get('/market')->assertOk()->assertSee('The rules so far (9 of 11)')
             ->assertSee('buy a share in another player')->assertSee('The first share you sell makes a company public');
         // The lending mark: a bar of credits, then the last layer
         $theirs = Startups::start($this->player('Strip Founder'), 'Their Co', 'function launched() wait(60) end')['company'];
@@ -101,6 +101,6 @@ class FirstSuccessTest extends TestCase
         DB::table('users')->where('user_id', $me->user_id)->update(['credits' => 2500]);
         Cache::flush();
         $this->actingAs($me)->get('/market')->assertOk()->assertSee('back a company\'s loan request', false)
-            ->assertSee('Your credits: 2,500 of 5,000')->assertSee('The rules so far (10 of 10)')->assertSee('Only public companies borrow');
+            ->assertSee('Your credits: 2,500 of 5,000')->assertSee('The rules so far (11 of 11)')->assertSee('Only public companies borrow');
     }
 }

@@ -164,15 +164,19 @@
                     @if($mission ?? null)
                         {{-- The guided first mission (#932): found it, change one number, mature it --}}
                         <div class="first-mission" id="first-mission" style="background: #0f1424; border: 1px solid #4cc9f0; border-radius: 10px; padding: 12px 16px; margin: 0 0 1rem; white-space: normal">
-                            <b>Your first mission:</b> found a startup, change one number, mature it.
+                            <span id="first-hour"></span>
+                            <b>Your first hour:</b> watch it work, change one number, and grow it until you can claim its shares.
                             @if($mission['target_minutes'])<span id="mission-time">Target: {{ \App\Services\FirstMission::minutes($mission['target_minutes']) }}@if($mission['elapsed_minutes'] !== null); it has been running {{ \App\Services\FirstMission::minutes($mission['elapsed_minutes']) }}@endif.</span>@endif
                             <ol class="mb-0 mt-2" style="padding-left: 1.4rem">
                                 @foreach($mission['steps'] as $step)
                                     <li id="mission-{{ $step['key'] }}" style="{{ $step['done'] ? 'color: #7ee2a8' : '' }}"><b>{{ $step['title'] }}</b>{{ $step['done'] ? ' ✓' : '' }}: {{ $step['text'] }}</li>
                                 @endforeach
                             </ol>
-                            @if($mission['try'] && !$mission['steps'][1]['done'])
+                            @if($mission['try'] && !collect($mission['steps'])->firstWhere('key', 'change')['done'])
                                 <p class="mb-0 mt-2" id="mission-line"><small>Line {{ $mission['try']['line'] }}: <code v-pre>{{ $mission['try']['name'] }} = {{ $mission['try']['value'] }}</code>, {{ $mission['try']['why'] }}</small></p>
+                            @endif
+                            @if($mission['crashed'])
+                                <p class="mb-0 mt-2" id="mission-crash"><small>Crashed? Fix the line and push, or <a href="{{ url('release') }}">found another</a>: a startup costs you nothing. Break, learn, repeat.</small></p>
                             @endif
                         </div>
                     @endif
@@ -212,7 +216,7 @@
                         <div class="road-actions" id="startup-actions">
                             @if($road['can_mature'])
                                 <form method="POST" action="{{ url('startups/' . $user->user_id . '/mature') }}">{{ csrf_field() }}
-                                    <button class="button button-primary" type="submit">Mature it</button></form>
+                                    <button class="button button-primary" type="submit" id="claim-shares">Claim my {{ \App\Services\Startups::SHARES }} shares</button></form>
                             @endif
                             <form method="POST" action="{{ url('startups/' . $user->user_id . '/close') }}"
                                   onsubmit="return confirm('Close this startup? This pushes code that calls close_company(): within a real minute its credits go back to the bank, its drones become empty wrecks, and its debt is cancelled.')">{{ csrf_field() }}

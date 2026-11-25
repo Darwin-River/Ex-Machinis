@@ -129,7 +129,7 @@ class GettingStartedTest extends TestCase
             ->assertSee('Lua functions')
             ->assertSee('Found a startup')
             ->assertDontSee('Release a drone');
-        $this->get('/')->assertOk()->assertSee('press Found startup')->assertDontSee('press Release');
+        $this->get('/release')->assertOk()->assertSee('Found a startup')->assertDontSee('press Release');
     }
 
     public function testRendering()

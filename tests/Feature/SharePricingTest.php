@@ -34,6 +34,7 @@ class SharePricingTest extends TestCase
     {
         $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
         $user = Players::create($name, 'long-enough', $email);
+        $this->canInvest((int) $user->user_id);   // buyers here are investors (#1040)
         Players::verify($user->user_id, sha1($email));
         if ($credits) {
             DB::table('users')->where('user_id', $user->user_id)->update(['credits' => $credits]);

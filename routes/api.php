@@ -70,6 +70,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots', 'BotApiController@index');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots/{name}', 'BotApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->put('bots/{name}', 'BotApiController@update');
+    // The Player Ladder's step counts (#1045), with an operator's key
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('ladder', 'BotApiController@ladder');
     // The e-mail notice settings (#836)
     Route::middleware(['new-rules', 'throttle:api-read'])->get('account/notices', 'AccountApiController@notices');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('account/notices', 'AccountApiController@notices');

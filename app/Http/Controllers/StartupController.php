@@ -41,6 +41,7 @@ class StartupController extends Controller
         }
         $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length')]);
         $result = Startups::reprogram($user, $id, str_replace("\r\n", "\n", (string) $request->input('script')));
+        \App\Services\CompanyNow::forget($user);   // a fix pushed: the next step moves on (#1043)
         return $this->done($result, $result['ok'] ? 'The new code is on its way to ' . count($result['drones'])
             . ' drone(s), for free.' : '');
     }
@@ -82,9 +83,13 @@ class StartupController extends Controller
         if (!$user = $this->player()) {
             return redirect('/login')->with('info', 'Log in first: that page is for your account.');
         }
+        // Claiming its shares (#1040) graduates the player to investing: the first-share page (#1044)
         $result = Startups::mature($user, $id);
-        return $this->done($result, $result['ok'] ? $result['name'] . ' has matured: it repaid ' . number_format($result['repaid'])
-            . ' credits, and its ' . number_format($result['shares']) . ' shares are yours.' : '');
+        if (!$result['ok']) {
+            return $this->done($result, '');
+        }
+        return redirect('/market/shares/first')->with('claimed', ['company' => $id, 'name' => $result['name'],
+            'repaid' => (int) $result['repaid'], 'shares' => (int) $result['shares']]);
     }
 
     /** The startup race (#776): recent startups' credits by age, against the line and the starters' usual paths */

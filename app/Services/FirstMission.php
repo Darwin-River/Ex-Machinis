@@ -6,7 +6,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The guided first mission (#932): found a startup, change one number,
- * mature it, with a target time to beat. On a startup's page, for its
+ * mature it, with a target time to beat; since #1043 the first hour's
+ * checklist too (its first trip and sale, a quarter of the way, and a
+ * first crash, which counts). On a startup's page, for its
  * owner, until they own a matured company. The number to change is the
  * first setting its code marks "TRY FIRST" (the starters mark three),
  * with its line, so the player knows exactly what to edit.
@@ -37,18 +39,38 @@ class FirstMission
         $founded = (int) ($company->founded_t ?? 0);
         $elapsed = $founded > 0 ? max(0, (int) floor((World::gameNow() - $founded) / $scale / 60)) : null;
         $pushed = (int) ($company->pushes ?? 0) > 0;
+        // The first hour (#1043): its first trip and sale, a quarter of the way, and a crash, which counts too
+        $id = (int) $company->company_id;
+        $drones = DB::table('agents')->where('company_id', $id)->pluck('agent_id')->map(fn ($d) => (int) $d)->all();
+        $tripped = $drones && DB::table('events')->whereIn('drone', $drones)->where('event_type', 3)->where('outcome', 1)->exists();
+        $sold = $drones && DB::table('trades')->whereIn('seller', $drones)->exists();
+        $crashed = $drones && DB::table('drone_crashes')->whereIn('drone', $drones)->exists();
+        $mark = Startups::grant() + Startups::matureMargin();
+        $quarter = (int) $company->credits >= (int) ceil($mark / 4);
+        $steps = [
+            ['key' => 'found', 'title' => 'Found a startup', 'done' => true, 'text' => 'Done: it is running your code.'],
+            ['key' => 'trip', 'title' => 'Its first trip', 'done' => $tripped,
+                'text' => $tripped ? 'Done: it has flown somewhere.' : 'Watch its drone\'s page: it flies to where it can work.'],
+            ['key' => 'sale', 'title' => 'Its first sale', 'done' => $sold,
+                'text' => $sold ? 'Done: it has sold to the House.' : 'It sells what it makes to the House, the game\'s traders at each exchange.'],
+            ['key' => 'change', 'title' => 'Change one number', 'done' => $pushed,
+                'text' => $pushed ? 'Done: you pushed new code.' : ($try
+                    ? 'Open Push new code below, change ' . $try['name'] . ' on line ' . $try['line'] . ' (now ' . $try['value'] . ') and push it. It is free.'
+                    : 'Open Push new code below, change one of the numbers under Settings and push it. It is free.')],
+            ['key' => 'quarter', 'title' => 'A quarter of the way', 'done' => $quarter,
+                'text' => $quarter ? 'Done: it holds a quarter of what it needs to mature.' : 'It holds ' . number_format(ceil($mark / 4)) . ' credits: a quarter of its mark.'],
+            ['key' => 'mature', 'title' => 'Claim its shares', 'done' => false,
+                'text' => 'When it holds enough credits, press Claim my ' . Startups::SHARES . ' shares: it repays the bank, its shares are yours, and investing opens.'
+                    . ($target ? ' Target: within ' . self::minutes($target) . ' of founding it.' : '')],
+        ];
+        if ($crashed) {
+            // Break, learn, repeat: a crash is a step too
+            array_splice($steps, 3, 0, [['key' => 'crash', 'title' => 'Its first crash', 'done' => true,
+                'text' => 'It happens to everyone, and you learn the most here: its drone\'s page says which line failed. Fix it and push, or found another.']]);
+        }
         return [
             'starter' => $starter, 'try' => $try, 'target_minutes' => $target, 'elapsed_minutes' => $elapsed,
-            'steps' => [
-                ['key' => 'found', 'title' => 'Found a startup', 'done' => true, 'text' => 'Done: it is running your code.'],
-                ['key' => 'change', 'title' => 'Change one number', 'done' => $pushed,
-                    'text' => $pushed ? 'Done: you pushed new code.' : ($try
-                        ? 'Open Push new code below, change ' . $try['name'] . ' on line ' . $try['line'] . ' (now ' . $try['value'] . ') and push it. It is free.'
-                        : 'Open Push new code below, change one of the numbers under Settings and push it. It is free.')],
-                ['key' => 'mature', 'title' => 'Mature it', 'done' => false,
-                    'text' => 'When it holds enough credits, press Mature it: it repays the bank and its shares are yours.'
-                        . ($target ? ' Target: within ' . self::minutes($target) . ' of founding it.' : '')],
-            ],
+            'crashed' => $crashed, 'steps' => $steps,
         ];
     }
 
