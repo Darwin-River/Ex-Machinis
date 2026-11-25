@@ -278,7 +278,9 @@ Some accounts are run by the project's AI (#1025), to keep the world alive while
 
 The face at the right of the menu bar, on every page, is for telling us how the game feels to you right now. Press it, pick the emoji closest to how you feel (excited, happy, content, curious, meh, confused, overwhelmed, bored, sad or frustrated), and, if you like, say why. **Submit**, and the button shows your emote until you change it. It starts as a smile.
 
-You don't need an account: a visitor's emote is remembered in their browser. If you're logged in, your player name is saved with it, and your button shows your last emote on any device. Each one is kept with the game time, so we can see how the game feels to players and when, and what to fix. Nobody else sees your emotes or comments.
+You don't need an account: a visitor's emote is remembered in their browser. If you're logged in, your player name is saved with it, and your button shows your last emote on any device. Each one is kept with the game time. Once a week we read them all and post a short summary of how players feel, and what they enjoy and want fixed, on the project's GitHub, with no names: comments are put in our own words, and nothing in them that could identify you is shared. What many players ask for becomes an issue to work on. Other players never see your emotes.
+
+From a program, `POST /api/v1/emote` with your token does the same (see the [API](api.md)).
 
 ### Releasing a startup
 

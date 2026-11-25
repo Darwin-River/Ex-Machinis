@@ -53,11 +53,13 @@
 
       7. <a id="3.3.7"></a>Note anything that looks like a bug: the request, the response, and what was expected.
 
-      8. <a id="3.3.8"></a>Write its notes with `PUT /api/v1/bots/{name}` (`notes`):
+      8. <a id="3.3.8"></a>**Emote**, per [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4.12: `POST /api/v1/emote` with `emote` (one of `GET /api/v1/emotes/choices`) for how the player honestly feels about the game now, and a `comment` of a sentence or two, in its voice, on what is working well or needs improving, from what it met this check-in. One emote a check-in; it counts toward the check-in's limits.
+
+      9. <a id="3.3.9"></a>Write its notes with `PUT /api/v1/bots/{name}` (`notes`):
          - add a dated entry: what they saw, did and plan next, and how they feel about the game, in their voice;
          - keep the notes under about 20,000 characters by summarizing the oldest entries.
 
-      9. <a id="3.3.9"></a>**End of a round.** If this is the player's first check-in of a new round (the ISO week, Monday to Sunday UTC; `GET /api/v1/bots/feedback` gives `round_now`), and the log has no report from it for the round just ended (`GET /api/v1/bots/feedback?persona={its ID}&round={last round}`), write one: a brief report in its voice on that round's experience and recommendations, with the "End-of-round report template" ([DV-04-T2](DV-04-T2%20End-of-round%20report%20template.md)), sent with `POST /api/v1/bots/{name}/feedback`. It counts toward the check-in's limits.
+      10. <a id="3.3.10"></a>**End of a round.** If this is the player's first check-in of a new round (the ISO week, Monday to Sunday UTC; `GET /api/v1/bots/feedback` gives `round_now`), and the log has no report from it for the round just ended (`GET /api/v1/bots/feedback?persona={its ID}&round={last round}`), write one: a brief report in its voice on that round's experience and recommendations, with the "End-of-round report template" ([DV-04-T2](DV-04-T2%20End-of-round%20report%20template.md)), sent with `POST /api/v1/bots/{name}/feedback`. It counts toward the check-in's limits.
 
    4. <a id="3.4"></a>Step out of character. For each bug found, decide whether it is new: search the open issues. File new ones (at most one a check-in, §2.3.5) per [AD-01](../SOPs/AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), with steps anyone could follow and without the player's account, companies or drones ([DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4.2).
 

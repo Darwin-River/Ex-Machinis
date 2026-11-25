@@ -8,7 +8,9 @@
 
       2. <a id="1.1.2"></a>plays in playtest rounds on the live game, per [DV-02](DV-02%20Running%20playtest%20rounds.md);
 
-      3. <a id="1.1.3"></a>gives feedback on the game's dynamics when the project lead asks, each player from its own experience and in its own voice.
+      3. <a id="1.1.3"></a>gives feedback on the game's dynamics when the project lead asks, each player from its own experience and in its own voice;
+
+      4. <a id="1.1.4"></a>says how it feels about the game at each check-in with the emote feature, as people do with the emote button, for the weekly feedback review of [DV-06](DV-06%20Reviewing%20player%20feedback.md).
 
 2. # <a id="2"></a>Roles and responsibilities
 
@@ -28,7 +30,9 @@
 
       3. <a id="2.2.3"></a>gathers the cohort's feedback with the "Machine instructions for asking the cohort for feedback" ([DV-04-M3](../Attachments/DV-04-M3%20Machine%20instructions%20for%20asking%20the%20cohort%20for%20feedback.md));
 
-      4. <a id="2.2.4"></a>files each bug the cohort finds as an issue, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md).
+      4. <a id="2.2.4"></a>files each bug the cohort finds as an issue, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md);
+
+      5. <a id="2.2.5"></a>has each player emote at its check-ins, per §4.12.
 
    3. <a id="2.3"></a>Developers may read the cohort's reports on GitHub and bring ideas in as issues. Only the operator and Claude know which accounts are AI players.
 
@@ -48,7 +52,9 @@
 
       4. <a id="3.3.4"></a>`POST /api/v1/bots/{name}/token`: a fresh token for a check-in, or `X-Bot-Player: {name}` with the key, where the network passes no `Authorization` header;
 
-      5. <a id="3.3.5"></a>the cohort's feedback log: `POST /api/v1/bots/{name}/feedback` (a player's end-of-round report), `POST /api/v1/bots/feedback` (the cohort's weekly review) and `GET /api/v1/bots/feedback` (search), and the operator's **Cohort feedback** page under their account.
+      5. <a id="3.3.5"></a>the cohort's feedback log: `POST /api/v1/bots/{name}/feedback` (a player's end-of-round report), `POST /api/v1/bots/feedback` (the cohort's weekly review) and `GET /api/v1/bots/feedback` (search), and the operator's **Cohort feedback** page under their account;
+
+      6. <a id="3.3.6"></a>`POST /api/v1/emote` (an emote and an optional comment, with `X-Bot-Player`), and `GET /api/v1/emotes/choices`.
 
    4. <a id="3.4"></a>What any newcomer can read: the players' manual, `documents/lua-functions.md`, `documents/api.md` and `examples/`.
 
@@ -104,6 +110,8 @@
 
    11. <a id="4.11"></a>**Cost.** Every check-in uses Claude's time. Check-ins stay short: look, decide, act, write notes. The project lead sets how often each player checks in; between check-ins, its drones and trading script play for it.
 
+   12. <a id="4.12"></a>**Honest emotes.** At each check-in, a player emotes as the person in its profile would, from what it met in play: one emote, and a comment saying what is working well or needs improving, concretely and in its voice. An emote is never chosen to tilt the reading, and the players never agree on emotes between them. A comment names none of the player's companies or drones. The weekly feedback review weighs the cohort's emotes apart from people's, as a proxy ([DV-06](DV-06%20Reviewing%20player%20feedback.md) §4.2).
+
 5. # <a id="5"></a>Procedures
 
    1. <a id="5.1"></a>**Setting up.** The project lead names their account in `FORGE_OPERATORS`, makes a key, and enters it in Claude's secure credential form for exmachinis.com, per `documents/hosting.md`.
@@ -124,11 +132,11 @@
 
    6. <a id="5.6"></a>**Playtests.** A playtest round on the live game, per [DV-02](DV-02%20Running%20playtest%20rounds.md), plays the cohort's players as its personas, each in character, following this SOP's guidelines. The round's log on #380 names players only by persona ID.
 
-   7. <a id="5.7"></a>**End-of-round reports.** Each player's first check-in of a new round writes its report on the round just ended, with the "End-of-round report template" ([DV-04-T2](../Attachments/DV-04-T2%20End-of-round%20report%20template.md)), per [DV-04-M1](../Attachments/DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md) §3.3.9.
+   7. <a id="5.7"></a>**End-of-round reports.** Each player's first check-in of a new round writes its report on the round just ended, with the "End-of-round report template" ([DV-04-T2](../Attachments/DV-04-T2%20End-of-round%20report%20template.md)), per [DV-04-M1](../Attachments/DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md) §3.3.10.
 
    8. <a id="5.8"></a>**Closing a round.** Once a week, after the players' first check-ins of the new round, a scheduled review applies the "Machine instructions for closing a cohort round" ([DV-04-M4](../Attachments/DV-04-M4%20Machine%20instructions%20for%20closing%20a%20cohort%20round.md)): it reads the round's reports, writes the cohort's review into the feedback log, and carries out the turnover in §4.10 when it is due.
 
-   9. <a id="5.9"></a>**Tracking feedback.** The project lead searches the log on their **Cohort feedback** page; Claude searches it with `GET /api/v1/bots/feedback` when asked about the cohort's experience of something, and files an issue, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), for each recommendation the project lead takes up, naming players only by persona ID.
+   9. <a id="5.9"></a>**Tracking feedback.** The project lead searches the log on their **Cohort feedback** page; Claude searches it with `GET /api/v1/bots/feedback` when asked about the cohort's experience of something, and files an issue, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), for each recommendation the project lead takes up, naming players only by persona ID. The weekly feedback review of [DV-06](DV-06%20Reviewing%20player%20feedback.md) reads the cohort's reports and emotes beside people's emotes, and files issues for the themes they share.
 
    10. <a id="5.10"></a>**Changing the cohort.** Besides the turnover in §4.10, the project lead may ask Claude at any time to add, slow or retire players; Claude applies [DV-04-M2](../Attachments/DV-04-M2%20Machine%20instructions%20for%20adding%20or%20retiring%20an%20AI%20player.md).
 
@@ -140,7 +148,9 @@
 
    2. <a id="6.2"></a>[DV-02](DV-02%20Running%20playtest%20rounds.md): Running playtest rounds
 
-   3. <a id="6.3"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
+   3. <a id="6.3"></a>[DV-06](DV-06%20Reviewing%20player%20feedback.md): Reviewing player feedback
+
+   4. <a id="6.4"></a>[QA-01](QA-01%20Writing%20and%20maintaining%20Ex%20Machinis%20standard%20operating%20procedures.md): Writing and maintaining Ex Machinis standard operating procedures
 
    4. <a id="6.4"></a>`documents/api.md`, `documents/hosting.md` and `documents/players-manual.md`
 
