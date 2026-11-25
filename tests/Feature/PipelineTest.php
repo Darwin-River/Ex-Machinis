@@ -69,9 +69,9 @@ class PipelineTest extends TestCase
             $this->assertStringContainsString('href="' . url($page) . '"', $home);
         }
         // The step pages show the thin line, with where they are
-        $this->get('/getting-started')->assertOk()->assertSee('id="ladder"', false)->assertSee('Step 4 of 8');
-        $this->get('/signup')->assertOk()->assertSee('id="ladder"', false)->assertSee('Step 3 of 8');
-        $this->get('/try')->assertOk()->assertSee('Step 2 of 8');
+        $this->get('/getting-started')->assertOk()->assertSee('id="ladder"', false)->assertSee('Step 3 of 7');
+        $this->get('/signup')->assertOk()->assertSee('id="ladder"', false)->assertSee('Step 2 of 7');
+        $this->get('/try')->assertOk()->assertSee('Step 1 of 7');
     }
 
     public function testEachStepIsMarkedDoneFromThePlayersRecords()

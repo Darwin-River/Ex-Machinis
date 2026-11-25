@@ -45,7 +45,7 @@ class GuestDrive
         if (!is_array($d) || !is_string($d['script'] ?? null) || trim($d['script']) === '') {
             return null;
         }
-        return ['starter' => array_key_exists($d['starter'] ?? '', self::starters()) ? $d['starter'] : 'miner',
+        return ['starter' => array_key_exists($d['starter'] ?? '', self::starters()) ? $d['starter'] : 'shuttle',
             'script' => $d['script']];
     }
 

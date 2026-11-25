@@ -33,12 +33,12 @@
 
             @if($bought)
                 <div class="step-card is-receipt" id="first-share-done">
-                    <div class="lbl">Done &middot; step 7</div>
+                    <div class="lbl">Done &middot; step 6</div>
                     <p class="mb-0 mt-1">You own a piece of another player's company: what it pays out, you get your share of.
                         See your shares on <a href="{{ url('account') }}">your account</a>.</p>
                 </div>
                 <div class="step-card is-next" id="first-share-next">
-                    <div class="lbl">Next &middot; step 8</div>
+                    <div class="lbl">Next &middot; step 7</div>
                     <p class="mb-2 mt-1"><b>{{ $next['title'] }}</b>: {{ $next['text'] }}</p>
                     <a class="button button-primary" href="{{ $next['url'] }}">{{ $next['action'] }} &rarr;</a>
                 </div>
