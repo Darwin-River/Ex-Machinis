@@ -162,8 +162,9 @@ class PagesTest extends TestCase
         $this->assertStringContainsString('the world is busy', \App\Services\LaunchQueue::watchNote(['scale' => 60]));
         $this->get('/')->assertOk()->assertDontSee('quickly');
         config(['forge.new_rules' => true]);
-        $this->get('/')->assertOk()->assertDontSee('No account needed')->assertSee('Make an account');
-        $this->get('/release')->assertOk()->assertDontSee('no account needed');
+        // Trying a drone needs no account (#1042); founding one does
+        $this->get('/')->assertOk()->assertSee('Keep my drone');
+        $this->get('/release')->assertOk()->assertDontSee('no account needed')->assertSee('Make a free account');
         $this->get('/about-us')->assertOk()->assertDontSee('no accounts');
         $this->get('/support')->assertOk()->assertDontSee('no accounts');
     }

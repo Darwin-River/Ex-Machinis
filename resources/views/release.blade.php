@@ -47,6 +47,7 @@
     <section class="section section-xs section-first text-md-left">
         <div class="container rl" id="container">
             @include('_flash_message')
+            @if($newRules)@include('partials.ladder', ['here' => 'found'])@endif
 
             <p class="rl-lead">Pick a starter or write your own Lua, name the company, and start it.
                 @if($newRules)<a href="{{ url('signup') }}">Make a free account</a> or <a href="{{ url('login') }}">log in</a> first: every startup belongs to a player.@else Anyone can, no account needed.@endif
@@ -101,6 +102,13 @@
 
             <form method="POST" action="{{ url('release') }}" class="mt-3">
                 {{ csrf_field() }}
+                @if(!empty($draft))
+                    {{-- The drone the player test drove before signing up (#1041, #1042) --}}
+                    <div class="rl-note" id="your-drone" style="border-color: #4cc9f0">
+                        <b>Your drone is loaded below</b>, as you last test drove it. Name your company and press
+                        <b>Found startup</b>: it starts for real, and you can change its code at any time, for free.
+                    </div>
+                @endif
                 @if(!empty($fixing))
                     {{-- A fixed copy of a company that ended (#773) --}}
                     <div class="alert alert-warning" id="fixing" style="white-space: normal">

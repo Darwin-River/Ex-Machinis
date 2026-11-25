@@ -36,13 +36,16 @@ class ClassSettingsTest extends TestCase
     {
         $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
         $u = Players::create($name, 'long-enough', $email);
+        $this->canInvest((int) $u->user_id);   // buyers here are investors (#1040)
         Players::verify($u->user_id, sha1($email));
         return User::where('user_id', $u->user_id)->first();
     }
 
     private function pupil(string $name): User
     {
-        return User::where('login', $name)->first();
+        $pupil = User::where('login', $name)->first();
+        $this->canInvest($pupil);   // pupils here are investors (#1040)
+        return $pupil;
     }
 
     /** A pupil's matured company, its shares all theirs */

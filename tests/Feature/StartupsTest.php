@@ -62,7 +62,7 @@ class StartupsTest extends TestCase
         $this->assertSame(5500, (int) $c->debt, 'its hull, its starting credits and the fee');
         $this->assertSame(3000, (int) $c->credits);
         $this->get('/companies/' . $made['company'])->assertOk()->assertSee('A startup: it owes the bank 5,500 credits');
-        $this->actingAs($owner)->get('/account')->assertOk()->assertSee('Sprout Co')->assertSee('5,500')->assertDontSee('>Mature<', false);
+        $this->actingAs($owner)->get('/account')->assertOk()->assertSee('Sprout Co')->assertSee('5,500')->assertDontSee('>Claim my 100 shares<', false);
     }
 
     public function testFiveSlotsAndAClosedOneWaitsAGameDay()
@@ -184,13 +184,13 @@ class StartupsTest extends TestCase
         $this->assertStringContainsString('6,000', $r['error']);
 
         DB::table('companies')->where('company_id', $id)->update(['credits' => 8000]);
-        $this->actingAs($owner)->get('/account')->assertSee('>Mature<', false);
+        $this->actingAs($owner)->get('/account')->assertSee('>Claim my 100 shares<', false);
         $unverified = $this->player('Unverified', false);
         $theirs = Startups::start($unverified, 'Unripe', self::SCRIPT)['company'];
         DB::table('companies')->where('company_id', $theirs)->update(['credits' => 8000]);
         $this->assertSame(403, Startups::mature($unverified, $theirs)['status'], 'a verified account matures');
 
-        $this->actingAs($owner)->post("/startups/$id/mature")->assertSessionHas('success');
+        $this->actingAs($owner)->post("/startups/$id/mature")->assertRedirect('/market/shares/first')->assertSessionHas('claimed');
         $c = $this->company($id);
         $this->assertSame(0, (int) $c->startup);
         $this->assertSame(0, (int) $c->debt);

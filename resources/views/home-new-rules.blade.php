@@ -31,32 +31,33 @@
 @endpush
 @section('content')
     @php($n = fn ($v) => number_format($v))
+    @php($path = \App\Services\Pipeline::for(auth()->user()))
+    @php($nextStep = $path['next'] ? \App\Services\Pipeline::step($path, $path['next']) : null)
     <section class="home-hero">
         <div class="container">
-            <div class="row align-items-center">
-                <div class="col-lg-7 mb-4 mb-lg-0">
-                    <p class="hero-kicker">Free &middot; multiplayer &middot; open source</p>
-                    <h1>Write the code.<br>Your drones run the company.</h1>
-                    <p class="home-lead">A space-trading game you play in Lua. Code drones that mine, make and trade; grow your
-                        companies, then invest in other players' and lend to them. A startup costs you nothing if it crashes:
-                        <b>break, learn, repeat.</b></p>
-                    {{-- The first button follows the path (#987): an account, then the player's next step --}}
-                    @php($path = \App\Services\Pipeline::for(auth()->user()))
-                    @php($nextStep = collect($path['steps'])->firstWhere('key', $path['next'] ?? 'account'))
-                    <div class="hero-actions">
-                        @if(!$path['player'])
-                            <a class="button button-primary button-lg" href="{{ url('signup') }}">Make an account (free)</a>
-                            <a class="button button-secondary button-lg" href="{{ url('getting-started') }}">Your first startup (5 minutes)</a>
-                        @else
-                            <a class="button button-primary button-lg" href="{{ $nextStep['url'] }}">{{ $path['next'] ? 'Next: ' . $nextStep['action'] : $nextStep['action'] }}</a>
-                            <a class="button button-secondary button-lg" href="{{ url('release') }}">Found a startup</a>
-                        @endif
+            @if(!$path['player'])
+                {{-- A visitor (#1042): a starter drone's fixed replay, to change, test drive and keep --}}
+                <p class="hero-kicker">Free &middot; multiplayer &middot; open source</p>
+                <h1>Write the code.<br>Your drones run the company.</h1>
+                <p class="home-lead">A space-trading game you play in Lua. This is the Miner, a starter drone, and what it did.
+                    Change a line, test drive it, and keep it: a startup costs you nothing if it crashes. <b>Break, learn, repeat.</b></p>
+                @include('partials.try-drone', ['script' => $try['script'], 'starter' => $try['starter'], 'replay' => $replay, 'drive' => null])
+                <p class="mt-3 mb-0">Have an account? <a href="{{ url('login') }}">Log in</a>. New here? <a href="{{ url('getting-started') }}">Your first startup, step by step</a>.</p>
+            @else
+                <div class="row align-items-center">
+                    <div class="col-lg-7 mb-4 mb-lg-0">
+                        <p class="hero-kicker">Free &middot; multiplayer &middot; open source</p>
+                        <h1>Write the code.<br>Your drones run the company.</h1>
+                        <p class="home-lead">A space-trading game you play in Lua. Code drones that mine, make and trade; grow your
+                            companies, then invest in other players' and lend to them. A startup costs you nothing if it crashes:
+                            <b>break, learn, repeat.</b></p>
+                        {{-- The first button follows the path (#987, #1043): the player's next step --}}
+                        <div class="hero-actions">
+                            <a class="button button-primary button-lg" href="{{ $nextStep['url'] ?? url('release') }}">{{ $nextStep ? 'Next: ' . $nextStep['action'] : 'Found a startup' }}</a>
+                            @if($nextStep)<a class="button button-secondary button-lg" href="{{ url('release') }}">Found a startup</a>@endif
+                        </div>
                     </div>
-                    @if(!$path['player'])
-                        <p class="mt-3 mb-0">Every startup belongs to a player: an account is free and takes a minute. Have one? <a href="{{ url('login') }}">Log in</a>.</p>
-                    @endif
-                </div>
-                <div class="col-lg-5">
+                    <div class="col-lg-5">
 {!! \App\Services\LuaHighlight::block(<<<'LUA'
 -- A sketch of the Miner starter
 function launched()
@@ -70,8 +71,9 @@ function launched()
 end
 -- press Found startup, then watch its page
 LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter script']) !!}
+                    </div>
                 </div>
-            </div>
+            @endif
         </div>
     </section>
 
@@ -82,9 +84,9 @@ LUA, ['class' => 'home-code', 'aria-label' => 'A sketch of the Miner starter scr
             @if (session('status'))
                 <div class="alert alert-success">{{ session('status') }}</div>
             @endif
-            {{-- The path through the game (#987): account, code drones, invest, lend --}}
+            {{-- The path through the game (#987), in eight steps (#1043) --}}
             <h2 class="h4">Your path</h2>
-            @include('partials.pipeline')
+            @include('partials.pipeline', ['path' => $path])
 
             {{-- The game clock in one plain line, honest when it is slowed (#697) --}}
             @php($s = $status)

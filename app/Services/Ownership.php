@@ -83,9 +83,30 @@ class Ownership
         return $mine + $units >= PlayerShares::count($company);
     }
 
+    /**
+     * May this player buy shares (#1040)? Once they have matured a company
+     * of their own, so that they hold shares that earn them money. Players
+     * who bought shares before the rule keep investing.
+     */
+    public static function mayInvest(int $user): bool
+    {
+        return DB::table('companies')->where('owner_id', $user)->whereNotNull('matured_t')->exists()
+            || (Schema::hasTable('player_share_trades') && DB::table('player_share_trades')->where('buyer_id', $user)->exists());
+    }
+
+    /** Why this player can't buy shares yet (#1040), or null */
+    public static function investProblem(int $user): ?string
+    {
+        return self::mayInvest($user) ? null
+            : 'You can buy shares once you have matured a company of your own: grow a startup to its mark, then claim its shares.';
+    }
+
     /** Why this purchase can't go ahead under the ownership rules, or null */
     public static function buyProblem(int $user, int $company, int $units): ?string
     {
+        if ($problem = self::investProblem($user)) {
+            return $problem;
+        }
         if ($until = self::bannedUntil($user, $company)) {
             return 'You sold shares of this company: you can buy its shares again from ' . $until->format('M j, H:i') . ' UTC ('
                 . self::BAN_DAYS . ' real days after selling any).';

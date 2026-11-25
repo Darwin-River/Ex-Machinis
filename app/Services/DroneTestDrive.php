@@ -89,8 +89,17 @@ class DroneTestDrive
         if (!self::available()) {
             return $out;
         }
+        $id = (int) $agent->agent_id;
+        return self::drive($out, self::snapshot($agent), $script, fn (array $need) => self::answer($need, $id));
+    }
 
-        $snapshot = self::snapshot($agent);
+    /**
+     * Runs $script against $snapshot (as run() does), answering each
+     * question it asks with $answer(need): a guest's drive (#1042) brings
+     * its own snapshot and answers
+     */
+    public static function drive(array $out, array $snapshot, string $script, \Closure $answer): array
+    {
         $dir = sys_get_temp_dir();
         $files = ['script' => tempnam($dir, 'drive'), 'snapshot' => tempnam($dir, 'snap')];
         file_put_contents($files['script'], $script);
@@ -111,7 +120,7 @@ class DroneTestDrive
                 if ($need === null || $failed !== null || microtime(true) - $start > self::BUDGET) {
                     break;
                 }
-                $snapshot['answers'][implode('|', $need)] = self::answer($need, (int) $agent->agent_id);
+                $snapshot['answers'][implode('|', $need)] = $answer($need);
             }
         } finally {
             foreach ($files as $f) {
@@ -122,7 +131,7 @@ class DroneTestDrive
     }
 
     /** The answer to a need line's question: rows, or a negative code */
-    private static function answer(array $need, int $drone): array|int
+    public static function answer(array $need, int $drone): array|int
     {
         $place = null;
         if (isset($need[0]) && str_starts_with($need[0], '@')) {
@@ -378,7 +387,7 @@ class DroneTestDrive
         return $seconds < 60 ? "$seconds game seconds" : "$m game " . ($m === 1 ? 'minute' : 'minutes');
     }
 
-    private static function placeName(int $place): string
+    public static function placeName(int $place): string
     {
         static $names = [];
         $names[$place] ??= (string) (DB::table('objects')->where('object_id', $place)->value('object_name') ?? "place $place");

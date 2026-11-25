@@ -48,6 +48,20 @@ class BotApiController extends Controller
             : response()->json(['name' => $name, 'token' => $token]);
     }
 
+    /**
+     * GET /api/v1/ladder: how many people's accounts have reached each step of
+     * the Player Ladder (#1045), all told and among those made in the last 7
+     * real days, and how many guest test drives have run. Counts only
+     */
+    public function ladder(Request $request): JsonResponse
+    {
+        if (!$this->operator($request)) {
+            return $this->refused();
+        }
+        return response()->json(['all' => \App\Services\Pipeline::counts(), 'last_7_days' => \App\Services\Pipeline::counts(7),
+            'guest_test_drives' => \App\Services\GuestDrive::total()]);
+    }
+
     /** GET /api/v1/bots/{name}: one of the operator's Claude players, with its profile and notes (DV-04) */
     public function show(Request $request, string $name): JsonResponse
     {

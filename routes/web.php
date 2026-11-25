@@ -172,6 +172,13 @@ Route::middleware('new-rules')->group(function () {
     Route::post('/account/trade-script/run', 'PlayerShareController@runTradeScript');
     // A test drive: what it would do, applying nothing (#1005)
     Route::post('/account/trade-script/test-drive', 'PlayerShareController@testDriveTradeScript');
+    // The Player Ladder (#1039): try a drone with no account (#1042), keep it (#1041),
+    // and a first share and a first loan (#1044)
+    Route::get('/try', 'TryController@show');
+    Route::post('/try', 'TryController@drive');
+    Route::post('/try/keep', 'TryController@keep');
+    Route::get('/market/shares/first', 'FirstStepsController@share');
+    Route::get('/market/loans/first', 'FirstStepsController@loan');
 });
 Route::get('/release', 'ReleaseController@show');
 Route::post('/release', 'ReleaseController@store');

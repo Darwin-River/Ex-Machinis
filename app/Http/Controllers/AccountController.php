@@ -20,8 +20,9 @@ class AccountController extends Controller
 
     public function signup(Request $request)
     {
+        // The password once, with a Show toggle to check it (#1041)
         $request->validate(['name' => 'required|string|max:64', 'email' => 'required|string|max:255',
-            'password' => 'required|string|max:200|confirmed']);
+            'password' => 'required|string|max:200']);
         if (!Players::maySignUp((string) $request->ip())) {
             return back()->withErrors(['name' => 'Too many new accounts from your address this hour. Try again later.'])->withInput($request->except('password', 'password_confirmation'));
         }
@@ -35,9 +36,11 @@ class AccountController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
         $sent = Players::sendVerification($user);
-        return redirect('/account')->withSuccess('Welcome, ' . $user->login . '! '
+        // Straight on to the next step (#1041): founding a startup, with the drone they test drove if any
+        return redirect('/release')->withSuccess('Welcome, ' . $user->login . '! '
+            . (\App\Services\GuestDrive::draft() ? 'Your drone is saved: found it as a startup below. ' : 'Next: found your first startup. ')
             . ($sent ? 'We have sent a link to your e-mail address: open it to verify your account.'
-                     : 'We couldn\'t send the link to verify your e-mail address just now: send it again from this page.'));
+                     : 'We couldn\'t send the link to verify your e-mail address just now: send it again from your account page.'));
     }
 
     public function showLogin()

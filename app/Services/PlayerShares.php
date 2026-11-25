@@ -880,6 +880,9 @@ class PlayerShares
         if ($units < 1) {
             return self::fail(422, 'Buy at least 1 new share.');
         }
+        if ($problem = Ownership::investProblem((int) $user->user_id)) {
+            return self::fail(409, $problem);   // #1040
+        }
         return DB::transaction(function () use ($user, $company, $units) {
             $o = DB::table('player_share_offerings')->where('company_id', $company)->whereNull('closed_t')
                 ->where('units_left', '>', 0)->lockForUpdate()->first();

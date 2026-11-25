@@ -167,7 +167,7 @@ This is the whole game. Each line is explained where it first matters to you.
 3. A startup trades only with the House (the game's own traders at each exchange), and you can change its code whenever you like, for free.
 4. When it holds its debt and a little more, you may mature it: it can trade with everyone, and you get its 100 shares. While you hold all of them its code is still yours to change; the first share you sell makes it public and locks its code.
 5. Your account starts with no credits: they come from your shares, the first once you mature a startup. Each game day a matured company pays half its profit to its shareholders. Its profit is its sales less the goods it bought: equipment and drones it buys (modules, kits and hulls) are an investment, not a loss.
-6. Trade shares with players at any price you agree, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
+6. Once you own a matured company, you may buy shares in other players' companies too. Trade shares with players at any price you agree, or sell them to the bank for their cash-out value, paid 30 game days later at the lower of the two values.
 7. A company's code is private while one player owns it outright, and public once its shares are offered. A public company's code can't change, but it can react to prices and orders, so read its code before you buy.
 8. You're ranked by your wealth, and by how much it grew today in percent (a short season, a real day), on the Players page; your account page keeps your records.
 
@@ -193,33 +193,36 @@ It is your birthright to take control of your own remotely piloted spacecraft an
 
 ### Your first startup, step by step
 
-1. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address to verify your account (see [Making an account](#making-an-account)). It starts with no credits: they come from your shares, once your first startup matures.
-2. **Found a startup.** On the **Found a startup** page (the button at the top of every page), pick a starter (the Miner is picked for you) or write your own script, name your company, and press **Found startup**. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **startup**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a startup](#releasing-a-startup)).
-3. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
-4. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Found a startup page say the pace right now.
-5. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)). Each starter matures as it is; the three settings marked **TRY FIRST** in its comments are the ones to change first.
-6. **Mature it.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Mature** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when a matured company of yours is counting down to dissolving. Maturing repays the debt, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
-7. **Own its shares.** Its **100 shares** are now yours. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Part IV](#part-iv-going-public)). While you hold all 100 you still own it outright, and can change its code; the first share you sell makes it public and locks its code (see [Owned outright, or public](#owned-outright)).
+1. **Try a drone, no account needed.** The home page plays a starter drone, the Miner: its code beside what it did. Change a number in its code and press **Test drive** to see what your version would do, against the live world, changing nothing in it. **Try a drone** (`/try`) does the same with each starter. Like it? Press **Keep my drone** (see [Test driving your code](#test-driving-your-code)).
+2. **Make an account.** A name, a password and an e-mail address. Open the link we send to the address to verify your account (see [Making an account](#making-an-account)). It starts with no credits: they come from your shares, once your first startup matures. Making it takes you straight to the next step, with the drone you tried, if you did.
+3. **Found a startup.** On the **Found a startup** page, pick a starter (the Miner is picked for you) or write your own script (the drone you kept is loaded for you), name your company, and press **Found startup**. Its page opens at **Your first hour**, below. From a program, `POST /api/v1/release` with your account's token does the same. Either way you start a **startup**: a new company with one drone in orbit around Earth, 100 fuel, 3,000 credits and no equipment (see [Releasing a startup](#releasing-a-startup)).
+4. **See what it owes.** The bank lent the startup its drone (1,000), its 3,000 credits and a fee of 200: it owes **4,200**. Your account page lists each startup with its credits and its debt, and the startup's own page shows its **Road to maturity**: a bar of its credits against its debt and the mark it matures at. Until it matures, it trades **only with the House**, the game's own traders at each exchange.
+5. **Watch its drone.** Its page shows what it does and says, its trades and its fuel. At the normal pace a game day passes every 48 real seconds, so a few minutes of watching shows you days of its life. When the world is busy the clock slows, to as little as a game day in 24 real minutes: the home page and the Found a startup page say the pace right now.
+6. **Change its code.** When you see what goes wrong, send it new code from your account page or its own page (**Push new code (free)**, shown to you when you're logged in). Changing its code costs nothing (see [Pushing new code](#pushing-new-code)). Each starter matures as it is; the three settings marked **TRY FIRST** in its comments are the ones to change first.
+7. **Claim its shares.** Once it holds its debt plus 500 (4,700 for a fresh startup), a **Claim my 100 shares** button appears beside it on your account page, on its Road to maturity, and in the strip under the menu on every page. That strip shows each of your startups' credits against what it needs, and, once it has six game days of history, when it should mature at its pace over the last 7 game days ("matures in about 9 real min"); it also warns when a matured company of yours is counting down to dissolving. Claiming them matures it: it repays the debt, and from then on it trades with everyone (see [Maturing a startup](#maturing-a-startup)).
+8. **Own its shares, and invest.** Its **100 shares** are now yours, and you can buy shares in other players' companies too: claiming takes you to **Your first share**, one company's share to buy with one button. Each game day it pays half its profit to its shareholders. Keep them, sell them to the bank, or trade them with other players (see [Part IV](#part-iv-going-public)). While you hold all 100 you still own it outright, and can change its code; the first share you sell makes it public and locks its code (see [Owned outright, or public](#owned-outright)).
 
 If it fails on the way, close it and start another. That costs you nothing.
 
-**Your first mission.** Until you own a matured company, your startup's page shows a short mission over its Road to maturity: found a startup (done), **change one number** (it names the first TRY FIRST setting in your code and its line, so you know exactly what to edit) and **mature it**, with a target time in real minutes from the starter's usual range at today's pace.
+**Your first hour.** Until you own a matured company, your startup's page shows a checklist over its Road to maturity: found a startup (done), **its first trip**, **its first sale**, **change one number** (it names the first TRY FIRST setting in your code and its line, so you know exactly what to edit), **a quarter of the way** to maturing, and **claim its shares**, with a target time in real minutes from the starter's usual range at today's pace. If its drone crashes, **its first crash** is ticked too: that is where you learn the most. Its drone's page says which line failed; fix it and push, or found another.
 
-**The strip under the menu.** When you're logged in, a line under the menu says your **next step** on the path (mature a startup; then buy a share in another player's company, or sell one of yours; then back a loan, with a bar of your credits toward the 5,000 that lending needs). **The rules so far** opens to the rules you need now: the basics at first (your code, startups, maturing, fuel and travel), then owning companies once one of yours has matured, then investing and lending once you invest or reach 5,000 credits. Nothing is switched off: every rule applies from the start, and the strip only shows what matters next. The whole rulebook is in this manual.
+**The path.** The home page and your account page show the whole path in eight steps: watch a drone, try it, keep it (make an account), found a startup, fix it as it runs, claim its shares, invest, and lend. Each step's page shows a thin line of the eight, with the step you're on. The steps suggest an order; only investing waits for something (a matured company of your own).
+
+**The strip under the menu.** When you're logged in, the button at the top right of every page is your **next step** on the path, and a line under the menu says it in words (found a startup; push a fix; claim a startup's shares; then buy a share in another player's company, or sell one of yours; then back a loan, with a bar of your credits toward the 5,000 that lending needs). **The rules so far** opens to the rules you need now: the basics at first (your code, startups, maturing, fuel and travel), then owning companies once one of yours has matured, then investing and lending once you invest or reach 5,000 credits. Nothing is switched off: every rule applies from the start, and the strip only shows what matters next. The whole rulebook is in this manual.
 
 ### Making an account
 
 Your account is you in the game: it owns your startups and your shares, and it is what the players' leaderboards rank. Make one on the website (**Log in**, then **Make an account**) or with the API (`POST /api/v1/accounts`, below):
 
 - **A name**, 3 to 32 letters, digits, spaces, dots, dashes or underscores. It is public: it shows on the leaderboards. **Don't use your real name.**
-- **A password** of at least 8 characters.
+- **A password** of at least 8 characters. You type it once: **Show** lets you check it.
 - **An e-mail address.** It is private: only you see it. It verifies your account, and gets the e-mail notices you choose (below; two start on), and nothing else. One account per address.
 
 We send an e-mail to the address with a **Verify my account** button, good for 2 real days (the link is there as text too). Opening it **verifies** your account. Your account must be verified before you can mature a startup. Lost the link? The account page sends it again.
 
-Your account has **credits** of its own, and starts with none: they are what your shares bring you, from dividends and payouts, from selling them, and from a company closing. Your first come from maturing a startup: its 100 shares are yours, to keep for their dividends or to sell. Your credits buy shares at any price (see [Trading shares with other players](#trading-shares-with-other-players)).
+Your account has **credits** of its own, and starts with none: they are what your shares bring you, from dividends and payouts, from selling them, and from a company closing. Your first come from maturing a startup: its 100 shares are yours, to keep for their dividends or to sell. Once you own a matured company, your credits buy shares in others at any price (see [Trading shares with other players](#trading-shares-with-other-players)).
 
-**Starting credits.** Until November 2026 a new account got **5,000 starting credits**, which can only buy shares. New accounts, class accounts included, get none now. Starting credits already given stay until spent, and still buy only at or below the bank's selling price (its cash-out value).
+**Starting credits.** Until November 2026 a new account got **5,000 starting credits**, which can only buy shares. New accounts, class accounts included, get none now. Starting credits already given stay until spent, and still buy only at or below the bank's selling price (its cash-out value), once the account owns a matured company.
 
 **E-mail notices.** On your account page, under **E-mail notices**, pick what we may e-mail you about. Two start on once your address is verified, **A startup of mine can mature** and **A startup of mine is past its credit cap**; the rest are off until you turn them on, and you can turn any off:
 
@@ -248,7 +251,7 @@ All but the digest and filled orders come together in one e-mail, at most one a 
 
 **From a program.** Everything on the account page works through the [API](api.md) too, with a **token** sent as `Authorization: Bearer` and the token. `POST /api/v1/accounts` with `name`, `email` and `password` makes an account and returns a token; `POST /api/v1/login` with `name` (or the e-mail address) and `password` returns a new one; the account page's **Make a new API token** does the same. A new token replaces the old one.
 
-**No account?** Make one first: it is free, and every startup belongs to a player. (Guests could found startups until November 2026; one of those still running can be claimed with its **claim code** on your account page, or `POST /api/v1/startups/claim`.)
+**No account?** You can watch and test drive a drone without one. To found a startup, make one: it is free, and every startup belongs to a player. (Guests could found startups until November 2026; one of those still running can be claimed with its **claim code** on your account page, or `POST /api/v1/startups/claim`.)
 
 ### Class groups
 
@@ -394,7 +397,7 @@ hours_per_stay = 120              -- game hours it expects to stay at a site
 percent_better_to_move = 25
 ```
 
-Each name says what the number controls, so a comment is needed only for a unit, a catch, or the `TRY FIRST` mark that the site's first mission reads to suggest your first change. None of its settings is a place: where it works is the game's answer, not part of the code.
+Each name says what the number controls, so a comment is needed only for a unit, a catch, or the `TRY FIRST` mark that the site's first-hour checklist reads to suggest your first change. None of its settings is a place: where it works is the game's answer, not part of the code.
 
 The rest of this chapter teaches the Lua you need to read all of it.
 
@@ -1317,6 +1320,8 @@ What it can't show you:
 
 So a test drive is for "does it do what I meant, in the order I meant": the right place, the right goods, no crash. Whether it *earns* more you still learn by pushing it and comparing (see below).
 
+**Without an account.** On the home page and on **Try a drone** (`/try`), anyone can test drive a starter, changed or not, before making an account (#1042). It runs the same way, as a brand-new startup's drone would: in orbit around Earth with 100 fuel and the starting credits, owing the bank its grant, with no trades, orders, copies or shares of its own yet. A visitor may run 20 an hour. **Keep my drone** saves the code for the visit: making an account then takes you to **Found a startup** with it loaded. The home page's replay of the Miner is such a drive, recorded once from the live world and kept, so it reads the same every time.
+
 ### Pushing new code
 
 You can send new code to the drones of a company you own outright (a startup, or a matured company whose shares you hold all of: see [Owned outright, or public](#owned-outright)) whenever you like, without starting over: from its page (**Push new code (free)**), from your account page (**Change its code**, under a startup), or with `POST /api/v1/startups/{id}/push` and your token. This is called **pushing** new code.
@@ -1413,9 +1418,9 @@ end
 
 A startup runs on borrowed credits. Once it can pay its way, you mature it, and it becomes a company of its own, owned by whoever holds its shares. This section is about maturing; [Part III](#part-iii-growing) and [Part IV](#part-iv-going-public) are about what happens then: copies, shares, dividends and the bank.
 
-**When.** A startup may mature once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh startup (100 more for each paid push it had before push fees were retired in November 2026). Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Mature** button beside the startup when it can; `GET /api/v1/startups` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
+**When.** A startup may mature (you **claim its shares**) once its credits, less any processor tax it owes, cover its debt and **500 more** to work with: 4,700 for a fresh startup (100 more for each paid push it had before push fees were retired in November 2026). Your account must be verified (see [Making an account](#making-an-account)). Your account page shows a **Claim my 100 shares** button beside the startup when it can; `GET /api/v1/startups` says so in `can_mature`. A drone that spends can make it false again a moment later: if maturing is refused, try again later.
 
-**How.** Press **Mature** on your account page or on the startup's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/startups/{id}/mature` with your token. It is refused (409) while the startup can't, with how much it still needs.
+**How.** Press **Claim my 100 shares** on your account page or on the startup's page (its **Road to maturity**, which only you see the buttons of, once you're logged in), or `POST /api/v1/startups/{id}/mature` with your token. It is refused (409) while the startup can't, with how much it still needs.
 
 **What happens.**
 
@@ -1423,6 +1428,7 @@ A startup runs on borrowed credits. Once it can pay its way, you mature it, and 
 - Its code stays **yours to change** while you hold all its shares: you still own it outright, and it counts against your 5 (see [Owned outright, or public](#owned-outright)).
 - It trades with everyone: other players' drones, and the House.
 - You get its **100 shares**.
+- **Investing opens.** From now on you may buy shares in other players' companies (#1040). The button takes you to **Your first share** (`/market/shares/first`): one company's share, with what it paid out a share over the last 7 game days, a link to its code and a **Buy 1 share** button. The company is picked by one rule, printed on the page: the public company that paid out the most over the last 7 game days for each credit a share costs now, among those with a share you can buy now. It never looks at who owns a company. The whole exchange is a link away.
 
 **After.** A matured company runs until it fails. Its drones can now sell to other players' standing orders and post their own, buy from anyone, and plunder wrecks. The starters launch copies once matured, which spends credits on hulls and kits and lowers the company's cash-out value for a while (see [Cash-out value](#cash-out-value-what-a-share-is-worth)). Two of one player's matured companies may trade with each other; their dealings are flagged on both companies' pages and in your digest.
 
@@ -2316,6 +2322,8 @@ The second version needs no comments and is much faster to trust. Clean code als
 
 Players trade shares with **standing orders**, like goods: an order to buy or sell a number of a company's shares at a price.
 
+- **Investing opens with a company of your own.** You may buy shares (from players, the bank or a company's new shares, on the website, through the API or from your trading script) once you have matured a company of your own, so that you hold shares that earn you money (#1040). Until then a buy is refused (409) with what to do first. Anyone may sell what they hold. Players who bought shares before November 2026 keep investing.
+
 - **Whole shares, whole credits.** At least 1 share, at a whole number of credits.
 - **At any price you agree.** From 1 to 9,999,999 credits a share: there is no floor and no band, so a share trades for what a buyer and a seller think it is worth, above or below cash-out. (Until November 2026 players traded only between 0.8 and 1.25 times the bank's selling price.) Every order is on the book.
 - **It trades at once** against the best orders it meets, at their price; the rest stands until someone takes it, or you cancel it.
@@ -2490,6 +2498,8 @@ _In this chapter:_ how a public company's code asks to borrow, how players back 
 ### Loans
 
 A public company can borrow, and players lend to it (#928). Only a public company asks: its code is locked and anyone can read it, so a lender can see what it will do with the credits and how it means to repay.
+
+**Your first loan.** **Your first loan** (`/market/loans/first`) shows one open request, with its interest, its term and what its company paid out over the last 7 game days, and a **Back this loan** button once you have the credits lending needs (#1044). It is picked by one rule, printed on the page: the open request of the public company that paid out the most over the last 7 game days. The whole loan book is a link away.
 
 **Asking.** The company's code calls `request_loan(amount, rate, due_in)`: borrow `amount` credits at `rate` percent simple interest for the whole loan (6.5 means 6.5%), due `due_in` game days from now. It returns the request's id; -5 when the amount is under 1, the rate negative or `due_in` under 1; and -23 when the company isn't public. A company is public once it has matured and its shares are held by more than one holder, the bank included: a startup, a company one player owns outright and a company released before the new rules get -23. `cancel_request(id)` withdraws what isn't backed yet; `repay(id)` repays all of a request's loans early, the principal plus the interest due so far (in proportion to the time gone), all or nothing: if the company can't pay all of it, nothing happens. Both return 0 when recorded (the website settles them within a real minute), or -9 when the company has no such request. `obligations()` lists what it owes or has asked for, each `{kind, id, credits, rate, due_in}`: `kind` is `"loan"` (credits still owed) or `"request"` (credits still to back), and `due_in` is the game days until it is due (0 or less: due now).
 
@@ -2872,7 +2882,7 @@ Short meanings of the words this manual uses, each with where it is explained.
 - **Import price**: what the House asks for a good it sells; it rises as anyone buys it there and slides back over a day or two ([The planets' import price](#import-price)).
 - **Lineage**: the earlier code a company's revisions carry, shown on its page and the Lineage map ([Drone pages](#drone-pages-learning-from-other-drones)); and `lineage()`, a drone's parent and generation ([Copies that vary](#chapter-13-copies-that-vary-with-lineage)).
 - **Loan request**: a public company's ask to borrow, backed by players; a loan it can't repay in full on its due date is in **default** ([Loans](#loans)).
-- **Mature**: what a startup does once it holds its debt and 500 more: it repays the bank, trades with everyone, and its 100 shares are yours ([Maturing a startup](#maturing-a-startup)).
+- **Mature**: what a startup does once it holds its debt and 500 more, when you press **Claim my 100 shares**: it repays the bank, trades with everyone, its 100 shares are yours, and you may invest in other companies ([Maturing a startup](#maturing-a-startup)).
 - **Net wealth**: what a company has gained since it started, at market prices, without its hulls or debt: the company leaderboards rank by it ([Drone pages](#drone-pages-learning-from-other-drones)).
 - **Order book**: the standing buy and sell orders at a place ([Reading the order book](#reading-the-order-book)).
 - **Order handle**: the number that stands for one drone's order for one good on one side; a push or pull to another company's order takes it ([Order handles](#order-handles)).

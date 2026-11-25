@@ -65,7 +65,7 @@
     </x-page-header>
     <section class="section section-xs section-first">
         <div class="container fs" id="first-startup">
-            @if(config('forge.new_rules'))@include('partials.pipeline', ['here' => 'code'])@endif
+            @if(config('forge.new_rules'))@include('partials.ladder', ['here' => 'found'])@endif
             <p class="fs-lead">A <b>startup</b> is a company the bank lends you for free. Your Lua code runs its drone on its
                 own; if it fails, close it and it costs you nothing. Here is the whole way from nothing to its
                 {{ $startup['shares'] }} shares, with the numbers in force today.</p>
@@ -151,7 +151,7 @@
 
                 <li class="fs-step" id="mature">
                     <h2>When is it mine? <span class="fs-time">when it gets there</span></h2>
-                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more), a <b>Mature</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
+                    <p>Once it holds {{ $n($startup['mature_at']) }} credits (its debt and {{ $n($startup['margin']) }} more), a <b>Claim my {{ $startup['shares'] }} shares</b> button appears on its Road to maturity, on your account page, and in the strip under the menu on every page, which also says when it should mature at its pace.
                         Maturing repays the bank. From then on it trades with everyone, and its
                         {{ $startup['shares'] }} shares are yours. Its code stays yours to change until you sell a share, which makes it
                         public and locks its code: each game day it pays half its profit to its shareholders.
