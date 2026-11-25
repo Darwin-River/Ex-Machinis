@@ -65,7 +65,10 @@ class ApiTest extends TestCase
             ['real_anchor' => time(), 'game_anchor' => time(), 'scale' => 600, 'load_checked_at' => time() - 20]);
         $this->getJson('/api/v1/clock')->assertJsonPath('engine.running', true);
         DB::table('game_clock')->where('id', 1)->update(['load_checked_at' => time() - 600]);
-        $this->getJson('/api/v1/clock')->assertJsonPath('engine.running', false)->assertJsonPath('engine.last_seen_seconds_ago', 600);
+        $clock = $this->getJson('/api/v1/clock')->assertJsonPath('engine.running', false)->json('engine.last_seen_seconds_ago');
+        // 600 seconds ago, or a second or two more if the clock ticked between the two lines (#1072)
+        $this->assertGreaterThanOrEqual(600, $clock);
+        $this->assertLessThanOrEqual(602, $clock);
     }
 
     public function testACompanyAndItsDrones()
