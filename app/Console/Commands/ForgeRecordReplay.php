@@ -11,11 +11,11 @@ use Illuminate\Console\Command;
  * drive against the world as it is. The live server records one by itself
  * while there is none; this replaces it on purpose.
  *
- *   php artisan forge:record-replay shuttle
+ *   php artisan forge:record-replay simple_miner
  */
 class ForgeRecordReplay extends Command
 {
-    protected $signature = 'forge:record-replay {starter=shuttle : The starter to record}';
+    protected $signature = 'forge:record-replay {starter=simple_miner : The starter to record}';
     protected $description = 'Record the replay of a starter drone shown on /try';
 
     public function handle(): int

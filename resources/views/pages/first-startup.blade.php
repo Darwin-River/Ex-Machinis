@@ -92,10 +92,10 @@
                             @php($card = \App\Services\Release::STARTER_CARDS[$name])
                             <a class="fs-card" href="{{ url('release?starter=' . $name) }}" id="starter-{{ $name }}">
                                 <span class="fs-role">{{ $card['role'] }}</span>
-                                <h3>{{ ucfirst($name) }}</h3>
+                                <h3>{{ \App\Services\Release::starterLabel($name) }}</h3>
                                 <p>{{ $card['line'] }}</p>
                                 <dl><dt>Buys</dt><dd>a {{ $card['kit'] }} (2,000)</dd><dt>Matures in</dt><dd>{{ $card['mature'] }}</dd></dl>
-                                <span class="fs-go">Start with the {{ ucfirst($name) }} &rarr;</span>
+                                <span class="fs-go">Start with the {{ \App\Services\Release::starterLabel($name) }} &rarr;</span>
                             </a>
                         @endforeach
                     </div>

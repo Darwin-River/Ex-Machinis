@@ -15,23 +15,27 @@ use Illuminate\Http\Request;
  */
 class TryController extends Controller
 {
+    /** The Maker's table: its best products, one route each (#1070) */
+    private const MAKING_ROWS = 10;
+
     public function show()
     {
         $starters = GuestDrive::starters();
         $draft = GuestDrive::draft();
-        $asked = preg_replace('/\.lua$/', '', (string) request('starter'));
-        if (array_key_exists($asked, $starters) && (!$draft || $draft['starter'] !== $asked)) {
+        $asked = GuestDrive::starterFor((string) request('starter'));
+        if ($asked !== null && (!$draft || $draft['starter'] !== $asked)) {
             $draft = ['starter' => $asked, 'script' => (string) Release::starter($asked)];
         }
-        // The first drone, the Shuttle, unless they asked for another (#1050)
+        // The first drone, the simple Miner, unless they asked for another (#1050, #1070)
         $draft ??= ['starter' => Replay::FIRST, 'script' => (string) Release::starter(Replay::FIRST)];
         $script = old('script', $draft['script']);
         return view('pages.try', ['starters' => $starters, 'starter' => $draft['starter'], 'script' => $script,
             'drive' => session('guest_drive'),
             // The replay is of the starter as it comes: not beside a visitor's own changes
             'replay' => $script === Release::starter($draft['starter']) ? Replay::of($draft['starter']) : null,
-            // Routes for the Shuttle's settings, to choose from (#1050)
-            'routes' => $draft['starter'] === 'shuttle' ? \App\Services\Routes::best(2) : []]);
+            // Rows for the drone's settings, to choose from: the Miner's routes (#1050), the Maker's products (#1070)
+            'routes' => $draft['starter'] === 'simple_miner' ? \App\Services\Routes::best(2) : [],
+            'making' => $draft['starter'] === 'simple_maker' ? array_slice(\App\Services\Routes::making(1), 0, self::MAKING_ROWS) : []]);
     }
 
     public function drive(Request $request)
@@ -70,7 +74,7 @@ class TryController extends Controller
         $request->validate(['script' => 'required|string|max:' . config('forge.max_script_length'),
             'starter' => 'nullable|string|max:32']);
         $starter = (string) $request->input('starter');
-        $starter = array_key_exists($starter, GuestDrive::starters()) ? $starter : 'shuttle';
+        $starter = GuestDrive::starterFor($starter) ?? Replay::FIRST;
         $script = str_replace("\r\n", "\n", (string) $request->input('script'));
         if ($problem = Release::scriptProblem($script)) {
             return [null, redirect('/try#editor')->withErrors(['script' => $problem])->withInput()];

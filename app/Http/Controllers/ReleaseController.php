@@ -72,7 +72,7 @@ class ReleaseController extends Controller
         $kits = Release::KIT_NAMES;
 
         // The starters as cards that load their code into the editor (#719):
-        // the one asked for is picked, else the Shuttle, the first drone (#1050)
+        // the one asked for is picked, else the simple Miner, the first drone (#1050, #1070)
         $sources = [];
         foreach (array_keys($starters) as $name) {
             $sources[$name] = Release::starter($name);
@@ -85,7 +85,7 @@ class ReleaseController extends Controller
             // A drone's code, or a starter the cards don't show, picks no card
             $picked = $copiedFrom === null && array_key_exists($picked, $sources) ? $picked : null;
         } else {
-            $picked = array_key_exists('shuttle', $sources) ? 'shuttle' : array_key_first($sources);
+            $picked = array_key_exists(\App\Services\Replay::FIRST, $sources) ? \App\Services\Replay::FIRST : array_key_first($sources);
             $starter = $sources[$picked];
         }
 
