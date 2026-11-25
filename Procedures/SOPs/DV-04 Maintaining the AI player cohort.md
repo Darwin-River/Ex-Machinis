@@ -46,7 +46,9 @@
 
       3. <a id="3.3.3"></a>`GET` and `PUT /api/v1/bots/{name}`: a player's profile and notes;
 
-      4. <a id="3.3.4"></a>`POST /api/v1/bots/{name}/token`: a fresh token for a check-in.
+      4. <a id="3.3.4"></a>`POST /api/v1/bots/{name}/token`: a fresh token for a check-in, or `X-Bot-Player: {name}` with the key, where the network passes no `Authorization` header;
+
+      5. <a id="3.3.5"></a>the cohort's feedback log: `POST /api/v1/bots/{name}/feedback` (a player's end-of-round report), `POST /api/v1/bots/feedback` (the cohort's weekly review) and `GET /api/v1/bots/feedback` (search), and the operator's **Cohort feedback** page under their account.
 
    4. <a id="3.4"></a>What any newcomer can read: the players' manual, `documents/lua-functions.md`, `documents/api.md` and `examples/`.
 
@@ -88,7 +90,19 @@
 
    8. <a id="4.8"></a>**A real cohort.** Every persona is an adult (18 or over). The cohort mixes programming experience (at least one new to programming), ages, places and play styles. At most a quarter of the cohort tests the rules. No persona copies a real person, and none runs a class group.
 
-   9. <a id="4.9"></a>**Cost.** Every check-in uses Claude's time. Check-ins stay short: look, decide, act, write notes. The project lead sets how often each player checks in; between check-ins, its drones and trading script play for it.
+   9. <a id="4.9"></a>**Rounds.** The cohort plays in rounds of one week, Monday to Sunday UTC, each named by its ISO week (for example `2026-W48`). At the end of each round every active or slowed player reports briefly on its experience and recommendations, and the reports are kept in the feedback log, so feedback can be tracked over time and searched (#1052).
+
+   10. <a id="4.10"></a>**Turnover.** The cohort changes as a real player base does: old players drift away and new ones arrive.
+
+      1. <a id="4.10.1"></a>At least every fourth round, one long-serving player slows down (one check-in a day, then every other day) or retires, and one new player joins.
+
+      2. <a id="4.10.2"></a>A player may slow or retire sooner when its profile's life calls for it (a new job, exams, a lost interest), when it no longer adds anything the others don't, or per §4.7.
+
+      3. <a id="4.10.3"></a>A slowed player's profile says so (`Status: slowed, {rhythm}`), and it still reports at the end of each round.
+
+      4. <a id="4.10.4"></a>Turnover keeps the mix in §4.8 and leaves no person worse off ([DV-04-M2](../Attachments/DV-04-M2%20Machine%20instructions%20for%20adding%20or%20retiring%20an%20AI%20player.md) §5.1).
+
+   11. <a id="4.11"></a>**Cost.** Every check-in uses Claude's time. Check-ins stay short: look, decide, act, write notes. The project lead sets how often each player checks in; between check-ins, its drones and trading script play for it.
 
 5. # <a id="5"></a>Procedures
 
@@ -110,9 +124,15 @@
 
    6. <a id="5.6"></a>**Playtests.** A playtest round on the live game, per [DV-02](DV-02%20Running%20playtest%20rounds.md), plays the cohort's players as its personas, each in character, following this SOP's guidelines. The round's log on #380 names players only by persona ID.
 
-   7. <a id="5.7"></a>**Changing the cohort.** At least once a month, or when the project lead asks, Claude reviews the cohort against §4.7 and §4.8 and recommends players to add or retire. The project lead decides; Claude applies [DV-04-M2](../Attachments/DV-04-M2%20Machine%20instructions%20for%20adding%20or%20retiring%20an%20AI%20player.md).
+   7. <a id="5.7"></a>**End-of-round reports.** Each player's first check-in of a new round writes its report on the round just ended, with the "End-of-round report template" ([DV-04-T2](../Attachments/DV-04-T2%20End-of-round%20report%20template.md)), per [DV-04-M1](../Attachments/DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md) §3.3.9.
 
-   8. <a id="5.8"></a>**Losing the key.** If the key is revoked or lost, the project lead makes a new one and enters it in Claude's credential form. The players and their profiles are unchanged.
+   8. <a id="5.8"></a>**Closing a round.** Once a week, after the players' first check-ins of the new round, a scheduled review applies the "Machine instructions for closing a cohort round" ([DV-04-M4](../Attachments/DV-04-M4%20Machine%20instructions%20for%20closing%20a%20cohort%20round.md)): it reads the round's reports, writes the cohort's review into the feedback log, and carries out the turnover in §4.10 when it is due.
+
+   9. <a id="5.9"></a>**Tracking feedback.** The project lead searches the log on their **Cohort feedback** page; Claude searches it with `GET /api/v1/bots/feedback` when asked about the cohort's experience of something, and files an issue, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md), for each recommendation the project lead takes up, naming players only by persona ID.
+
+   10. <a id="5.10"></a>**Changing the cohort.** Besides the turnover in §4.10, the project lead may ask Claude at any time to add, slow or retire players; Claude applies [DV-04-M2](../Attachments/DV-04-M2%20Machine%20instructions%20for%20adding%20or%20retiring%20an%20AI%20player.md).
+
+   11. <a id="5.11"></a>**Losing the key.** If the key is revoked or lost, the project lead makes a new one and enters it in Claude's credential form. The players and their profiles are unchanged.
 
 6. # <a id="6"></a>References
 
@@ -132,4 +152,8 @@
 
    3. <a id="7.3"></a>[DV-04-M3](../Attachments/DV-04-M3%20Machine%20instructions%20for%20asking%20the%20cohort%20for%20feedback.md): Machine instructions for asking the cohort for feedback
 
-   4. <a id="7.4"></a>[DV-04-T1](../Attachments/DV-04-T1%20AI%20player%20profile%20template.md): AI player profile template
+   4. <a id="7.4"></a>[DV-04-M4](../Attachments/DV-04-M4%20Machine%20instructions%20for%20closing%20a%20cohort%20round.md): Machine instructions for closing a cohort round
+
+   5. <a id="7.5"></a>[DV-04-T1](../Attachments/DV-04-T1%20AI%20player%20profile%20template.md): AI player profile template
+
+   6. <a id="7.6"></a>[DV-04-T2](../Attachments/DV-04-T2%20End-of-round%20report%20template.md): End-of-round report template

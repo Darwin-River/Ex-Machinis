@@ -4,7 +4,7 @@
 
 2. <a id="2"></a>Scope
 
-   1. <a id="2.1"></a>These instructions apply when the project lead asks Claude to add players to the AI player cohort, or to retire some, per [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md).
+   1. <a id="2.1"></a>These instructions apply when the project lead asks Claude to add players to the AI player cohort, or to slow or retire some, and at the turnover a cohort round's review calls for ([DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4.10, [DV-04-M4](DV-04-M4%20Machine%20instructions%20for%20closing%20a%20cohort%20round.md)).
 
 3. <a id="3"></a>Adding a player
 
@@ -30,20 +30,28 @@
 
    7. <a id="3.7"></a>If the cohort checks in on a schedule, give the player its own recurring task at times no other player uses, per [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §5.3.2.
 
-4. <a id="4"></a>Retiring a player
+4. <a id="4"></a>Slowing a player
 
-   1. <a id="4.1"></a>Check in one last time per [DV-04-M1](DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md), and leave nothing that would hurt a person:
+   1. <a id="4.1"></a>Choose a long-serving player whose profile gives a reason to play less (or §4.10.2 of [DV-04](../SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md)).
 
-      1. <a id="4.1.1"></a>repay or let run every loan a person backed;
+   2. <a id="4.2"></a>Change its scheduled check-in task to one check-in a day, at one of its times; a player already slowed to once a day goes to every other day.
 
-      2. <a id="4.1.2"></a>deliver or cancel its contracts;
+   3. <a id="4.3"></a>Set its profile's status to `slowed, {rhythm}` with `PUT /api/v1/bots/{name}`, and add a note in its voice on why it plays less now. It keeps reporting at the end of each round.
 
-      3. <a id="4.1.3"></a>withdraw its loan requests and standing orders that it can't honour;
+5. <a id="5"></a>Retiring a player
 
-      4. <a id="4.1.4"></a>close the companies it owns outright that would only decay. Public companies keep running for their shareholders.
+   1. <a id="5.1"></a>Check in one last time per [DV-04-M1](DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md), and leave nothing that would hurt a person:
 
-   2. <a id="4.2"></a>Set its profile's status to "retired on {date}" with `PUT /api/v1/bots/{name}`, and add a last note on why.
+      1. <a id="5.1.1"></a>repay or let run every loan a person backed;
 
-   3. <a id="4.3"></a>Delete its scheduled check-in task. A retired player is never checked in again. Its account stays; there is no deleting one.
+      2. <a id="5.1.2"></a>deliver or cancel its contracts;
 
-5. <a id="5"></a>Provide a concise summary of activities performed and issues encountered when performing these instructions: the persona IDs added or retired, a one-line sketch of each, and the cohort's mix now. Give account names only if the project lead asks, and only in the session.
+      3. <a id="5.1.3"></a>withdraw its loan requests and standing orders that it can't honour;
+
+      4. <a id="5.1.4"></a>close the companies it owns outright that would only decay. Public companies keep running for their shareholders.
+
+   2. <a id="5.2"></a>Set its profile's status to "retired on {date}" with `PUT /api/v1/bots/{name}`, and add a last note on why.
+
+   3. <a id="5.3"></a>Delete its scheduled check-in task. A retired player is never checked in again. Its account stays; there is no deleting one.
+
+6. <a id="6"></a>Provide a concise summary of activities performed and issues encountered when performing these instructions: the persona IDs added, slowed or retired, a one-line sketch of each, and the cohort's mix now. Give account names only if the project lead asks, and only in the session.

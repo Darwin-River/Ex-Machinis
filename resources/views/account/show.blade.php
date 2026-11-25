@@ -394,6 +394,7 @@
                         @endforeach
                     </ul>
                 @endif
+                <p class="mb-2"><a href="{{ url('account/cohort-feedback') }}">Cohort feedback</a>: search the players' end-of-round reports and the weekly reviews.</p>
                 <form method="POST" action="{{ url('account/bot-keys') }}">
                     {{ csrf_field() }}
                     <button class="button button-secondary button-sm" type="submit">Make a key</button>

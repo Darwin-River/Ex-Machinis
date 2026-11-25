@@ -7,7 +7,7 @@ A player's filled-in profile is kept in the database, never in the repository: C
 ```markdown
 # {Persona ID, for example C-03}
 
-Status: {active | retired on {date}}
+Status: {active | slowed, {rhythm, such as once a day} | retired on {date}}
 
 ## Who they are
 - Age: {18 or over}

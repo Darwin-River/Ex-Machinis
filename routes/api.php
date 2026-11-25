@@ -68,6 +68,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots', 'BotApiController@make');
     Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/{name}/token', 'BotApiController@token');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots', 'BotApiController@index');
+    // The cohort's feedback log (DV-04, #1052); before bots/{name}, which would take "feedback"
+    Route::middleware(['new-rules', 'throttle:api-read'])->get('bots/feedback', 'BotApiController@feedback');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/feedback', 'BotApiController@review');
+    Route::middleware(['new-rules', 'throttle:api-write'])->post('bots/{name}/feedback', 'BotApiController@report');
     Route::middleware(['new-rules', 'throttle:api-read'])->get('bots/{name}', 'BotApiController@show');
     Route::middleware(['new-rules', 'throttle:api-write'])->put('bots/{name}', 'BotApiController@update');
     // The Player Ladder's step counts (#1045), with an operator's key
