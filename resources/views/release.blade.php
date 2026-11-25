@@ -32,6 +32,7 @@
         .rl-card small { color: #9aa3b8; font-size: 13px; }
         .rl-card .rl-tick { position: absolute; top: 10px; right: 12px; color: #4cc9f0; font-size: 13px; font-weight: 700; display: none; }
         .rl-card[aria-pressed="true"] .rl-tick { display: inline; }
+        .rl-card[aria-pressed="true"] .rl-role { padding-right: 6.5em; }   /* room for the tick on a narrow card (#1070) */
         .rl label { font-weight: 600; color: #e6e9f2; margin-bottom: .3rem; }
         .rl .form-control { background: #0f1424; color: #e6e9f2; border: 1px solid #263052; border-radius: 8px; }
         .rl .form-control:focus { border-color: #4cc9f0; box-shadow: 0 0 0 .2rem rgba(76, 201, 240, .25); background: #0f1424; color: #e6e9f2; }
@@ -135,7 +136,7 @@
                                role="button" aria-pressed="{{ $picked === $name ? 'true' : 'false' }}" title="{{ $what }}">
                                 <span class="rl-tick">In the editor</span>
                                 <span class="rl-role">{{ $card['role'] }}</span>
-                                <b>{{ ucfirst($name) }}</b>
+                                <b>{{ \App\Services\Release::starterLabel($name) }}</b>
                                 <span class="rl-line">{{ $card['line'] }}</span>
                                 <small>{{ $card['kit'] }}@if($newRules) &middot; matures in {{ $card['mature'] }}@endif</small>
                             </a>

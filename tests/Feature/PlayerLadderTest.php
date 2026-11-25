@@ -42,7 +42,7 @@ class PlayerLadderTest extends TestCase
 
     protected function tearDown(): void
     {
-        @unlink(Replay::path('shuttle'));
+        @unlink(Replay::path('simple_miner'));
         parent::tearDown();
     }
 
@@ -163,10 +163,10 @@ class PlayerLadderTest extends TestCase
     {
         $this->get('/try')->assertOk()->assertSee('id="try-drone"', false)->assertSee('id="ladder"', false)
             ->assertSee('Step 1 of 7');
-        $this->get('/try?starter=refiner')->assertOk()->assertSee(e(strtok(Release::starter('refiner'), "\n")), false);
+        $this->get('/try?starter=simple_maker')->assertOk()->assertSee(e(strtok(Release::starter('simple_maker'), "\n")), false);
         $script = "function launched()\n  print('hello')\n  wait(60)\nend";
-        $r = $this->post('/try', ['starter' => 'miner', 'script' => $script])->assertRedirect('/try#result');
-        $this->assertSame(['starter' => 'miner', 'script' => $script], GuestDrive::draft());
+        $r = $this->post('/try', ['starter' => 'simple_maker', 'script' => $script])->assertRedirect('/try#result');
+        $this->assertSame(['starter' => 'simple_maker', 'script' => $script], GuestDrive::draft());
         $this->assertTrue((bool) session(Pipeline::TRIED));
         $drive = session('guest_drive');
         $this->assertFalse($drive['applied']);
@@ -199,19 +199,19 @@ class PlayerLadderTest extends TestCase
         $this->assertTrue(GuestDrive::allow('203.0.113.10'), 'each visitor their own');
     }
 
-    public function testTryPlaysTheShuttlesFixedReplayBesideItsCode()
+    public function testTryPlaysTheMinersFixedReplayBesideItsCode()
     {
-        // The Shuttle is the first drone: none recorded yet, the code and a Test drive button
+        // The simple Miner is the first drone (#1070): none recorded yet, the code and a Test drive button
         $this->get('/try')->assertOk()->assertSee('id="try-drone"', false)->assertSee('What would it do?')
-            ->assertSee('-- Shuttle: digs ore, refines it')->assertSee('Keep my drone');
+            ->assertSee('-- Miner: digs ore, refines it')->assertSee('Keep my drone');
         // A recorded replay plays beside the code as it comes
-        @mkdir(dirname(Replay::path('shuttle')), 0775, true);
-        file_put_contents(Replay::path('shuttle'), json_encode(['starter' => 'shuttle', 'recorded' => '2026-11-25', 'place' => 'Earth',
+        @mkdir(dirname(Replay::path('simple_miner')), 0775, true);
+        file_put_contents(Replay::path('simple_miner'), json_encode(['starter' => 'simple_miner', 'recorded' => '2026-11-25', 'place' => 'Earth',
             'lines' => [['at' => '1:01', 'text' => 'would fly to the Moon'], ['at' => '3:28', 'text' => 'would mine 5 Wolfite (N) at the Moon']]]));
         $this->get('/try')->assertOk()->assertSee('What it did')->assertSee('id="replay-lines"', false)
             ->assertSee('would mine 5 Wolfite (N) at the Moon');
         // Beside a visitor's own changes it shows none
-        GuestDrive::keep('shuttle', "function launched() wait(5) end");
+        GuestDrive::keep('simple_miner', "function launched() wait(5) end");
         $this->get('/try')->assertOk()->assertDontSee('id="replay-lines"', false)->assertSee('function launched() wait(5) end');
     }
 
@@ -250,9 +250,9 @@ class PlayerLadderTest extends TestCase
 
     // #1050
 
-    public function testTheShuttleIsTheFirstDroneAndRunsFromItsSettings()
+    public function testTheSimpleMinerIsTheFirstDroneAndRunsFromItsSettings()
     {
-        $src = Release::starter('shuttle');
+        $src = Release::starter('simple_miner');
         $this->assertNotNull($src);
         $this->assertNull(Release::scriptProblem($src));
         $this->assertLessThanOrEqual(30, count(preg_split('/\R/', trim($src))), 'a few lines');
@@ -260,30 +260,92 @@ class PlayerLadderTest extends TestCase
             $this->assertStringContainsString($setting, $src);
         }
         $this->assertSame('sell_at', \App\Services\FirstMission::tryFirst($src)['name']);
-        $this->assertSame('shuttle', array_key_first(GuestDrive::starters()), 'offered first');
+        $this->assertSame('simple_miner', array_key_first(GuestDrive::starters()), 'offered first');
         if (\App\Services\DroneTestDrive::available()) {
             $this->assertNull(GuestDrive::run($src)['error'], 'it runs');
         }
     }
 
-    public function testTheRouteTableWritesARouteIntoTheShuttlesSettings()
+    public function testTheRouteTableWritesARouteIntoTheMinersSettings()
     {
         $routes = [['ore' => 1130, 'ore_name' => 'Wolfite (N)', 'ore_lua' => 'wolfite', 'mine_at' => 13, 'mine_name' => 'Io', 'mine_lua' => null,
             'sell_at' => 10, 'sell_name' => 'Moon', 'sell_lua' => 'moon', 'digs' => 3,
             'goods' => [['resource' => 2011, 'name' => 'Metals (A1)', 'lua' => 'metals_a1', 'units' => 3, 'price' => 19]],
             'hours' => 6.0, 'fuel' => 19, 'income' => 112, 'fuel_cost' => 57, 'profit' => 55, 'per_hour' => 9.2]];
-        $html = view('partials.shuttle-routes', ['routes' => $routes])->render();
+        $html = view('partials.try-routes', ['routes' => $routes])->render();
         $this->assertStringContainsString('id="routes-table"', $html);
-        $this->assertStringContainsString('data-mine-at="13" data-mine-name="Io"', $html, 'a place with no Lua name by its number');
-        $this->assertStringContainsString('data-sell-at="moon"', $html);
-        $this->assertStringContainsString('data-goods="metals_a1"', $html);
+        $settings = $this->settingsOf($html, 'route-0');
+        $this->assertContains(['mine_at', '13', 'Io'], $settings, 'a place with no Lua name by its number, its name in the comment');
+        $this->assertContains(['sell_at', 'moon', ''], $settings);
+        $this->assertContains(['goods', '{metals_a1}', ''], $settings);
         $this->assertStringContainsString('9.2', $html);
-        $this->assertStringContainsString('An estimate from today', $html);
-        $this->assertSame('', view('partials.shuttle-routes', ['routes' => []])->render(), 'nothing without routes');
+        $this->assertStringContainsString('estimated from today', $html);
+        $this->assertSame('', trim(view('partials.try-routes', ['routes' => [], 'making' => []])->render()), 'nothing without rows');
         $this->assertSame('moon', \App\Services\Routes::luaName(10, 'place'));
         $this->assertNull(\App\Services\Routes::luaName(13, 'place'));
         DB::table('resources')->insertOrIgnore(['id' => 2011, 'name' => 'Metals (A1)']);   // the test world's data may not have it
         $this->assertSame('metals_a1', \App\Services\Routes::luaName(2011, 'resource'));
+    }
+
+    /** A "Use this" button's settings: [[name, value, note]] */
+    private function settingsOf(string $html, string $id): array
+    {
+        $this->assertMatchesRegularExpression('/id="' . $id . '"\s+data-settings="([^"]*)"/', $html);
+        preg_match('/id="' . $id . '"\s+data-settings="([^"]*)"/', $html, $m);
+        return json_decode(html_entity_decode($m[1], ENT_QUOTES), true);
+    }
+
+    // #1070
+
+    public function testTryOffersASimpleMinerAndASimpleMaker()
+    {
+        $this->assertSame(['simple_miner', 'simple_maker'], array_keys(GuestDrive::starters()));
+        $src = Release::starter('simple_maker');
+        $this->assertNull(Release::scriptProblem($src));
+        $this->assertLessThanOrEqual(25, count(preg_split('/\R/', trim($src))), 'a few lines');
+        foreach (['product = alloys_a1', 'buy_at = moon', 'sell_at = moon', 'equip(factory_kit)', 'recipe(product)'] as $line) {
+            $this->assertStringContainsString($line, $src);
+        }
+        $this->assertSame('product', \App\Services\FirstMission::tryFirst($src)['name']);
+        if (\App\Services\DroneTestDrive::available()) {
+            $this->assertNull(GuestDrive::run($src)['error'], 'it runs');
+        }
+        // The buttons name them Miner and Maker; the Shuttle is gone, and old names land on the simple drone
+        $html = $this->get('/try')->assertOk()->getContent();
+        $this->assertStringContainsString('href="' . url('try?starter=simple_maker') . '"', $html);
+        $this->assertMatchesRegularExpression('/aria-current="true"\s*>Miner</', $html);
+        $this->assertStringNotContainsString('Shuttle', $html);
+        $this->assertStringNotContainsString('starter=refiner', $html);
+        foreach (['shuttle' => 'simple_miner', 'miner' => 'simple_miner', 'maker' => 'simple_maker', 'refiner' => 'simple_miner'] as $old => $new) {
+            $this->assertSame($new, GuestDrive::starterFor($old));
+        }
+        $this->get('/try?starter=maker')->assertOk()->assertSee('-- Maker: buys parts from the House');
+        // A kept draft from before (the Shuttle) is the Miner's
+        GuestDrive::keep('shuttle', 'function launched() wait(5) end');
+        $this->assertSame('simple_miner', GuestDrive::draft()['starter']);
+        // The Found page offers them beside the long starters, as Simple Miner and Simple Maker
+        $html = $this->actingAs($this->player('Simple Founder'))->get('/release')->assertOk()->getContent();
+        foreach (['simple_miner', 'simple_maker', 'miner', 'refiner', 'maker'] as $name) {
+            $this->assertStringContainsString('data-starter="' . $name . '"', $html);
+        }
+        $this->assertStringContainsString('<b>Simple Maker</b>', $html);
+    }
+
+    public function testTheMakingTableWritesAProductIntoTheMakersSettings()
+    {
+        $making = [['product' => 3331, 'product_name' => 'Nozzles (A1)', 'product_lua' => null, 'makes' => 1,
+            'buy_at' => 10, 'buy_name' => 'Moon', 'buy_lua' => 'moon', 'sell_at' => 4, 'sell_name' => 'Mars', 'sell_lua' => 'mars',
+            'inputs' => [['resource' => 2051, 'name' => 'Alloys (A1)', 'units' => 1, 'price' => 78], ['resource' => 2052, 'name' => 'Alloys (A2)', 'units' => 3, 'price' => 79]],
+            'cost' => 315, 'price' => 522, 'income' => 496, 'hours' => 9.0, 'fuel' => 18, 'fuel_cost' => 54, 'profit' => 127, 'per_hour' => 14.1]];
+        $html = view('partials.try-routes', ['making' => $making])->render();
+        $this->assertStringContainsString('id="making-table"', $html);
+        $this->assertStringNotContainsString('id="routes-table"', $html);
+        $this->assertStringContainsString('1 Alloys (A1), 3 Alloys (A2)', $html, 'what goes into it');
+        $this->assertStringContainsString('369', $html, 'what it costs: the inputs and the fuel');
+        $this->assertStringContainsString('14.1', $html);
+        $settings = $this->settingsOf($html, 'make-0');
+        $this->assertSame([['product', '3331', 'Nozzles (A1)'], ['buy_at', 'moon', ''], ['sell_at', 'mars', '']], $settings,
+            'a good with no Lua name by its number, its name in the comment');
     }
 
     public function testAReplayKeepsOnlyADriveThatShowsTheDroneAtWork()

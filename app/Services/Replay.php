@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * The fixed replay of the first drone (#1042; on /try since #1049, of the
- * Shuttle since #1050): a starter's guest test drive (GuestDrive) against the
+ * Shuttle since #1050, the simple Miner, the Shuttle's code, since #1070): a starter's guest test drive (GuestDrive) against the
  * live world, recorded once and kept, so it shows the same run every time
  * and never a crash.
  *
@@ -14,15 +14,15 @@ use Illuminate\Support\Facades\Cache;
  * tick tries once an hour (recordIfMissing), and keeps a drive only when it
  * shows the drone at work (travelling, mining, refining or selling, not only
  * waiting). Once kept it doesn't change; `php artisan forge:record-replay
- * shuttle` records it again on purpose.
+ * simple_miner` records it again on purpose.
  */
 class Replay
 {
     /** How many of a drive's actions a replay keeps */
     public const MAX_LINES = 14;
 
-    /** The starter replayed beside its code on /try (#1050; the home page's until #1049) */
-    public const FIRST = 'shuttle';
+    /** The starter replayed beside its code on /try (#1050; the home page's until #1049; the Shuttle until #1070) */
+    public const FIRST = 'simple_miner';
 
     public static function path(string $starter): string
     {

@@ -1,4 +1,4 @@
--- Shuttle: digs ore, refines it, and sells what it makes.
+-- Miner: digs ore, refines it, and sells what it makes.
 -- Choose a route in the table below, or change these settings.
 ore = wolfite        -- what it digs
 mine_at = moon       -- where it digs

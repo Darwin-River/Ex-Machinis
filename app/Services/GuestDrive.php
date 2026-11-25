@@ -30,12 +30,23 @@ class GuestDrive
     /** The questions about the drone's own company, answered here as a new startup's */
     private const OWN = [650, 651, 655, 656, 670, 671, 692, 708, 709, 711, 712, 803];
 
-    /** The starters a guest can start from: those the Found page offers */
+    /** The starters a guest can start from: the simple ones, a few lines each (#1070) */
+    public const STARTERS = ['simple_miner', 'simple_maker'];
+
+    /** Old names on /try, and the long starters, land on the simple drone that does the same work (#1070) */
+    public const ALIASES = ['shuttle' => 'simple_miner', 'miner' => 'simple_miner', 'refiner' => 'simple_miner', 'maker' => 'simple_maker'];
+
     public static function starters(): array
     {
-        $starters = Release::STARTERS;
-        unset($starters['trader']);   // a startup can't trade with other drones (#658)
-        return $starters;
+        return array_intersect_key(Release::STARTERS, array_flip(self::STARTERS));
+    }
+
+    /** The simple starter a name asks for on /try, or null */
+    public static function starterFor(string $name): ?string
+    {
+        $name = preg_replace('/\.lua$/', '', $name);
+        $name = self::ALIASES[$name] ?? $name;
+        return array_key_exists($name, self::starters()) ? $name : null;
     }
 
     /** The visitor's draft, or null: {starter, script} */
@@ -45,7 +56,7 @@ class GuestDrive
         if (!is_array($d) || !is_string($d['script'] ?? null) || trim($d['script']) === '') {
             return null;
         }
-        return ['starter' => array_key_exists($d['starter'] ?? '', self::starters()) ? $d['starter'] : 'shuttle',
+        return ['starter' => self::starterFor((string) ($d['starter'] ?? '')) ?? Replay::FIRST,
             'script' => $d['script']];
     }
 

@@ -127,10 +127,10 @@ class BadgesTest extends TestCase
     public function testTestPilotForADriveSignedInOrBeforeSigningUp()
     {
         $me = $this->player('Pilot One');
-        $this->actingAs($me)->post('/try', ['starter' => 'shuttle', 'script' => "function launched()\n  wait(60)\nend"]);
+        $this->actingAs($me)->post('/try', ['starter' => 'simple_miner', 'script' => "function launched()\n  wait(60)\nend"]);
         $this->assertTrue($this->has('player', (int) $me->user_id, 'test_pilot'));
         auth()->logout();
-        $this->post('/try', ['starter' => 'shuttle', 'script' => "function launched()\n  wait(60)\nend"]);
+        $this->post('/try', ['starter' => 'simple_miner', 'script' => "function launched()\n  wait(60)\nend"]);
         $this->post('/signup', ['name' => 'Pilot Two', 'email' => 'pilot.two@example.com', 'password' => 'long-enough']);
         $this->assertTrue($this->has('player', (int) DB::table('users')->where('login', 'Pilot Two')->value('user_id'), 'test_pilot'));
     }
