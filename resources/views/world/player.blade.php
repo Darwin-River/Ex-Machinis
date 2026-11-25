@@ -14,6 +14,7 @@
                 @endif
                 @if($p['season_percent'] !== null) Today's season: {{ $p['season_percent'] > 0 ? '+' : '' }}{{ rtrim(rtrim(number_format($p['season_percent'], 2), '0'), '.') }}%.@endif
             </p>
+            @include('partials.badges', ['badges' => $badges ?? [], 'id' => 'player-badges'])
             <h2 class="h4">Companies</h2>
             @if($p['companies'])
                 <ul id="player-companies">

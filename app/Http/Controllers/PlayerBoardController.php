@@ -47,7 +47,8 @@ class PlayerBoardController extends Controller
     {
         $p = PlayerBoards::profile($name);
         abort_if($p === null, 404);
-        return view('world.player', ['p' => $p]);
+        $id = (int) \Illuminate\Support\Facades\DB::table('users')->where('login', $name)->value('user_id');
+        return view('world.player', ['p' => $p, 'badges' => \App\Services\Badges::of('player', $id)]);   // #1048
     }
 
     /** GET /api/v1/players/{name} (#905): what the page shows */

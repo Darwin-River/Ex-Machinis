@@ -107,6 +107,8 @@ class HomeController extends Controller
         if (config('forge.new_rules')) {
             \App\Services\Replay::recordIfMissing();
         }
+        // Badges (#1048): an award pass every 15 real minutes
+        \App\Services\Badges::awardDue();
         return response('ok');
     }
 
