@@ -46,6 +46,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <a class="navbar-brand" href="/" aria-label="Ex Machinis home">
                 <img src="/images/logo.png" alt="Ex Machinis" width="203" height="16">
             </a>
+            {{-- Outside the collapsing menu, so it shows on a phone too; last on a wide screen --}}
+            <div class="order-lg-last ml-auto ml-lg-3 mr-2 mr-lg-0">@include('partials.emote-button')</div>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#site-nav"
                     aria-controls="site-nav" aria-expanded="false" aria-label="Menu">
                 <span class="navbar-toggler-icon"></span>
@@ -243,6 +245,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
     </footer>
 </div>
+
+@include('partials.emote-dialog')
 
 <!-- Scripts -->
 @vite('resources/assets/js/app.js')

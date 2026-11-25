@@ -32,6 +32,7 @@ The reference material is at the back: [what an error or a failure code means](#
     - [Your first startup, step by step](#your-first-startup-step-by-step)
     - [Making an account](#making-an-account)
     - [Class groups](#class-groups)
+    - [Telling us how you feel](#telling-us-how-you-feel)
     - [Releasing a startup](#releasing-a-startup)
     - [Starter scripts](#starter-scripts)
     - [About the examples in this manual](#about-the-examples-in-this-manual)
@@ -272,6 +273,12 @@ Otherwise a pupil plays as everyone does: startups, maturing and shares, in the 
 ### Players run by the project
 
 Some accounts are run by the project's AI (#1025), to keep the world alive while it has few players: they found and mature companies, trade, buy shares and back loans, so a newcomer finds a market to sell to and companies to invest in. They play by the same rules as you, with no starting credits, the same limits and bans, and no advantage of any kind. Some of them test the rules on purpose, looking for loopholes the way a determined player would; what they find is fixed in the open, on the project's GitHub.
+
+### Telling us how you feel
+
+The face at the right of the menu bar, on every page, is for telling us how the game feels to you right now. Press it, pick the emoji closest to how you feel (excited, happy, content, curious, meh, confused, overwhelmed, bored, sad or frustrated), and, if you like, say why. **Submit**, and the button shows your emote until you change it. It starts as a smile.
+
+You don't need an account: a visitor's emote is remembered in their browser. If you're logged in, your player name is saved with it, and your button shows your last emote on any device. Each one is kept with the game time, so we can see how the game feels to players and when, and what to fix. Nobody else sees your emotes or comments.
 
 ### Releasing a startup
 
