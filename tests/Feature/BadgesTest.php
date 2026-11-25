@@ -170,6 +170,44 @@ class BadgesTest extends TestCase
         $this->assertNotNull($id);
     }
 
+    // #1055
+
+    public function testTheBadgesPageDescribesEveryBadgeAtItsOwnAnchor()
+    {
+        $me = $this->player('Page Reader');
+        Badges::award('player', (int) $me->user_id, 'founder');
+        [$id] = $this->startup($me, 'Page Co');
+        Badges::award('company', $id, 'fleet', 1);
+        $html = $this->get('/badges')->assertOk()->assertSee('Recognition for what drones, companies and players achieve.')
+            ->assertSee('nothing any rule reads')->getContent();
+        foreach (Badges::CATALOG as $key => [, $name, $text]) {
+            $this->assertStringContainsString('id="' . $key . '"', $html, "$key has its anchor");
+            $this->assertStringContainsString(e($name), $html);
+            $this->assertStringContainsString(e($text), $html);
+        }
+        foreach (['drone-badges', 'company-badges', 'player-badges'] as $group) {
+            $this->assertStringContainsString('href="#' . $group . '"', $html);
+        }
+        $this->assertStringContainsString('<b>Silver</b> at 8 drones', $html, 'tiers with their thresholds');
+        $catalog = collect(Badges::catalog()['player'])->keyBy('key');
+        $this->assertGreaterThanOrEqual(1, $catalog['founder']['earned'], 'how many have earned it: a count, naming no one');
+        $this->assertStringNotContainsString('Page Reader', $html);
+    }
+
+    public function testEveryBadgeShownLinksToItsDescription()
+    {
+        $me = $this->player('Link Follower');
+        [$id, $drone] = $this->startup($me, 'Link Co');
+        Badges::award('player', (int) $me->user_id, 'founder');
+        Badges::award('company', $id, 'founded');
+        Badges::award('drone', $drone, 'first_light');
+        $this->get('/companies/' . $id)->assertOk()->assertSee('href="' . url('badges') . '#founded"', false);
+        $this->get('/spacecraft/' . $drone)->assertOk()->assertSee('href="' . url('badges') . '#first_light"', false);
+        $this->actingAs($me)->get('/account')->assertOk()->assertSee('href="' . url('badges') . '#founder"', false)
+            ->assertSee('href="' . url('badges') . '"', false);
+        $this->assertSame(url('badges') . '#investor', Badges::url('investor'));
+    }
+
     public function testAnAwardPassRunsAtMostEveryFifteenMinutes()
     {
         Badges::awardDue();
