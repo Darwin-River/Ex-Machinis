@@ -191,7 +191,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     @endif
                     {{-- One button: for a visitor, try a drone (#1045); for a player, their next step (#1041); else the action's one name (#719) --}}
                     @if($navVisitor)
-                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('try') }}" id="nav-cta">Join the game</a></li>
+                        <li class="nav-item"><a class="button button-primary button-sm" href="{{ url('try') }}" id="nav-cta">Join the Economy</a></li>
                     @elseif($navNextStep)
                         <li class="nav-item"><a class="button button-primary button-sm" href="{{ $navNextStep['url'] }}" id="nav-cta">Next: {{ $navNextStep['action'] }}</a></li>
                     @else

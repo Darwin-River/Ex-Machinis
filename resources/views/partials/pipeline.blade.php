@@ -1,6 +1,8 @@
 {{-- The player's path (#987): account, code drones, invest, lend. $here (optional): the step this page is --}}
 @php($path = $path ?? \App\Services\Pipeline::for(auth()->user()))
 @php($here = $here ?? null)
+{{-- $skip (optional): steps not shown here, by key (#1058: the home page, where the visitor is already watching, leaves out step 0) --}}
+@php($skip = $skip ?? [])
 @once
 @push('styles')
 <style>
@@ -23,7 +25,7 @@
 @endpush
 @endonce
 <ol class="pipeline" id="pipeline" aria-label="Your path through the game">
-    @foreach($path['steps'] as $s)
+    @foreach(array_filter($path['steps'], fn ($st) => !in_array($st['key'], $skip, true)) as $s)
         @php($cls = trim(($s['done'] && $path['player'] ? 'is-done ' : '') . ($path['next'] === $s['key'] ? 'is-next ' : '') . ($here === $s['key'] ? 'is-here' : '')))
         <li class="pipeline-step {{ $cls }}" id="pipeline-{{ $s['key'] }}" @if($here === $s['key']) aria-current="step" @endif>
             <div class="n">Step {{ $s['n'] }}@if($s['done'] && $path['player']) &middot; done @elseif($path['next'] === $s['key']) &middot; next @endif @if($here === $s['key']) &middot; you are here @endif</div>
