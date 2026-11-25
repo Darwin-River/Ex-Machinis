@@ -7,16 +7,16 @@ use App\Services\Replay;
 use Illuminate\Console\Command;
 
 /**
- * Records the home page's fixed replay again (#1042): a starter's guest test
+ * Records the first drone's fixed replay again (#1042, #1050), shown on /try: a starter's guest test
  * drive against the world as it is. The live server records one by itself
  * while there is none; this replaces it on purpose.
  *
- *   php artisan forge:record-replay miner
+ *   php artisan forge:record-replay shuttle
  */
 class ForgeRecordReplay extends Command
 {
-    protected $signature = 'forge:record-replay {starter=miner : The starter to record}';
-    protected $description = 'Record the home page\'s replay of a starter drone';
+    protected $signature = 'forge:record-replay {starter=shuttle : The starter to record}';
+    protected $description = 'Record the replay of a starter drone shown on /try';
 
     public function handle(): int
     {

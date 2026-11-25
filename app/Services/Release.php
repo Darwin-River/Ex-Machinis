@@ -86,10 +86,12 @@ class Release
     }
 
     /** The kit each starter script needs */
-    public const STARTER_KITS = ['miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory'];
+    public const STARTER_KITS = ['shuttle' => 'mining', 'miner' => 'mining', 'refiner' => 'mining', 'trader' => 'mining', 'maker' => 'factory'];
 
     /** The starter scripts, in Lua (FORTH was retired after round 38, #380) */
     public const STARTERS = [
+        // A first drone in a few lines (#1050): it names its places in its settings, which /try's route table fills
+        'shuttle' => 'Digs ore at one place, refines it, and sells what it makes at another, where it buys its fuel: a first drone in a few lines.',
         'miner' => 'Mines kunspar or wolfite at the Moon (or Phobos and Deimos when the Moon is crowded), refines it and sells the metals to the House where it pays most after the trip.',
         'refiner' => 'Mines yalspar and vladnium and refines them into the organics and inorganics the factories need, and sells them to the House.',
         'trader' => 'Buys metals from miners on the Moon when the price board says Mars or Earth pays enough more, and hauls them to whichever pays most.',
@@ -105,6 +107,9 @@ class Release
      * #858: the range rounds 74 to 76 measured, which the market moves)
      */
     public const STARTER_CARDS = [
+        'shuttle' => ['kit' => 'Mining Kit', 'role' => 'A first drone',
+            'line' => 'Digs Wolfite on the Moon, refines it and sells the metals at Earth, in a few lines. Its route is a few settings at the top.',
+            'mature' => 'about 40 game days by today\'s prices (32 real minutes; not yet measured in play)'],
         'miner' => ['kit' => 'Mining Kit', 'role' => 'Mine and sell',
             'line' => 'Mines kunspar or wolfite at the Moon, refines it and sells the metals to the House.',
             'mature' => 'about 45 to 80 game days (36 to 64 real minutes)', 'days' => [45, 80]],

@@ -57,13 +57,13 @@ class Pipeline
         $n = fn ($v) => number_format($v);
 
         $steps = [
-            ['key' => 'watch', 'title' => 'Watch a drone',
-                'text' => 'A starter drone at work: its Lua code, and what it did with it.',
-                'url' => url('/') . '#replay', 'action' => 'Watch it',
+            ['key' => 'watch', 'title' => 'Watch the game',
+                'text' => 'Drones at work across the solar system right now, each run by a player\'s code, and the economy they make.',
+                'url' => url('/') . '#home-live', 'action' => 'Watch it',
                 'done' => $player !== null || (bool) ($session?->get(self::WATCHED)), 'status' => null, 'progress' => null],
-            ['key' => 'try', 'title' => 'Try it',
-                'text' => 'Change a line and test drive it: see what your drone would do. No account needed.',
-                'url' => url('try'), 'action' => 'Test drive a drone',
+            ['key' => 'try', 'title' => 'Fly a drone',
+                'text' => 'Join the game: a first drone in a few lines. Choose its route, test drive it and see what it would do. No account needed.',
+                'url' => url('try'), 'action' => 'Join the game',
                 'done' => $player !== null || (bool) ($session?->get(self::TRIED)), 'status' => null, 'progress' => null],
             ['key' => 'account', 'title' => 'Keep it',
                 'text' => 'A free account keeps your drone, the companies you start and what they earn you.',
@@ -105,8 +105,9 @@ class Pipeline
                     : null],
         ];
         $next = null;
+        // Watching is step 0 (#1049): the steps a player takes are numbered from 1 after it
         foreach ($steps as $i => &$s) {
-            $s['n'] = $i + 1;
+            $s['n'] = $i;
             if ($next === null && !$s['done']) {
                 $next = $s['key'];
             }

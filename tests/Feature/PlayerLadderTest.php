@@ -42,7 +42,7 @@ class PlayerLadderTest extends TestCase
 
     protected function tearDown(): void
     {
-        @unlink(Replay::path('miner'));
+        @unlink(Replay::path('shuttle'));
         parent::tearDown();
     }
 
@@ -162,7 +162,7 @@ class PlayerLadderTest extends TestCase
     public function testAGuestTestDrivesAStarterAndKeepsIt()
     {
         $this->get('/try')->assertOk()->assertSee('id="try-drone"', false)->assertSee('id="ladder"', false)
-            ->assertSee('Step 2 of 8');
+            ->assertSee('Step 1 of 7');
         $this->get('/try?starter=refiner')->assertOk()->assertSee(e(strtok(Release::starter('refiner'), "\n")), false);
         $script = "function launched()\n  print('hello')\n  wait(60)\nend";
         $r = $this->post('/try', ['starter' => 'miner', 'script' => $script])->assertRedirect('/try#result');
@@ -199,24 +199,91 @@ class PlayerLadderTest extends TestCase
         $this->assertTrue(GuestDrive::allow('203.0.113.10'), 'each visitor their own');
     }
 
-    public function testTheHomePagePlaysAFixedReplayAVisitorCanChangeAndKeep()
+    public function testTryPlaysTheShuttlesFixedReplayBesideItsCode()
     {
-        // None recorded yet: the code, and a Test drive button
-        $this->get('/')->assertOk()->assertSee('id="try-drone"', false)->assertSee('What would it do?')
-            ->assertSee('-- Miner: a starter script')->assertSee('Keep my drone');
-        $this->assertTrue((bool) session(Pipeline::WATCHED));
-        // A recorded replay plays beside the starter's code
-        @mkdir(dirname(Replay::path('miner')), 0775, true);
-        file_put_contents(Replay::path('miner'), json_encode(['starter' => 'miner', 'recorded' => '2026-11-25', 'place' => 'Earth',
-            'lines' => [['at' => '0:00', 'text' => 'would fly to the Moon'], ['at' => '3:10', 'text' => 'would mine 20 Kunspar at the Moon']]]));
-        $this->get('/')->assertOk()->assertSee('What it did')->assertSee('id="replay-lines"', false)
-            ->assertSee('would mine 20 Kunspar at the Moon');
+        // The Shuttle is the first drone: none recorded yet, the code and a Test drive button
+        $this->get('/try')->assertOk()->assertSee('id="try-drone"', false)->assertSee('What would it do?')
+            ->assertSee('-- Shuttle: digs ore, refines it')->assertSee('Keep my drone');
+        // A recorded replay plays beside the code as it comes
+        @mkdir(dirname(Replay::path('shuttle')), 0775, true);
+        file_put_contents(Replay::path('shuttle'), json_encode(['starter' => 'shuttle', 'recorded' => '2026-11-25', 'place' => 'Earth',
+            'lines' => [['at' => '1:01', 'text' => 'would fly to the Moon'], ['at' => '3:28', 'text' => 'would mine 5 Wolfite (N) at the Moon']]]));
+        $this->get('/try')->assertOk()->assertSee('What it did')->assertSee('id="replay-lines"', false)
+            ->assertSee('would mine 5 Wolfite (N) at the Moon');
         // Beside a visitor's own changes it shows none
-        GuestDrive::keep('miner', "function launched() wait(5) end");
-        $this->get('/')->assertOk()->assertDontSee('id="replay-lines"', false)->assertSee('function launched() wait(5) end');
-        // A player sees their next step instead
-        $this->actingAs($this->player('Home Player'))->get('/')->assertOk()->assertDontSee('id="try-drone"', false)
-            ->assertSee('Next: Found a startup');
+        GuestDrive::keep('shuttle', "function launched() wait(5) end");
+        $this->get('/try')->assertOk()->assertDontSee('id="replay-lines"', false)->assertSee('function launched() wait(5) end');
+    }
+
+    // #1049
+
+    public function testTheHomePageShowsTheGameInActionAndAButtonToJoin()
+    {
+        // A drone at the Moon, one at Earth, and one flying from Earth to the Moon
+        $owner = $this->player('Live Founder');
+        $ids = [];
+        foreach (['Live One', 'Live Two', 'Live Three'] as $name) {
+            $c = Startups::start($owner, $name, 'function launched() wait(60) end')['company'];
+            $ids[] = (int) DB::table('agents')->where('company_id', $c)->value('agent_id');
+        }
+        DB::table('agents')->where('agent_id', $ids[0])->update(['object_id' => 10]);
+        DB::table('events')->insert(['drone' => $ids[2], 'event_type' => 3, 'outcome' => 0, 'new_location' => 10,
+            'game_t' => World::gameNow() + 3600, 'resource' => 0, 'new_quantity' => 0]);
+        Cache::flush();
+        $map = \App\Services\LiveMap::now();
+        $bodies = collect($map['bodies'])->keyBy('id');
+        $this->assertGreaterThanOrEqual(1, $bodies[10]['working'], 'the Moon drawn apart from Earth, with its drones');
+        $this->assertSame(1, $map['flying']);
+        $this->assertSame([['from' => 3, 'to' => 10, 'drones' => 1]], $map['flights']);
+        // A visitor: the live map, the numbers, a chart of trade and Join the game; no code
+        auth()->logout();
+        $this->get('/')->assertOk()->assertSee('A living economy, run by code.')->assertSee('id="live-map"', false)
+            ->assertSee('id="home-stats"', false)->assertSee('drones in flight now')->assertSee('id="home-trading"', false)
+            ->assertSee('href="' . url('try') . '" id="join-game"', false)->assertSee('Join the game')
+            ->assertDontSee('id="try-drone"', false)->assertDontSee('data-lua-editor', false)
+            ->assertSee('flying from Earth to Moon');
+        $this->assertTrue((bool) session(Pipeline::WATCHED), 'watching is step 0');
+        // A player: their next step, then the same live view
+        $this->actingAs($this->player('Home Player'))->get('/')->assertOk()->assertSee('Next: Found a startup')
+            ->assertSee('The game now')->assertSee('id="live-map"', false)->assertDontSee('id="join-game"', false);
+    }
+
+    // #1050
+
+    public function testTheShuttleIsTheFirstDroneAndRunsFromItsSettings()
+    {
+        $src = Release::starter('shuttle');
+        $this->assertNotNull($src);
+        $this->assertNull(Release::scriptProblem($src));
+        $this->assertLessThanOrEqual(30, count(preg_split('/\R/', trim($src))), 'a few lines');
+        foreach (['ore = wolfite', 'mine_at = moon', 'sell_at = earth', 'digs = 4'] as $setting) {
+            $this->assertStringContainsString($setting, $src);
+        }
+        $this->assertSame('sell_at', \App\Services\FirstMission::tryFirst($src)['name']);
+        $this->assertSame('shuttle', array_key_first(GuestDrive::starters()), 'offered first');
+        if (\App\Services\DroneTestDrive::available()) {
+            $this->assertNull(GuestDrive::run($src)['error'], 'it runs');
+        }
+    }
+
+    public function testTheRouteTableWritesARouteIntoTheShuttlesSettings()
+    {
+        $routes = [['ore' => 1130, 'ore_name' => 'Wolfite (N)', 'ore_lua' => 'wolfite', 'mine_at' => 13, 'mine_name' => 'Io', 'mine_lua' => null,
+            'sell_at' => 10, 'sell_name' => 'Moon', 'sell_lua' => 'moon', 'digs' => 3,
+            'goods' => [['resource' => 2011, 'name' => 'Metals (A1)', 'lua' => 'metals_a1', 'units' => 3, 'price' => 19]],
+            'hours' => 6.0, 'fuel' => 19, 'income' => 112, 'fuel_cost' => 57, 'profit' => 55, 'per_hour' => 9.2]];
+        $html = view('partials.shuttle-routes', ['routes' => $routes])->render();
+        $this->assertStringContainsString('id="routes-table"', $html);
+        $this->assertStringContainsString('data-mine-at="13" data-mine-name="Io"', $html, 'a place with no Lua name by its number');
+        $this->assertStringContainsString('data-sell-at="moon"', $html);
+        $this->assertStringContainsString('data-goods="metals_a1"', $html);
+        $this->assertStringContainsString('9.2', $html);
+        $this->assertStringContainsString('An estimate from today', $html);
+        $this->assertSame('', view('partials.shuttle-routes', ['routes' => []])->render(), 'nothing without routes');
+        $this->assertSame('moon', \App\Services\Routes::luaName(10, 'place'));
+        $this->assertNull(\App\Services\Routes::luaName(13, 'place'));
+        DB::table('resources')->insertOrIgnore(['id' => 2011, 'name' => 'Metals (A1)']);   // the test world's data may not have it
+        $this->assertSame('metals_a1', \App\Services\Routes::luaName(2011, 'resource'));
     }
 
     public function testAReplayKeepsOnlyADriveThatShowsTheDroneAtWork()

@@ -54,18 +54,15 @@ class HomeController extends Controller
                 'margin' => \App\Services\Startups::matureMargin(), 'shares' => \App\Services\Startups::SHARES,
                 'credits' => (int) config('forge.starting_credits'), 'hull' => (int) config('forge.startup_hull_value'),
                 'fee' => (int) config('forge.startup_fee')];
-            // A visitor watches a starter drone's fixed replay, and can change it, test drive it and keep it (#1042)
-            $try = \App\Services\GuestDrive::draft() ?? ['starter' => \App\Services\Replay::HOME,
-                'script' => (string) \App\Services\Release::starter(\App\Services\Replay::HOME)];
+            // Step 0 is watching (#1049): the game in action, live, before any code
             if (!auth()->check()) {
                 session([\App\Services\Pipeline::WATCHED => true]);   // step 1 of the ladder (#1043)
             }
+            $full = \App\Services\Dashboard::full();
             return view('home-new-rules', ['feed' => \App\Services\World::feedGrouped(8), 'clock' => $clock,
                 'status' => \App\Services\LaunchQueue::status(), 'startup' => $startup,
-                'dash' => \App\Services\Dashboard::compact(), 'try' => $try,
-                // The replay is of the starter as it comes: not beside a visitor's own changes
-                'replay' => $try['script'] === \App\Services\Release::starter(\App\Services\Replay::HOME)
-                    ? \App\Services\Replay::of(\App\Services\Replay::HOME) : null]);
+                'dash' => \App\Services\Dashboard::compact(), 'map' => \App\Services\LiveMap::now(),
+                'trading' => ($full['trading'] ?? ['places' => [], 'days' => []]) + ['today' => $full['today'] ?? null]]);
         }
         // What's happening in the world (#324 step 17)
         $feed = \App\Services\World::feed();
