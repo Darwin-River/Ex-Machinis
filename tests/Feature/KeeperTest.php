@@ -26,9 +26,11 @@ class KeeperTest extends TestCase
         Dashboard::compact();
         Dashboard::full();
         WorldController::sharesPage();
-        $this->assertSame(['dashboard:compact' => 'fresh', 'dashboard:full' => 'fresh', WorldController::sharesKey() => 'fresh'], Kept::keepAll());
+        \App\Services\Explorer::data();   // the home page's explorer (#1059)
+        $this->assertSame(['dashboard:compact' => 'fresh', 'dashboard:full' => 'fresh', WorldController::sharesKey() => 'fresh',
+            \App\Services\Explorer::KEY => 'fresh'], Kept::keepAll());
 
-        // Two minutes on, all three are rebuilt
+        // Two minutes on, all four are rebuilt
         foreach (array_keys(Kept::jobs()) as $key) {
             $kept = Cache::get($key);
             Cache::forever($key, ['data' => ['old'], 'at' => $kept['at'] - 3600]);

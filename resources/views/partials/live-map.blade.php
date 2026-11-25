@@ -19,6 +19,10 @@
     .live-map .drone { fill: #ffb547; }
     .live-map text { fill: #c3c9d8; font-family: inherit; }
     .live-map .count { fill: #ffb547; font-weight: 700; }
+    .live-map:not(.whole) text.far { display: none; }
+    .live-map.no-flights .flights { display: none; }
+    .live-map .body { cursor: pointer; }
+    .live-map .body:hover > circle:first-of-type, .live-map .body.picked > circle:first-of-type { stroke: #e6e9f2; stroke-width: calc(var(--k, 1) * 1.2px); }
     @media (prefers-reduced-motion: no-preference) {
         .live-map .flight { animation: live-flight 1.6s linear infinite; }
         .live-map .drone { animation: live-twinkle 3s ease-in-out infinite; }
@@ -28,7 +32,7 @@
 </style>
 @endpush
 @endonce
-<svg class="live-map" id="live-map" viewBox="{{ $view }}" role="img"
+<svg class="live-map" id="live-map" viewBox="{{ $view }}" data-near="{{ $view }}" data-whole="-20 -20 640 640" data-k="{{ round($k, 4) }}" role="img"
      aria-label="The solar system now: {{ number_format($bodies->sum('working')) }} drones working, {{ number_format($map['flying']) }} in flight">
     <title>Drones at work across the solar system, and the flights under way</title>
     {{-- Orbits, then the Sun --}}
@@ -37,6 +41,7 @@
     @endforeach
     <circle cx="300" cy="300" r="{{ round(9 * $k, 1) }}" fill="#ffd27a"/>
     {{-- Flights under way, bowed a little so two ways between a pair don't overlap --}}
+    <g class="flights">
     @foreach($map['flights'] as $f)
         @php([$a, $b] = [$bodies[$f['from']], $bodies[$f['to']]])
         @php([$mx, $my] = [($a['x'] + $b['x']) / 2, ($a['y'] + $b['y']) / 2])
@@ -44,11 +49,12 @@
         <path class="flight" d="M{{ $a['x'] }},{{ $a['y'] }} Q{{ round($mx - $dy * 0.18, 1) }},{{ round($my + $dx * 0.18, 1) }} {{ $b['x'] }},{{ $b['y'] }}"
               stroke-width="{{ round((1 + log($f['drones'] + 1, 2)) * $k, 2) }}"><title>{{ $f['drones'] }} {{ $f['drones'] === 1 ? 'drone' : 'drones' }} flying from {{ $a['name'] }} to {{ $b['name'] }}</title></path>
     @endforeach
+    </g>
     {{-- Bodies, each with its working drones as dots around it --}}
     @foreach($bodies as $b)
         @php($r = ($b['kind'] === 'moon' ? 3.2 : ($b['kind'] === 'dwarf' ? 3.6 : 5.5)) * $k * 1.4)
         @php($colour = $colours[$b['name']] ?? '#8a93ad')
-        <g><title>{{ $b['name'] }}: {{ number_format($b['working']) }} {{ $b['working'] === 1 ? 'drone' : 'drones' }} working</title>
+        <g class="body" data-body="{{ $b['id'] }}"><title>{{ $b['name'] }}: {{ number_format($b['working']) }} {{ $b['working'] === 1 ? 'drone' : 'drones' }} working</title>
             <circle cx="{{ $b['x'] }}" cy="{{ $b['y'] }}" r="{{ round($r, 2) }}" fill="{{ $colour }}"/>
             @for($i = 0; $i < min($b['working'], 36); $i++)
                 @php($ring = $r + (4.5 + 3.6 * intdiv($i, 12)) * $k)
@@ -56,9 +62,9 @@
                 <circle class="drone" cx="{{ round($b['x'] + $ring * cos($t), 2) }}" cy="{{ round($b['y'] + $ring * sin($t), 2) }}"
                         r="{{ round(1.5 * $k, 2) }}" style="animation-delay: {{ ($i % 7) * 0.4 }}s"/>
             @endfor
-            @if($b['working'] > 0 || in_array($b['id'], [3, 10, 4, 191], true))
+            @if($b['working'] > 0 || in_array($b['id'], [3, 10, 4, 191], true) || $b['kind'] === 'planet')
                 {{-- Earth's label below it and the Moon's above, as they sit close; big enough to read on a phone --}}
-                <text x="{{ round($b['x'] + $r + 6 * $k, 1) }}" y="{{ round($b['id'] === 3 ? $b['y'] + $r + 18 * $k : $b['y'] - $r - 5 * $k, 1) }}" font-size="{{ round(16 * $k, 2) }}">{{ $b['name'] }}@if($b['working'] > 0) <tspan class="count">{{ number_format($b['working']) }}</tspan>@endif</text>
+                <text x="{{ round($b['x'] + $r + 6 * $k, 1) }}" y="{{ round($b['id'] === 3 ? $b['y'] + $r + 18 * $k : $b['y'] - $r - 5 * $k, 1) }}" font-size="{{ round(16 * $k, 2) }}" @if(!($b['working'] > 0 || in_array($b['id'], [3, 10, 4, 191], true))) class="far" @endif>{{ $b['name'] }}@if($b['working'] > 0) <tspan class="count">{{ number_format($b['working']) }}</tspan>@endif</text>
             @endif
         </g>
     @endforeach

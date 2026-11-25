@@ -44,7 +44,7 @@ class NewRulesHomeTest extends TestCase
     {
         // A visitor's home page opens on the game in action, and a button to join (#1049): no code until /try
         $this->get('/')->assertOk()
-            ->assertSee('A living economy, run by code.')->assertSee('id="live-map"', false)->assertSee('Join the game')
+            ->assertSee('A living economy, run by code.')->assertSee('id="live-map"', false)->assertSee('Join the Economy')
             ->assertDontSee('id="try-drone"', false)->assertDontSee('found a startup now')
             // The path's numbers come from the config (#987): 4,200 owed and 500 to work with, 4,700 to mature
             ->assertSee('id="pipeline"', false)->assertSee('At 4,700 credits it repays the bank')->assertSee('claim its 100 shares')
@@ -55,6 +55,28 @@ class NewRulesHomeTest extends TestCase
         auth()->logout();
         config(['forge.startup_fee' => 300, 'forge.startup_mature_margin' => 800]);
         $this->get('/')->assertOk()->assertSee('At 5,100 credits');
+    }
+
+    public function testTheHomePageIsExplorable()
+    {
+        // Every view is something to explore (#1059): the map's two views and its flights, the chart's period
+        // and places, and every company, good and place as a table to sort, filter and search
+        $owner = $this->player('explorer');
+        $id = Startups::start($owner, 'Explorable Co', 'function launched() wait(60) end')['company'];
+        $data = \App\Services\Explorer::data();
+        $this->assertSame(['companies', 'company_count', 'goods', 'places'], array_keys($data));
+        $row = collect($data['companies'])->firstWhere('id', $id);
+        $this->assertSame('Explorable Co', $row['name']);
+        $this->assertSame('startup', $row['status']);
+        $this->assertSame(count($data['companies']), min($data['company_count'], \App\Services\Explorer::COMPANIES));
+        $this->assertArrayHasKey(\App\Services\Explorer::KEY, \App\Services\Kept::jobs(), 'the scheduler keeps it warm');
+        $page = $this->get('/')->assertOk()
+            ->assertSee('data-view="whole"', false)->assertSee('data-flights', false)->assertSee('id="map-place"', false)
+            ->assertSee('data-days="7"', false)->assertSee('id="home-trading-legend"', false)
+            ->assertSee('Explore the world')->assertSee('data-tab="goods"', false)->assertSee('id="explore-search"', false)
+            ->assertSee('Explorable Co');
+        // A player sees it too
+        $this->actingAs($owner)->get('/')->assertOk()->assertSee('Explore the world');
     }
 
     public function testTheClockLineIsHonestWhenSlowed()

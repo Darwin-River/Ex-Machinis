@@ -235,11 +235,11 @@ class PlayerLadderTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $bodies[10]['working'], 'the Moon drawn apart from Earth, with its drones');
         $this->assertSame(1, $map['flying']);
         $this->assertSame([['from' => 3, 'to' => 10, 'drones' => 1]], $map['flights']);
-        // A visitor: the live map, the numbers, a chart of trade and Join the game; no code
+        // A visitor: the live map, the numbers, a chart of trade and Join the Economy (#1058); no code
         auth()->logout();
         $this->get('/')->assertOk()->assertSee('A living economy, run by code.')->assertSee('id="live-map"', false)
             ->assertSee('id="home-stats"', false)->assertSee('drones in flight now')->assertSee('id="home-trading"', false)
-            ->assertSee('href="' . url('try') . '" id="join-game"', false)->assertSee('Join the game')
+            ->assertSee('href="' . url('try') . '" id="join-game"', false)->assertSee('Join the Economy')->assertDontSee('Join the game')
             ->assertDontSee('id="try-drone"', false)->assertDontSee('data-lua-editor', false)
             ->assertSee('flying from Earth to Moon');
         $this->assertTrue((bool) session(Pipeline::WATCHED), 'watching is step 0');
