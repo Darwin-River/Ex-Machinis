@@ -1321,7 +1321,7 @@ Before you push, you can **test drive** a script: run it against the world as it
 ...
 ```
 
-Each line starts with the game hours and minutes into the drive. It stops when `launched()` returns, after 50 actions, after a game day of actions, or when the script spins too long without acting, and says which. An error says its line, as on a drone's page, with what came before it. Nothing is written: no actions, no trades, no orders, no push, and the drone and company stay exactly as they were. With the API, send the script to `POST /api/v1/check` with `company`, `drive: true` and your token (and `drone` to pick another of its drones); the answer's `drive` lists the same.
+Each line starts with the game hours and minutes into the drive. It stops when `launched()` returns, after 50 actions, after a game day of actions, or when the script spins too long without acting, and says which. It also says the most memory the drive used, of the drone's 256 KB, the game's library included (#1077): a script that runs a drone out of memory fails its test drive with the same `not enough memory`. Until November 2026 a test drive allowed far more memory than a drone has, so a script could pass it and then crash on the drone. An error says its line, as on a drone's page, with what came before it. Nothing is written: no actions, no trades, no orders, no push, and the drone and company stay exactly as they were. With the API, send the script to `POST /api/v1/check` with `company`, `drive: true` and your token (and `drone` to pick another of its drones); the answer's `drive` lists the same.
 
 How it works: your script runs with the drones' real library, but `perform` and the other actions are stand-ins. Each action takes its game time on the drive's own clock (a `wait` costs no real time), and changes a copy of the drone's hold, place and credits as it would: mining adds what a run yields at that place now (less as the deposit runs down), refining uses and makes what its recipe says, a flight burns its fuel and moves the copy, buying from an order the script found pays its price and selling into one earns it. Every question the script asks (`best_bid`, `deposit`, `crowd`...) is answered from the live world, at the place the copy is at. Seeded the same each time, `math.random` gives the same numbers, so a drive run twice reads the same.
 
@@ -1951,7 +1951,7 @@ A wreck may be salvaged whether or not it was plundered, by any matured company'
 
 Two functions find wrecks (see [Asking the game questions](#asking-the-game-questions)):
 
-- `wrecks()`: the wrecks where your spacecraft is, a list of `{drone, plundered, condition, modules, scrap}`: `plundered` is true or false, `condition` is in thousandths (1000 is new), `modules` the modules still aboard, and `scrap` what is left in its hull.
+- `wrecks()`: the wrecks where your spacecraft is, the freshest 100 (best condition first; a busy place has hundreds, and all of them at once ran drones out of memory), a list of `{drone, plundered, condition, modules, scrap}`: `plundered` is true or false, `condition` is in thousandths (1000 is new), `modules` the modules still aboard, and `scrap` what is left in its hull.
 - `wreck_hold(w)`: what is aboard wreck `w` where your spacecraft is, a list of `{resource, units}`.
 
 ```lua
@@ -2716,7 +2716,7 @@ The common errors:
 | `attempt to concatenate a nil value` | One of the pieces joined with `..` is `nil` |
 | `bad argument #2 to 'perform' (number has no integer representation)` | A fraction where the game wants a whole number, such as `wait(n / 2)`. Use `//` |
 | `bad argument #2 to 'perform' (number expected, got nil)` | A game function was given a variable that was never set |
-| `not enough memory` | The drone's Lua went past its 256 KB, usually a table that grows every round |
+| `not enough memory` | The drone's Lua went past its 256 KB: a table that grows every round, or a long list held at once (every order for a good, every wreck where the game is busy). The test drive fails the same way and says how much memory it used. Keep fewer records at a time, and keep what your script remembers from growing without end |
 | `the script's top level ran more than 2000000 instructions` | The script's top level did real work. Put work in functions that `launched` calls |
 | `attempt to yield from outside a coroutine` | An action (mining, travel, trading, waiting) at the script's top level. Actions belong in `launched` and the functions it calls |
 

@@ -116,7 +116,7 @@ class GuestDrive
         $earth = \App\Company::EARTH_OBJECT_ID;
         $out = ['drone' => 0, 'drone_name' => 'your drone', 'place' => DroneTestDrive::placeName($earth),
             'lines' => [], 'actions' => [], 'said' => [], 'status' => [], 'stopped' => 'unavailable',
-            'why' => 'the test drive isn\'t available here', 'error' => null, 'rounds' => 0, 'applied' => false];
+            'why' => 'the test drive isn\'t available here', 'error' => null, 'rounds' => 0, 'applied' => false, 'memory' => null];
         $standIn = DroneTestDrive::available() ? self::standIn() : null;
         if ($standIn === null) {
             return $out;

@@ -164,6 +164,32 @@ class OwnershipTest extends TestCase
         $this->actingAs($stranger)->get('/companies/' . $id)->assertOk()->assertSee('secret sauce');
     }
 
+    /** #1076: a drone's code in the API is what it runs now, its company's newest push, not its release */
+    public function testTheAPIGivesTheCodeADroneRunsNow()
+    {
+        $owner = $this->player('Pushing Owner');
+        $token = Players::issueToken($owner);
+        $id = Startups::start($owner, 'Pushed Co', "function launched() set_status('first') wait(60) end")['company'];
+        $drone = (int) DB::table('agents')->where('company_id', $id)->value('agent_id');
+
+        $this->withToken($token)->getJson('/api/v1/drones/' . $drone)->assertOk()
+            ->assertJsonPath('script', "function launched() set_status('first') wait(60) end")
+            ->assertJsonPath('script_revision.number', 0);
+
+        foreach (['second', 'third'] as $word) {
+            $this->assertTrue(Startups::reprogram($owner, $id, "function launched() set_status('$word') wait(60) end")['ok']);
+        }
+        $this->withToken($token)->getJson('/api/v1/drones/' . $drone)->assertOk()
+            ->assertJsonPath('script', "function launched() set_status('third') wait(60) end")
+            ->assertJsonPath('script_revision.number', 2)
+            ->assertJsonPath('script_revision.label', 'Push 2')
+            ->assertJsonPath('release_script', "function launched() set_status('first') wait(60) end");
+        $this->flushHeaders();
+        // Still private from others while it is owned outright (#931)
+        $this->getJson('/api/v1/drones/' . $drone)->assertOk()->assertJsonPath('script', null)
+            ->assertJsonPath('release_script', null)->assertJsonPath('script_revision.number', 2);
+    }
+
     public function testAMaturedCompanyClosesThroughItsCode()
     {
         $owner = $this->player('Close Owner');

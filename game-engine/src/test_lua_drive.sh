@@ -42,7 +42,8 @@ function launched()
 end
 EOF
 
-out=$("$drive" "$library" "$dir/script.lua" "$dir/snapshot.lua")
+# The memory line (#1077) varies with the library: checked on its own below
+out=$("$drive" "$library" "$dir/script.lua" "$dir/snapshot.lua" | grep -v '^memory	')
 expected=$(printf '%s\n' \
   'action	0	5001	10	0	7200	0	2061:-5' \
   'action	7200	11100		0	3600	0	1100:+4 2061:-1' \
@@ -82,4 +83,12 @@ printf 'function launched()\n  local x = nil\n  x.y = 1\nend\n' > "$dir/bad.lua"
 echo 'function launched() print(io, os, load, math.randomseed) end' > "$dir/sandbox.lua"
 "$drive" "$library" "$dir/sandbox.lua" "$dir/snapshot.lua" | grep -q '^say	nil nil nil nil$' || { echo "test_lua_drive: FAIL: sandbox"; exit 1; }
 echo "ok   the limits, an error's line, and the sandbox"
+
+# A drone's memory (#1077): the library and script fit, and say how much they
+# held; data past what a drone has left fails as on a drone, not at 32 MB
+"$drive" "$library" "$dir/random.lua" "$dir/snapshot.lua" | grep -q '^memory	[0-9]*	262144$' || { echo "test_lua_drive: FAIL: memory line"; exit 1; }
+printf 'function launched()\n  local t = {}\n  for i = 1, 20000 do t[i] = {i} end\n  print(#t)\nend\n' > "$dir/hog.lua"
+hog=$("$drive" "$library" "$dir/hog.lua" "$dir/snapshot.lua" || true)   # exits 1: the script failed
+echo "$hog" | grep -q '^error	not enough memory' && ! echo "$hog" | grep -q '^say' || { echo "test_lua_drive: FAIL: memory cap: $hog"; exit 1; }
+echo "ok   a drone's memory: reported, and its cap enforced"
 echo "test_lua_drive: all passed"

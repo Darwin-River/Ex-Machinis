@@ -9,6 +9,11 @@
             <p class="mb-1">It would do nothing.</p>
         @endif
         @if($drive['error'])<p class="mb-1" v-pre><b>Error:</b> {{ $drive['error'] }}</p>@endif
+        {{-- Memory, as on a drone (#1077) --}}
+        @if(!empty($drive['memory']) && $drive['memory']['cap'] > 0)
+            <p class="mb-1" id="drone-test-drive-memory">Memory: at most {{ number_format($drive['memory']['peak'] / 1024) }} KB
+                of the drone's {{ number_format($drive['memory']['cap'] / 1024) }} KB, the game's library included.</p>
+        @endif
         <p class="mb-0"><small>It stopped because {{ $drive['why'] }}. A test drive can't show other drones and players
             reacting, prices or deposits changing over time, or what an order it posts would bring later: see the manual,
             <a href="{{ url('manual#test-driving-your-code') }}">Test driving your code</a>.</small></p>

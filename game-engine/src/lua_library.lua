@@ -381,11 +381,16 @@ local function is_made(resource) return tier(resource) >= 2 end
 -- records is a Lua list: for _, o in ipairs(sell_orders(fuel)) do ... end
 
 -- rows -> a list of records with these field names, by column
+-- Each query row is let go as its record is made (#1077): a drone's memory
+-- held both whole lists at once, and a long list (every order for a metal,
+-- every wreck at Earth) ran it out of memory
 local function records(rows, names)
-  local list = {}
-  for i, row in ipairs(rows) do
+  local list, nnames = {}, #names
+  for i = 1, #rows do
+    local row = rows[i]
+    rows[i] = false
     local r = {}
-    for k, name in ipairs(names) do r[name] = row[k] end
+    for k = 1, nnames do r[names[k]] = row[k] end
     list[i] = r
   end
   return list
@@ -781,24 +786,30 @@ local function orders_everywhere(r)                                             
   for _, o in ipairs(list) do o.side = o.side == 1 and "buy" or "sell" end
   return list
 end
+
 -- The best prices for a resource at each place, from orders_everywhere
 -- (not your own orders): quotes(r)[place] is {bid, bid_units, ask,
 -- ask_units, stock, hours_old}: the best buy order's price and the units
 -- it wants, the cheapest sell order's price and the units it sells (0
 -- when there is none), and all the units on sale there
 local function quotes(r)
-  local q, mine = {}, me()
-  for _, o in ipairs(orders_everywhere(r)) do
-    if o.mine ~= 1 and o.units > 0 then
-      local p = q[o.place]
+  -- Read straight from the query's rows, each let go once read (#1077:
+  -- records of every order for a metal ran a drone out of memory)
+  local q, rows = {}, ask(615, r)
+  for i = 1, #rows do
+    local o = rows[i]
+    rows[i] = false
+    local place, side, price, units, hours_old, mine = o[1], o[2] == 1 and "buy" or "sell", o[3], o[4], o[6], o[8]
+    if mine ~= 1 and units > 0 then
+      local p = q[place]
       if not p then
-        p = {bid = 0, bid_units = 0, ask = 0, ask_units = 0, stock = 0, hours_old = o.hours_old}
-        q[o.place] = p
+        p = {bid = 0, bid_units = 0, ask = 0, ask_units = 0, stock = 0, hours_old = hours_old}
+        q[place] = p
       end
-      if o.side == "buy" and o.price > p.bid then p.bid, p.bid_units = o.price, o.units end
-      if o.side == "sell" then
-        p.stock = p.stock + o.units
-        if p.ask == 0 or o.price < p.ask then p.ask, p.ask_units = o.price, o.units end
+      if side == "buy" and price > p.bid then p.bid, p.bid_units = price, units end
+      if side == "sell" then
+        p.stock = p.stock + units
+        if p.ask == 0 or price < p.ask then p.ask, p.ask_units = price, units end
       end
     end
   end
@@ -991,11 +1002,16 @@ local function trip_cost(place, hour_value, fuel_price)
   return hours, 10, 10 * fuel_price + hours * hour_value
 end
 local function by_place(r, side)
-  local places, mine = {}, me()
-  for _, o in ipairs(orders_everywhere(r)) do
-    if o.side == side and o.mine ~= 1 and o.units > 0 then
-      places[o.place] = places[o.place] or {}
-      table.insert(places[o.place], o)
+  -- Only the orders it keeps become records, each row let go once read (#1077)
+  local places, rows, want = {}, ask(615, r), side == "buy" and 1 or 2
+  for i = 1, #rows do
+    local o = rows[i]
+    rows[i] = false
+    if o[2] == want and o[8] ~= 1 and o[4] > 0 then
+      local list = places[o[1]] or {}
+      places[o[1]] = list
+      list[#list + 1] = {place = o[1], side = side, price = o[3], units = o[4], drone = o[5],
+                         hours_old = o[6], planets = o[7], mine = o[8]}
     end
   end
   return places

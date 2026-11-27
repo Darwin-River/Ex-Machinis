@@ -172,6 +172,8 @@ class ApiController extends Controller
         $activity = DronePage::activity($agent);
         $postMortem = DronePage::postMortem($agent);
         $code = DronePage::code($agent);
+        $current = $code && $agent->company_id ? \App\Services\CompanyCode::current((int) $agent->company_id) : null;
+        $mayRead = $code && \App\Services\Ownership::canSeeCode((int) $agent->company_id, \App\Services\Players::byToken(request()->bearerToken()));
         return response()->json($this->droneSummary($agent) + [
             'company' => ['id' => (int) $agent->company_id, 'name' => $state['company']->name ?? null],
             'parent' => $agent->parent_id ? (int) $agent->parent_id : null,
@@ -194,9 +196,12 @@ class ApiController extends Controller
                 'subject' => $m->subject, 'body' => $m->body])->all(),
             'post_mortem' => $postMortem ? ['headline' => $postMortem['headline'], 'cause' => $postMortem['cause'] ?? null,
                 'failure' => $postMortem['failure']] : null,
-            // Private while one player owns its company outright (#931)
-            'script' => $code && \App\Services\Ownership::canSeeCode((int) $agent->company_id, \App\Services\Players::byToken(request()->bearerToken()))
-                ? $code['release']->source : null,
+            // What it runs now: its company's newest push, or its release (#1076);
+            // private while one player owns its company outright (#931)
+            'script' => $mayRead ? ($current['script'] ?? $code['release']->source) : null,
+            'script_revision' => $current ? ['number' => $current['number'], 'label' => $current['label'],
+                'when' => $current['when'], 'game_time' => $current['game_time']] : null,
+            'release_script' => $mayRead ? $code['release']->source : null,
         ]);
     }
 
