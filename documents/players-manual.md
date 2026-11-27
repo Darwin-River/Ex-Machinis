@@ -1682,7 +1682,7 @@ end
 | `stock` | everything on sale there |
 | `hours_old` | 0 where the drone is (live); 1 elsewhere: the market as it stood an hour of game time ago |
 
-Your own orders are left out. `orders_everywhere(r)` lists every order behind them, at every exchange: `{place, side, price, units, drone, hours_old, planets, mine}`, `side` "buy" or "sell", `drone` the order's handle (see [Order handles](#order-handles)), `planets` 1 for the planets' orders and `mine` 1 for this drone's own. `stock(r, place)` is the stock alone: an exchange that is running out of something shows it an hour later. Use them before you fly, and for a plan B that looks instead of guessing:
+Your own orders are left out. `orders_everywhere(r)` lists the orders behind them: at each exchange, the best five a side (the cheapest sells and the dearest buys) and all of yours, as `{place, side, price, units, drone, hours_old, planets, mine, total}`: `side` "buy" or "sell", `drone` the order's handle (see [Order handles](#order-handles)), `planets` 1 for the planets' orders, `mine` 1 for this drone's own, and `total` all the units others offer or want on that side there. A busy exchange can have 80 orders for one good, and all of them at once ran drones out of memory, so from November 2026 the rest are counted in `total` but not listed (#1078). `where_to_buy` and `where_to_sell` price what they need from those five, and anything beyond them at the fifth's price: a fair guess for a few dozen units. `stock(r, place)` is the stock alone: an exchange that is running out of something shows it an hour later. Use them before you fly, and for a plan B that looks instead of guessing:
 
 ```lua
 -- The place whose best buyer pays at least margin more than here, or nil
