@@ -2120,13 +2120,24 @@ ASOF = ("SELECT o.place, IF(o.event_type = 5, 1, 2) AS side, o.price, ABS(o.unit
         f"AND (o.place = me.object_id OR (e.game_t <= [game_now] - {BOARD_LAG} "
         f"AND IFNULL(a.arrived_t, 0) <= [game_now] - {BOARD_LAG})) "
         f"AND NOT {flying('o.drone')} "
-        "AND (o.event_type = 4 OR (SELECT c.credits FROM companies c WHERE c.company_id = a.company_id) >= o.price) "
-        "ORDER BY o.place, side, o.price;")
+        "AND (o.event_type = 4 OR (SELECT c.credits FROM companies c WHERE c.company_id = a.company_id) >= o.price)")
+# #1078: every order, everywhere, grew with the market (a busy exchange had
+# 80 sell orders for one metal) until it ran drones out of memory. Each place
+# and side now gives its best ORDERS_PER_SIDE orders from others (cheapest
+# sells, dearest buys) and all of the drone's own, with total: all the units
+# others offer or want there, so a place's stock is still whole
+ORDERS_PER_SIDE = 5
+ASOF_BEST = ("SELECT place, side, price, units, drone, hours_old, planets, mine, total FROM ("
+             "SELECT x.*, ROW_NUMBER() OVER (PARTITION BY x.place, x.side, x.mine "
+             "ORDER BY IF(x.side = 1, -x.price, x.price), x.drone) AS rank_here, "
+             "SUM(IF(x.mine = 0, x.units, 0)) OVER (PARTITION BY x.place, x.side) AS total "
+             f"FROM ({ASOF}) AS x WHERE x.units > 0 OR x.mine = 1) AS y "
+             f"WHERE y.rank_here <= {ORDERS_PER_SIDE} OR y.mine = 1 ORDER BY place, side, price;")
 queries.append((615, 'Orders everywhere',
-                '[N R L 615 query]: Every exchange\'s orders for resource N: live where the drone is, an hour old '
-                'elsewhere. Rows: place, side (1 buy, 2 sell), price, units on offer or wanted, order handle (#927), hours old, '
-                'planets (1: the planets\' order), mine (1: this drone\'s own).', 1,
-                ASOF))
+                f'[N R L 615 query]: Each exchange\'s best {ORDERS_PER_SIDE} orders a side for resource N, and your own: '
+                'live here, an hour old elsewhere. Rows: place, side (1 buy, 2 sell), price, units, order handle (#927), '
+                'hours old, planets (1: the planets\' order), mine (1: yours), total (all units others offer or want there).', 1,
+                ASOF_BEST))
 # The drone's company's trades over the last H game hours, by resource:
 # credits from sales, units sold, sales tax paid, credits paid for
 # purchases, units bought

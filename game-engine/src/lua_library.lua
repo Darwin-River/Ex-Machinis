@@ -782,7 +782,7 @@ end
 -- hour of game time ago elsewhere (news takes time). Records: place, side
 -- ("buy" or "sell"), price, units, drone, hours_old (0 or 1)
 local function orders_everywhere(r)                                               -- 615
-  local list = records(ask(615, r), {"place", "side", "price", "units", "drone", "hours_old", "planets", "mine"})
+  local list = records(ask(615, r), {"place", "side", "price", "units", "drone", "hours_old", "planets", "mine", "total"})
   for _, o in ipairs(list) do o.side = o.side == 1 and "buy" or "sell" end
   return list
 end
@@ -800,6 +800,7 @@ local function quotes(r)
     local o = rows[i]
     rows[i] = false
     local place, side, price, units, hours_old, mine = o[1], o[2] == 1 and "buy" or "sell", o[3], o[4], o[6], o[8]
+    -- Each place gives its best orders a side, with total: all the units on offer there (#1078)
     if mine ~= 1 and units > 0 then
       local p = q[place]
       if not p then
@@ -808,7 +809,7 @@ local function quotes(r)
       end
       if side == "buy" and price > p.bid then p.bid, p.bid_units = price, units end
       if side == "sell" then
-        p.stock = p.stock + units
+        p.stock = o[9] or p.stock + units
         if p.ask == 0 or price < p.ask then p.ask, p.ask_units = price, units end
       end
     end
@@ -1010,6 +1011,7 @@ local function by_place(r, side)
     if o[2] == want and o[8] ~= 1 and o[4] > 0 then
       local list = places[o[1]] or {}
       places[o[1]] = list
+      list.total = o[9]   -- all the units others offer or want there, beyond its best orders (#1078)
       list[#list + 1] = {place = o[1], side = side, price = o[3], units = o[4], drone = o[5],
                          hours_old = o[6], planets = o[7], mine = o[8]}
     end
@@ -1022,8 +1024,11 @@ local function where_to_buy(r, n, hour_value)
   for place, orders in pairs(by_place(r, "sell")) do
     local stock = 0
     for _, o in ipairs(orders) do stock = stock + o.units end
+    stock = math.max(stock, orders.total or 0)
     if stock >= n then
-      local cost = walk(orders, n, function(a, b) return a.price < b.price end)
+      -- Past the best orders the query gives (#1078), the rest at the dearest of them
+      local cost, got = walk(orders, n, function(a, b) return a.price < b.price end)
+      if got < n then cost = cost + (n - got) * orders[#orders].price end
       local hours, f, extra = trip_cost(place, hour_value, fp)
       table.insert(list, {place = place, cost = cost, price = cost // n, stock = stock, hours = hours, fuel = f,
                           total = cost + extra})
@@ -1043,8 +1048,12 @@ local function where_to_sell(r, n, hour_value)
   for place, orders in pairs(by_place(r, "buy")) do
     local wanted = 0
     for _, o in ipairs(orders) do wanted = wanted + o.units end
+    wanted = math.max(wanted, orders.total or 0)
     if wanted >= n then
-      local value = walk(orders, n, function(a, b) return a.price > b.price end) * 95 // 100
+      -- Past the best orders the query gives (#1078), the rest at the cheapest of them
+      local value, got = walk(orders, n, function(a, b) return a.price > b.price end)
+      if got < n then value = value + (n - got) * orders[#orders].price end
+      value = value * 95 // 100
       local hours, f, extra = trip_cost(place, hour_value, fp)
       table.insert(list, {place = place, value = value, price = value // n, wanted = wanted, hours = hours, fuel = f,
                           net = value - extra})
