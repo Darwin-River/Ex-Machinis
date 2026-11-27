@@ -22,7 +22,7 @@
 
       3. <a id="3.3.3"></a>Read the last four comments on #1069, for the previous moods and themes, and the issues they filed.
 
-   4. <a id="3.4"></a>**Mood.** From `summary`, work out for people, visitors and the AI cohort: how many emotes, from how many (`who`), the three emotes chosen most, and the mood (the share of positive emotes less the share of negative ones, per [DV-06](../SOPs/DV-06%20Reviewing%20player%20feedback.md) §4.3), with its change since the last summary. A group with fewer than 5 emotes gets its counts but no mood: say "too few to read".
+   4. <a id="3.4"></a>**Mood.** From `summary`, work out for people, visitors and the AI cohort: how many emotes, from how many (`who`), how many were negative (the daily watch, [DV-06-M2](DV-06-M2%20Machine%20instructions%20for%20the%20daily%20emote%20watch.md), compares a day against a seventh of it), the three emotes chosen most, and the mood (the share of positive emotes less the share of negative ones, per [DV-06](../SOPs/DV-06%20Reviewing%20player%20feedback.md) §4.3), with its change since the last summary. A group with fewer than 5 emotes gets its counts but no mood: say "too few to read".
 
    5. <a id="3.5"></a>**Themes.** Read every comment in `entries`, and the cohort's reports:
 
