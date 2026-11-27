@@ -24,7 +24,9 @@
 
       2. <a id="2.2.2"></a>files new game-improvement issues, or adds the week's evidence to existing ones, per [AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md);
 
-      3. <a id="2.2.3"></a>plays each AI player's emote at its check-ins, per [DV-04-M1](../Attachments/DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md).
+      3. <a id="2.2.3"></a>plays each AI player's emote at its check-ins, per [DV-04-M1](../Attachments/DV-04-M1%20Machine%20instructions%20for%20an%20AI%20player%20check-in.md);
+
+      4. <a id="2.2.4"></a>keeps a daily watch on the emote log between weekly reviews with the "Machine instructions for the daily emote watch" ([DV-06-M2](../Attachments/DV-06-M2%20Machine%20instructions%20for%20the%20daily%20emote%20watch.md)), and tells the project lead only when something needs them (§5.6).
 
    3. <a id="2.3"></a>Developers may read the summaries and bring their own ideas in as issues.
 
@@ -68,11 +70,11 @@
 
    9. <a id="4.9"></a>**Never steer the cohort.** Nothing from a review is passed to the AI players. They learn of a change only as any player does ([DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §4.5).
 
-   10. <a id="4.10"></a>**Keep it small.** A weekly review takes at most 30 real minutes and about 40 calls to the game. It files at most three new issues, makes no repository edits, and opens no pull requests.
+   10. <a id="4.10"></a>**Keep it small.** A weekly review takes at most 30 real minutes and about 40 calls to the game. It files at most three new issues, makes no repository edits, and opens no pull requests. A daily watch takes at most 10 real minutes and about 5 calls to the game, and posts nothing anywhere.
 
 5. # <a id="5"></a>Procedures
 
-   1. <a id="5.1"></a>**Setting up.** When the project lead asks, Claude sets up one recurring scheduled task: once a week, early on Tuesday (UTC), a few hours after the cohort's round is closed on Monday ([DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §5.8), so that the next weekly balance review ([DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) §5.4) reads its summary, it starts a fresh Claude session from the current `main`, in the cohort's environment: "Apply DV-06-M1". To pause the routine, Claude disables the task. The project lead may also run it by hand.
+   1. <a id="5.1"></a>**Setting up.** When the project lead asks, Claude sets up two recurring scheduled tasks, each starting a fresh Claude session from the current `main` in the cohort's environment. The weekly review runs once a week, early on Tuesday (UTC), a few hours after the cohort's round is closed on Monday ([DV-04](DV-04%20Maintaining%20the%20AI%20player%20cohort.md) §5.8), so that the next weekly balance review ([DV-05](DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) §5.4) reads its summary: "Apply DV-06-M1". The daily watch runs once a day at a quiet time, away from the AI players' check-ins: "Apply DV-06-M2". To pause the routine, Claude disables the tasks. The project lead may also run it by hand.
 
    2. <a id="5.2"></a>**The weekly review**, per [DV-06-M1](../Attachments/DV-06-M1%20Machine%20instructions%20for%20the%20weekly%20feedback%20review.md):
 
@@ -114,6 +116,16 @@
 
       3. <a id="5.5.3"></a>any change it proposes to the emote choices or to the thresholds in [DV-06-M1](../Attachments/DV-06-M1%20Machine%20instructions%20for%20the%20weekly%20feedback%20review.md) §3.6, which the project lead makes through an issue.
 
+   6. <a id="5.6"></a>**The daily watch**, per [DV-06-M2](../Attachments/DV-06-M2%20Machine%20instructions%20for%20the%20daily%20emote%20watch.md). Between weekly reviews, once a day, Claude reads the last day's emotes and tells the project lead, in the session's final message and its push notification, only when:
+
+      1. <a id="5.6.1"></a>a comment is a matter for §5.4;
+
+      2. <a id="5.6.2"></a>people's or visitors' mood over the last day falls 50 points or more below the mood in the last summary on #1069, from 5 or more emotes;
+
+      3. <a id="5.6.3"></a>5 or more people or visitors chose a negative emote in the last day, more than twice their daily average in the last summary, which most often follows a deploy that broke something.
+
+      It posts nothing on GitHub, files no issue, and changes nothing. What it notices waits for the weekly review, except §5.4, which is handled at once.
+
 6. # <a id="6"></a>References
 
    1. <a id="6.1"></a>[AD-01](AD-01%20Creating%20and%20resolving%20GitHub%20issues.md): Creating and resolving GitHub issues
@@ -134,4 +146,6 @@
 
    1. <a id="7.1"></a>[DV-06-M1](../Attachments/DV-06-M1%20Machine%20instructions%20for%20the%20weekly%20feedback%20review.md): Machine instructions for the weekly feedback review
 
-   2. <a id="7.2"></a>[DV-06-T1](../Attachments/DV-06-T1%20Weekly%20feedback%20summary%20template.md): Weekly feedback summary template
+   2. <a id="7.2"></a>[DV-06-M2](../Attachments/DV-06-M2%20Machine%20instructions%20for%20the%20daily%20emote%20watch.md): Machine instructions for the daily emote watch
+
+   3. <a id="7.3"></a>[DV-06-T1](../Attachments/DV-06-T1%20Weekly%20feedback%20summary%20template.md): Weekly feedback summary template

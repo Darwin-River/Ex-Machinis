@@ -21,7 +21,7 @@ To have Claude do a task, name the machine instructions, for example: "Apply DV-
 | [DV-03](SOPs/DV-03%20Tuning%20gameplay%20parameters.md) | Tuning gameplay parameters | M1 a tuning cycle, T1 tuning issue |
 | [DV-04](SOPs/DV-04%20Maintaining%20the%20AI%20player%20cohort.md) | Maintaining the AI player cohort | M1 a check-in, M2 adding, slowing or retiring a player, M3 asking for feedback, M4 closing a round, T1 player profile, T2 end-of-round report |
 | [DV-05](SOPs/DV-05%20Monitoring%20and%20balancing%20the%20live%20game.md) | Monitoring and balancing the live game | M1 the daily balance check, M2 the weekly balance review, T1 daily reading |
-| [DV-06](SOPs/DV-06%20Reviewing%20player%20feedback.md) | Reviewing player feedback | M1 the weekly feedback review, T1 weekly feedback summary |
+| [DV-06](SOPs/DV-06%20Reviewing%20player%20feedback.md) | Reviewing player feedback | M1 the weekly feedback review, M2 the daily emote watch, T1 weekly feedback summary |
 | [OR-01](SOPs/OR-01%20Writing%20and%20publishing%20blog%20posts.md) | Writing and publishing blog posts | M1 drafting a post, T1 blog post |
 | [OR-02](SOPs/OR-02%20Engaging%20on%20social%20media.md) | Engaging on social media | A1 accounts and conduct, M1 drafting posts, T1 social post |
 | [OR-03](SOPs/OR-03%20Promoting%20Ex%20Machinis%20to%20schools%20and%20learners.md) | Promoting Ex Machinis to schools and learners | A1 audiences and messages, M1 drafting a lesson, T1 lesson |

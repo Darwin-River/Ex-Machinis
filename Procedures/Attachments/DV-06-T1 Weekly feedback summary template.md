@@ -9,11 +9,11 @@ Post each weekly feedback summary on the feedback log, #1069, in this form. Repl
 
 **Mood**
 
-| Group | Emotes | From | Most chosen | Mood | Change |
-|---|---|---|---|---|---|
-| People (accounts) | {n} | {who} | {emoji ×n, emoji ×n, emoji ×n} | {−100 to +100, or "too few to read"} | {±n since last week, or "first reading"} |
-| Visitors | {n} | {who} | {…} | {…} | {…} |
-| AI cohort | {n} | {personas} | {…} | {…} | {…} |
+| Group | Emotes | From | Negative | Most chosen | Mood | Change |
+|---|---|---|---|---|---|---|
+| People (accounts) | {n} | {who} | {n} | {emoji ×n, emoji ×n, emoji ×n} | {−100 to +100, or "too few to read"} | {±n since last week, or "first reading"} |
+| Visitors | {n} | {who} | {n} | {…} | {…} | {…} |
+| AI cohort | {n} | {personas} | {n} | {…} | {…} | {…} |
 
 **Working well**
 
