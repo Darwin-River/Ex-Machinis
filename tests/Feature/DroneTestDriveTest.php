@@ -125,6 +125,30 @@ class DroneTestDriveTest extends TestCase
         $this->assertSame(['it would say: hello', '0:00 would wait 30 game minutes'], $drive['lines']);
     }
 
+    /**
+     * #1077: a test drive holds a script to a drone's memory, so a script
+     * that runs a drone out of memory fails its test drive too, and says so
+     */
+    public function testATestDriveHasADronesMemory()
+    {
+        $owner = $this->player('Drive Memory');
+        [$company] = $this->minerStartup($owner);
+
+        $drive = DroneTestDrive::run($company, "function launched()\n  print('fits')\nend\n");
+        $this->assertSame('finished', $drive['stopped']);
+        $this->assertSame(256 * 1024, $drive['memory']['cap']);
+        $this->assertGreaterThan(100 * 1024, $drive['memory']['peak'], 'the library counts, as on a drone');
+        $this->assertLessThanOrEqual($drive['memory']['cap'], $drive['memory']['peak']);
+
+        // 200 KB of data, well within the old 32 MB, is more than a drone has left
+        $hog = "function launched()\n  local t = {}\n  for i = 1, 20000 do t[i] = {i} end\n  print(#t)\nend\n";
+        $drive = DroneTestDrive::run($company, $hog);
+        $this->assertSame('error', $drive['stopped']);
+        $this->assertStringContainsString('not enough memory', $drive['error']);
+        $this->assertStringContainsString('256 KB', $drive['error']);
+        $this->assertSame([], $drive['said']);
+    }
+
     public function testTheButtonOnTheStartupsPageAndOnlyItsOwner()
     {
         $owner = $this->player('Drive Button');

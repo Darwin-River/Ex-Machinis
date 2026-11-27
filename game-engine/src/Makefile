@@ -85,7 +85,7 @@ $(EXE_PATH)/lua-trade: lua_trade.c $(LUA_OBJS)
 # A test drive of a drone's script against a snapshot of the world (#1007: the website's Test drive)
 $(EXE_PATH)/lua-drive: lua_drive.c $(LUA_OBJS)
 	@mkdir -p $(EXE_PATH)
-	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -o $@ lua_drive.c $(LUA_OBJS) -lm
+	$(CXX) -std=c99 -Wall -Werror -O2 -I$(LUA_DIR) -I./include -o $@ lua_drive.c $(LUA_OBJS) -lm
 
 # Both engines link into one program with no clashing names (#694 stage 4:
 # the events engine's copies carry an ee_ prefix)

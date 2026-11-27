@@ -52,6 +52,23 @@ class CompanyCode
         return DB::table('code_pushes')->where('company_id', $companyId)->where('number', $number)->value('script');
     }
 
+    /**
+     * The code a company's drones run now (#1076): its newest push, or its
+     * release when it has none. [number (0 for the release), label, when,
+     * game_time (null for the release), script], or null with no release
+     */
+    public static function current(int $companyId): ?array
+    {
+        $p = DB::table('code_pushes')->where('company_id', $companyId)->orderByDesc('number')->first(['number', 'game_t', 'script']);
+        if ($p) {
+            return ['number' => (int) $p->number, 'label' => 'Push ' . $p->number, 'when' => DronePage::when((int) $p->game_t),
+                'game_time' => (int) $p->game_t, 'script' => (string) $p->script];
+        }
+        $release = DB::table('releases')->where('company_id', $companyId)->orderBy('id')->first(['source', 'created_at']);
+        return $release ? ['number' => 0, 'label' => 'Release', 'when' => 'released ' . \Carbon\Carbon::parse($release->created_at)->format('M j, Y'),
+            'game_time' => null, 'script' => (string) $release->source] : null;
+    }
+
     /** A company's newest push: [number, when], or null when it has none */
     public static function latestPush(int $companyId): ?array
     {

@@ -1607,17 +1607,19 @@ queries.append((651, 'My processor tax',
                 "AND b.charged_t > [game_now] - 86400) AS d_instructions, c.compute_debt AS d_debt, "
                 "IF(c.broke_since IS NULL, -1, FLOOR(([game_now] - c.broke_since) / 86400)) AS broke_days "
                 f"FROM companies AS c JOIN house_rules AS h ON h.id = 1 WHERE c.company_id = {MY_COMPANY};"))
+# The freshest 100 (#1077): Earth's 370 wrecks and the Moon's 664 as rows
+# ran a drone out of memory; salvage and plunder want the freshest anyway
 queries.append((660, 'Wrecks here',
-                '[R L 660 query]: The wrecks where the drone is: drone ID, 1 if it has been plundered (else 0), its '
-                'condition in thousandths (it decays by 2% of what is left a game day: salvage gets that share, #929), '
-                'modules still aboard, scrap its hull still holds.', 0,
+                '[R L 660 query]: The freshest 100 wrecks where the drone is: drone ID, 1 if plundered (else 0), '
+                'condition in thousandths (2% of what is left decays a game day: salvage gets that share, #929), '
+                'modules aboard, scrap left in its hull.', 0,
                 "SELECT agent_id, plundered_at IS NOT NULL, "
                 "FLOOR(1000 * POW(0.98, FLOOR(GREATEST(0, [game_now] - wrecked_at) / 86400))) AS cond, "
                 "(SELECT IFNULL(SUM(h.units), 0) FROM holdings h WHERE h.drone = agents.agent_id "
                 "AND h.resource >= 5000 AND h.resource < 5900) AS modules, "
                 "IFNULL(scrap_left, GREATEST(10, IFNULL((SELECT r.mass FROM resources r WHERE r.id = agents.hull_type), 0))) "
                 "AS scrap FROM agents WHERE wrecked_at IS NOT NULL "
-                f"AND object_id = {HERE_} AND agent_id <> [drone_id] ORDER BY agent_id;"))
+                f"AND object_id = {HERE_} AND agent_id <> [drone_id] ORDER BY wrecked_at DESC, agent_id LIMIT 100;"))
 queries.append((661, 'Wreck hold',
                 '[W R L 661 query]: What is aboard the wreck W where the drone is: resource, units.', 1,
                 "SELECT i.resource, i.units FROM sqInventory i JOIN agents w ON w.agent_id = i.drone "

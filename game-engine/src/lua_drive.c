@@ -46,9 +46,17 @@
  *       website answers it (at that place, for @place) and runs it again
  *   error <message>          the script failed (with its line)
  *   end <why>                finished | actions | day | instructions
+ *   memory <peak> <cap>      the most the drone's Lua held (library, script
+ *       and data, in bytes) and its cap; once the library has loaded, just
+ *       before the end or error line
  *
  * Limits: MAX_ACTIONS actions, a game day of drive time, MAX_INSTRUCTIONS
- * Lua instructions and MAX_MEMORY bytes. math.random is seeded with a fixed
+ * Lua instructions, and a drone's memory (#1077): the library, the script
+ * and its data may hold LUA_MEMORY_CAP, as in the engine (lua_drone_alloc),
+ * so a script that runs out of memory on a drone runs out here too, with
+ * the same "not enough memory". What the drive itself holds (the snapshot
+ * and its stubs) doesn't count. Until #1077 the drive allowed 32 MB, and
+ * such a script passed it. math.random is seeded with a fixed
  * value, so a drive run again does the same. The sandbox is the drone's:
  * no io, os, load, require, debug or math.randomseed.
  */
@@ -58,14 +66,20 @@
 #include "lua.h"
 #include "lauxlib.h"
 #include "lualib.h"
+#include "lua_limits.h"
 
 #define MAX_INSTRUCTIONS 50000000L
-#define MAX_MEMORY (32L * 1024 * 1024)
+#define MAX_MEMORY (32L * 1024 * 1024)   /* the drive's own ceiling, snapshot included */
 #define HOOK_EVERY 1000
 #define RANDOM_SEED 1007
 
 static long instructions = 0;
 static size_t in_use = 0;
+/* What the drive's harness holds (the snapshot and the stubs): set once
+   they are loaded, then the drone's cap applies to the rest (#1077) */
+static size_t harness = 0;
+static int capped = 0;
+static size_t peak = 0;
 static char halted[32] = "";   /* why the drive stopped: need, actions, day, instructions */
 
 /* A Lua allocator with a ceiling */
@@ -80,8 +94,13 @@ static void *limited_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
     }
     if(nsize > osize && in_use + (nsize - osize) > (size_t)MAX_MEMORY)
         return NULL;
+    if(capped && nsize > osize && in_use + (nsize - osize) > harness + (size_t)LUA_MEMORY_CAP)
+        return NULL;   /* Lua raises "not enough memory", as on a drone */
     void *p = realloc(ptr, nsize);
-    if(p) in_use = in_use - osize + nsize;
+    if(p) {
+        in_use = in_use - osize + nsize;
+        if(capped && in_use > harness && in_use - harness > peak) peak = in_use - harness;
+    }
     return p;
 }
 
@@ -377,6 +396,13 @@ static const char *PRELUDE =
 "  _G[name] = word(name)\n"
 "end\n";
 
+/* The memory line (#1077), once the drone's cap applies */
+static void print_memory(void)
+{
+    if(capped)
+        printf("memory\t%zu\t%d\n", peak, LUA_MEMORY_CAP);
+}
+
 /* Prints the error that ended the run, on one line */
 static void print_error(lua_State *L, int status)
 {
@@ -390,6 +416,8 @@ static void print_error(lua_State *L, int status)
 /* After a chunk ran: 0 to go on, or 1 when the drive is over (said why) */
 static int finished(lua_State *L, int status)
 {
+    if(halted[0] || status != LUA_OK)
+        print_memory();
     if(halted[0]) {
         if(strcmp(halted, "need") != 0)
             printf("end\t%s\n", halted);
@@ -419,6 +447,7 @@ int main(int argc, char **argv)
 
     lua_State *L = lua_newstate(limited_alloc, NULL);
     if(!L) return 1;
+    size_t bare = 0;   /* a fresh state with the drone's libraries, as the engine's */
     /* The drone's libraries (lua_drone_sandbox) */
     luaL_requiref(L, LUA_GNAME, luaopen_base, 1); lua_pop(L, 1);
     luaL_requiref(L, LUA_STRLIBNAME, luaopen_string, 1); lua_pop(L, 1);
@@ -432,6 +461,8 @@ int main(int argc, char **argv)
     lua_pushinteger(L, RANDOM_SEED);
     lua_call(L, 1, 0);
     lua_pop(L, 1);
+    lua_gc(L, LUA_GCCOLLECT);
+    bare = in_use;
 
     /* The snapshot: data, run with no globals */
     if(luaL_loadbuffer(L, snapshot, snapshot_len, "=snapshot") != LUA_OK) {
@@ -471,6 +502,12 @@ int main(int argc, char **argv)
     lua_setfield(L, -2, "randomseed");
     lua_pop(L, 1);
 
+    /* From here the drone's cap applies to all but the harness */
+    lua_gc(L, LUA_GCCOLLECT);
+    harness = in_use - bare;
+    capped = 1;
+    peak = in_use - harness;
+
     /* The library, then the script's top level, then launched(), as the
        engine starts a drone (lua_drone_build) */
     if(luaL_loadbuffer(L, library, library_len, "=library") != LUA_OK || lua_pcall(L, 0, 0, 0) != LUA_OK) {
@@ -487,13 +524,16 @@ int main(int argc, char **argv)
     }
     lua_getglobal(L, "launched");
     if(!lua_isfunction(L, -1)) {
+        print_memory();
         printf("error\tthe script defines no launched() function: a drone would do nothing\n");
         lua_close(L);
         return 1;
     }
     status = lua_pcall(L, 0, 0, 0);
-    if(!finished(L, status))
+    if(!finished(L, status)) {
+        print_memory();
         printf("end\tfinished\n");
+    }
     lua_close(L);
     free(library); free(script); free(snapshot);
     return status == LUA_OK || halted[0] ? 0 : 1;

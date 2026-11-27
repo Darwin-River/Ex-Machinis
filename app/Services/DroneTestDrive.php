@@ -30,6 +30,11 @@ class DroneTestDrive
     public const BUDGET = 20;
 
     /** Why a drive stopped, in words */
+    /** Said with a test drive's "not enough memory" (#1077) */
+    public const MEMORY_ADVICE = 'on a drone it would crash the same way. A drone\'s Lua holds at most 256 KB, the game\'s library '
+        . 'and your script included: keep fewer records at once (a list of every order or wreck is long where the game is busy), '
+        . 'and keep tables your script remembers from growing without end';
+
     private const WHY = [
         'finished' => 'its launched() returned',
         'actions' => 'it reached 50 actions, as far as a test drive goes',
@@ -85,7 +90,8 @@ class DroneTestDrive
         }
         $out = ['drone' => (int) $agent->agent_id, 'drone_name' => (string) $agent->name,
             'place' => self::placeName((int) $agent->object_id), 'lines' => [], 'actions' => [], 'said' => [], 'status' => [],
-            'stopped' => 'unavailable', 'why' => self::WHY['unavailable'], 'error' => null, 'rounds' => 0, 'applied' => false];
+            'stopped' => 'unavailable', 'why' => self::WHY['unavailable'], 'error' => null, 'rounds' => 0, 'applied' => false,
+            'memory' => null];
         if (!self::available()) {
             return $out;
         }
@@ -290,7 +296,14 @@ class DroneTestDrive
                 case 'need':
                     $stopped = 'questions';
                     break;
+                case 'memory':
+                    // The most the drone's Lua held, as on a drone (#1077)
+                    $out['memory'] = ['peak' => (int) ($f[1] ?? 0), 'cap' => (int) ($f[2] ?? 0)];
+                    break;
             }
+        }
+        if ($out['error'] !== null && str_contains($out['error'], 'not enough memory')) {
+            $out['error'] .= ': ' . self::MEMORY_ADVICE;
         }
         if ($stopped === null) {
             $stopped = 'error';
