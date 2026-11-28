@@ -161,3 +161,17 @@ jobs:
         if: failure()
         working-directory: deploy
         run: docker compose logs --tail 200
+
+  # The branch ruleset requires a check named "docker" (#1085). The matrix
+  # above reports one check per run ("docker (0, 0, 0, 0, 0)" and so on), so
+  # this job carries that name and passes only when every run passed
+  docker-all:
+    name: docker
+    needs: docker
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every docker smoke test passed
+        run: |
+          echo "docker matrix: ${{ needs.docker.result }}"
+          [ "${{ needs.docker.result }}" = success ]

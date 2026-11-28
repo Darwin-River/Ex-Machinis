@@ -1,6 +1,6 @@
 # Open-source pathway
 
-How Ex Machinis became an MIT-licensed project that can be handed to new maintainers (#523). It lives at [`Ludocia/ExMachinis`](https://github.com/Ludocia/ExMachinis); Darwin River is now a shared GitHub organization rather than a company. The [sustainability playbook](sustainability-playbook.md) covers money, promotion and the day-to-day hand-over; this page covers the code and its home.
+How Ex Machinis became an MIT-licensed project that can be handed to new maintainers (#523). It lives at [`Ludocia/ExMachinis`](https://github.com/Ludocia/ExMachinis); Ludocia, formerly Darwin River, is a shared GitHub organization rather than a company. The [sustainability playbook](sustainability-playbook.md) covers money, promotion and the day-to-day hand-over; this page covers the code and its home.
 
 ## Where things stand
 
@@ -17,7 +17,7 @@ How Ex Machinis became an MIT-licensed project that can be handed to new maintai
 
 ## Decisions (November 2026)
 
-- **The repository stays in Darwin River**, now a shared organization rather than a company (#560). Its address, issues, pull requests, stars and links all stay as they are.
+- **The repository stays in Darwin River**, now a shared organization rather than a company (#560). Its issues, pull requests, stars and links all stay as they are. The organization was later renamed Ludocia, and the repository ExMachinis (#1084): it is now `Ludocia/ExMachinis`, and GitHub redirects the old address, `Darwin-River/Ex-Machinis`.
 - **Git history is left as it is** (#560). The old passwords and keys in it are no longer live, and the 2018 users dump is no longer relevant. Rewriting history in place would change every commit ID, break every clone, fork and commit link, and still leave old copies reachable through past pull requests. The history clean-up script made for a new repository (#527) was removed.
 - **Contributors:** Carlos Rodríguez and Fernando Rivas wrote their code under contract with the project's owner, who holds the copyright to it, so it can all be licensed under MIT without further permission.
 
@@ -27,7 +27,7 @@ How Ex Machinis became an MIT-licensed project that can be handed to new maintai
 
 So the project doesn't depend on one person:
 
-1. **Add at least one other trusted person as an owner** of the Darwin River organization (Settings → People), and give regular helpers write access to the repository.
+1. **Add at least one other trusted person as an owner** of the Ludocia organization (Settings → People), and give regular helpers write access to the repository.
 2. **Make `main` the default branch** (#563), so newcomers land where pull requests go.
 3. **Add a branch ruleset** on `main`: pull requests only, CI must pass, squash merges only.
 4. **Turn on private vulnerability reporting** (Settings → Code security), which `SECURITY.md` points to.

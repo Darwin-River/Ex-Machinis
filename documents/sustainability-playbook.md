@@ -110,7 +110,7 @@ Keep this table current. "Owner" is an account or organisation, not a person's p
 
 | Thing | Where | Owner | Who else has access |
 |---|---|---|---|
-| Code | GitHub [`Ludocia/ExMachinis`](https://github.com/Ludocia/ExMachinis) | The Darwin River organization (shared) | |
+| Code | GitHub [`Ludocia/ExMachinis`](https://github.com/Ludocia/ExMachinis) | The Ludocia organization (shared; formerly Darwin River) | |
 | Server | Hetzner project, running [exmachinis.com](https://exmachinis.com) ([hosting.md](hosting.md)) | David Rozak | |
 | Domain | `exmachinis.com`, at its registrar | David Rozak | |
 | Deploy key | The repository's `DEPLOY_SSH_KEY` secret; the server locks it to `deploy/auto-deploy.sh` ([AD-03](../Procedures/SOPs/AD-03%20Deploying%20to%20the%20live%20server.md)) | David Rozak | GitHub Actions, to deploy only. Revoke per AD-03 §5.6 |

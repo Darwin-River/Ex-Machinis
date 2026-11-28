@@ -16,7 +16,7 @@
 
 3. # <a id="3"></a>Required resources
 
-   1. <a id="3.1"></a>Access to the [Ludocia/ExMachinis](https://github.com/Ludocia/ExMachinis) repository, in the shared Darwin-River organization on GitHub, and a way to work with its issues, such as the GitHub website or Claude's GitHub tools.
+   1. <a id="3.1"></a>Access to the [Ludocia/ExMachinis](https://github.com/Ludocia/ExMachinis) repository, in the shared Ludocia organization on GitHub (formerly Darwin-River), and a way to work with its issues, such as the GitHub website or Claude's GitHub tools.
 
 4. # <a id="4"></a>General guidelines
 
