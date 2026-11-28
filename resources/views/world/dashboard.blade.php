@@ -34,7 +34,7 @@
     <section class="section section-xs section-first text-md-left">
         <div class="container" id="container">
             <p class="mh-intro">Is the market busy, are the companies making money, what is traded where, and who is
-                winning. Worked out from the same data as the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a>
+                winning. Worked out from the same data as the <a href="https://github.com/Ludocia/ExMachinis/blob/main/documents/api.md">API</a>
                 (<code>GET /api/v1/dashboard</code>) every few real minutes. As of {{ $dash['as_of'] }} ({{ \App\Services\Dashboard::agoText($dash['as_of_t'] ?? null) }}).</p>
 
             @include('partials.dashboard-strip', ['dash' => $dash, 'dashLink' => false])

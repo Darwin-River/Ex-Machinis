@@ -206,9 +206,9 @@
                             @else
                                 <p>A trading script trades your shares while you're away, every few real minutes, under the same rules as you.
                                     Its orders show on the book as <i>(script)</i>.</p>
-                                <p class="mb-0">Start from <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/payback.lua">the payback
+                                <p class="mb-0">Start from <a href="https://github.com/Ludocia/ExMachinis/blob/main/examples/traders/payback.lua">the payback
                                     trader</a> (buy when a share's dividends pay its price back soon enough, sell when a company is about to end), made for classes, or
-                                    <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the value trader</a>, on
+                                    <a href="https://github.com/Ludocia/ExMachinis/blob/main/examples/traders/value.lua">the value trader</a>, on
                                     <a href="{{ url('account') }}#trade-script">your account page</a>.</p>
                             @endif
                         </div>

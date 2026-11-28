@@ -16,7 +16,7 @@
 
 3. # <a id="3"></a>Required resources
 
-   1. <a id="3.1"></a>Access to the [Darwin-River/Ex-Machinis](https://github.com/Darwin-River/Ex-Machinis) repository, in the shared Darwin-River organization on GitHub, and a way to work with its issues, such as the GitHub website or Claude's GitHub tools.
+   1. <a id="3.1"></a>Access to the [Ludocia/ExMachinis](https://github.com/Ludocia/ExMachinis) repository, in the shared Ludocia organization on GitHub (formerly Darwin-River), and a way to work with its issues, such as the GitHub website or Claude's GitHub tools.
 
 4. # <a id="4"></a>General guidelines
 
@@ -50,7 +50,7 @@
 
    4. <a id="5.4"></a>When Claude notices a problem or an improvement outside the task in hand, it posts an issue per [AD-01-M2](../Attachments/AD-01-M2%20Machine%20instructions%20for%20identifying%20and%20posting%20issues.md) and carries on with its task. Posting an issue is not permission to work on it.
 
-   5. <a id="5.5"></a>Whenever Claude posts an issue or comment, it links every repository file it mentions by its full URL on the default branch, in the form `https://github.com/Darwin-River/Ex-Machinis/blob/main/<path>`, with each space written as `%20`. Issues and pull requests are referred to by number (`#380`), and commits by hash, which GitHub links automatically.
+   5. <a id="5.5"></a>Whenever Claude posts an issue or comment, it links every repository file it mentions by its full URL on the default branch, in the form `https://github.com/Ludocia/ExMachinis/blob/main/<path>`, with each space written as `%20`. Issues and pull requests are referred to by number (`#380`), and commits by hash, which GitHub links automatically.
 
    6. <a id="5.6"></a>Every issue and comment Claude posts shows who each part came from:
 

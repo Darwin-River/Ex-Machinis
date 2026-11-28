@@ -14,7 +14,7 @@
 
 3. # <a id="3"></a>Required resources
 
-   1. <a id="3.1"></a>Write access to the [Darwin-River/Ex-Machinis](https://github.com/Darwin-River/Ex-Machinis) repository, or a fork of it for contributors without write access.
+   1. <a id="3.1"></a>Write access to the [Ludocia/ExMachinis](https://github.com/Ludocia/ExMachinis) repository, or a fork of it for contributors without write access.
 
    2. <a id="3.2"></a>The CI workflows in `.github/workflows/`: `tests.yml`, which runs on every pull request and every push to `main` and must pass, and `load.yml`, the load test, which reports but is not required.
 

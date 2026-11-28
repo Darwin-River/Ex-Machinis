@@ -74,7 +74,7 @@
                 <span style="color: var(--up)">into it</span>, <span style="color: var(--down)">out of it</span>, and
                 <span style="color: var(--tool)">the tools it needs or is</span>. A drone can read the same data with
                 <code>recipe(r)</code>, <code>producers(r)</code> and <code>consumers(r)</code>, and a program with
-                <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">the API</a>'s <code>GET /recipes</code>.
+                <a href="https://github.com/Ludocia/ExMachinis/blob/main/documents/api.md">the API</a>'s <code>GET /recipes</code>.
             </p>
             <div class="controls">
                 <input type="search" id="tm-find" list="tm-names" placeholder="Find a resource" aria-label="Find a resource">

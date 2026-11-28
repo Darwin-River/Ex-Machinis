@@ -140,7 +140,7 @@ class GettingStartedTest extends TestCase
             . "| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>\n\n![map](images/map.png)\n");
 
         $this->assertStringContainsString('<h2 id="part-one-start">', $html);
-        $this->assertStringContainsString('href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/design-manual.md"', $html);
+        $this->assertStringContainsString('href="https://github.com/Ludocia/ExMachinis/blob/main/documents/design-manual.md"', $html);
         $this->assertStringContainsString('href="#part-one-start"', $html);
         $this->assertStringContainsString('<table>', $html);
         $this->assertStringContainsString('src="/manual/images/map.png"', $html);

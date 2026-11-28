@@ -32,8 +32,8 @@ There are no player accounts and no email (#367). Anyone releases a FORTH script
    ```
 2. Get the code:
    ```sh
-   git clone https://github.com/Darwin-River/Ex-Machinis.git
-   cd Ex-Machinis
+   git clone https://github.com/Ludocia/ExMachinis.git
+   cd ExMachinis
    ```
 3. Run the setup script. It asks for the game's domain and your email address:
    ```sh

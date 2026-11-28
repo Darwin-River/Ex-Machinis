@@ -167,7 +167,7 @@
                     <li><a href="{{ url('market/loans') }}"><b>Step 4: Lend</b><span>With {{ number_format(\App\Services\Loans::minCredits()) }} credits, back companies' loan requests and earn their interest.</span></a></li>
                 @endif
                 <li><a href="{{ url('manual') }}"><b>The manual</b><span>The whole game, a stage at a time: your first drone, markets, growing, going public, finance.</span></a></li>
-                <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md"><b>Lua functions</b><span>Every function a drone can call.</span></a></li>
+                <li><a href="https://github.com/Ludocia/ExMachinis/blob/main/documents/lua-functions.md"><b>Lua functions</b><span>Every function a drone can call.</span></a></li>
                 <li><a href="{{ url('market') }}"><b>The market</b><span>Where each good is cheapest and where it pays most.</span></a></li>
                 <li><a href="{{ url('blog') }}"><b>Strategy blog</b><span>How the best companies were written.</span></a></li>
             </ul>

@@ -154,7 +154,7 @@ class HomeController extends Controller
     /** Where the players' manual and its images live */
     private const PLAYERS_MANUAL = 'documents/players-manual.md';
     private const MANUAL_IMAGES = 'documents/images';
-    private const REPOSITORY_DOCS = 'https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/';
+    private const REPOSITORY_DOCS = 'https://github.com/Ludocia/ExMachinis/blob/main/documents/';
     /** Part of the cached manual's and blog posts' keys: change it when renderPlayersManual changes (#848: Lua in colour) */
     public const RENDER_VERSION = 2;
 

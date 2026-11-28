@@ -534,7 +534,7 @@ class CodeLineage
         if ($r->example !== null) {
             [$dir, $name] = explode('/', $r->example, 2);
             return ["the $name " . ($dir === 'starters' ? 'starter' : 'example'),
-                "https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/{$r->example}.lua"];
+                "https://github.com/Ludocia/ExMachinis/blob/main/examples/{$r->example}.lua"];
         }
         $company = $names[$r->company_id] ?? ('company ' . $r->company_id);
         return [$company . ((int) $r->push_number ? ' push ' . $r->push_number : ''), url('/companies/' . $r->company_id) . '#code'];
@@ -646,7 +646,7 @@ class CodeLineage
             if ($kind === 'x') {
                 [$dir, $name] = explode('/', $key, 2);
                 $lanes[] = ['name' => '[' . $name . ']', 'company_id' => null, 'example' => $key,
-                    'url' => "https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/{$key}.lua"];
+                    'url' => "https://github.com/Ludocia/ExMachinis/blob/main/examples/{$key}.lua"];
             } else {
                 $lanes[] = ['name' => $names[$key] ?? ('company ' . $key), 'company_id' => (int) $key, 'example' => null,
                     'url' => url('/companies/' . $key)];
