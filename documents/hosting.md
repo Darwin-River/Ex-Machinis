@@ -184,7 +184,7 @@ The public game runs from the **`main`** branch.
 
 ```sh
 sudo mkdir -p /opt/exmachinis && sudo chown forge:forge /opt/exmachinis
-git clone -b main https://github.com/Darwin-River/Ex-Machinis.git /opt/exmachinis
+git clone -b main https://github.com/Ludocia/ExMachinis.git /opt/exmachinis
 cd /opt/exmachinis
 ```
 
@@ -313,6 +313,12 @@ Then open the site and check a drone page, as in step 4 of the install.
 **Old actions go (#944).** The update that adds migration 0093 adds `house_rules.actions_keep_days` (30; a moment). From then on the keeper deletes finished actions more than 30 game days old (see [Monitoring and upkeep](#monitoring-and-upkeep)). The first runs work through the live world's 44.6 million actions while the game goes on, 15 real seconds of each keeper call: in a test with the table in memory a call deleted about 185,000, so the clear-out takes from about two hours (in memory) to about half a day (read from disk). The website's log says how it goes (`docker compose logs app | grep "actions prune" | tail`), and the count falls (`docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot exmachinis -e "SELECT COUNT(*) FROM actions"'`; counting 44 million rows takes a while). Then hand the space back once: `docker compose exec app php artisan forge:history-rebuild --table=actions`. The events engine no longer purges actions itself (`ACTION_EXPIRATION_DAYS` is unused).
 
 **If the archiver falls behind (#818).** The log says when each pass starts ("Archive pass from event …", with "catching up" while windows come back full). While catching up, it takes a quarter of the events engine's time instead of a tenth. Each window is the next 2,000 events that exist, so a restart doesn't crawl through ids already archived. If no "Archive pass" line has appeared for several minutes, look for errors with `docker compose exec events-engine sh -c 'grep -i -E "archiv|purg" $PLAT_HOME/log/events-engine.log | tail'`. On 17 Nov 2026 a full disk stopped it, and after the restart its id-wide windows crawled for hours while 24.8 million events waited.
+
+**The repository moved to Ludocia (#1082).** It was `Darwin-River/Ex-Machinis` and is now `Ludocia/ExMachinis`. `deploy/auto-deploy.sh` moves a checkout cloned from the old address over by itself, on its next run. If you update by hand instead, run this once in `/opt/exmachinis` (`git remote -v` shows which address it uses):
+
+```sh
+git remote set-url origin https://github.com/Ludocia/ExMachinis.git
+```
 
 **Clean up old images** every few updates. Unused images take several gigabytes:
 
@@ -552,7 +558,7 @@ Use this when changing hosts or server size the long way, or recovering from a l
    sudo mkdir -p /opt/exmachinis /var/backups/exmachinis && sudo chown forge:forge /opt/exmachinis /var/backups/exmachinis
    rclone copy offsite:exmachinis/<date> /var/backups/exmachinis/<date>       # or scp it from the old server
    B=/var/backups/exmachinis/<date>
-   git clone -b main https://github.com/Darwin-River/Ex-Machinis.git /opt/exmachinis
+   git clone -b main https://github.com/Ludocia/ExMachinis.git /opt/exmachinis
    cd /opt/exmachinis && git checkout $(cat $B/commit)
    ```
 

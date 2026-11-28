@@ -95,8 +95,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('badges') }}">Badges</a>
                             <div class="dropdown-divider"></div>
                             {{-- These open GitHub: said so (#885) --}}
-                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
-                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="https://github.com/Ludocia/ExMachinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="https://github.com/Ludocia/ExMachinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
                             <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
                             <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
                             <a class="dropdown-item" href="{{ url('protocols') }}">Protocols</a>
@@ -164,8 +164,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <a class="dropdown-item" href="{{ url('manual') }}">Manual</a>
                             <a class="dropdown-item" href="{{ url('badges') }}">Badges</a>
                             {{-- These open GitHub: said so (#885) --}}
-                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
-                            <a class="dropdown-item" href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="https://github.com/Ludocia/ExMachinis/blob/main/documents/lua-functions.md" rel="noopener">Lua functions <small>(on GitHub) &#8599;</small></a>
+                            <a class="dropdown-item" href="https://github.com/Ludocia/ExMachinis/blob/main/documents/api.md" rel="noopener">API <small>(on GitHub) &#8599;</small></a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{ url('technology') }}">Tech map</a>
                             <a class="dropdown-item" href="{{ url('resources') }}">Resources</a>
@@ -234,14 +234,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <div class="col-6 col-md-3 mb-4">
                     <h2 class="footer-title">Community</h2>
                     <ul class="footer-links">
-                        <li><a href="https://github.com/Darwin-River/Ex-Machinis">Source code</a></li>
-                        <li><a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/CONTRIBUTING.md">Contribute</a></li>
-                        <li><a href="https://github.com/Darwin-River/Ex-Machinis/issues">Report a problem</a></li>
+                        <li><a href="https://github.com/Ludocia/ExMachinis">Source code</a></li>
+                        <li><a href="https://github.com/Ludocia/ExMachinis/blob/main/CONTRIBUTING.md">Contribute</a></li>
+                        <li><a href="https://github.com/Ludocia/ExMachinis/issues">Report a problem</a></li>
                         <li><a href="/blog/feed">Blog RSS feed</a></li>
                     </ul>
                 </div>
             </div>
-            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/LICENSE">MIT licence</a>. &copy; the Ex Machinis contributors.</p>
+            <p class="footer-legal">Ex Machinis is free and open source under the <a href="https://github.com/Ludocia/ExMachinis/blob/main/LICENSE">MIT licence</a>. &copy; the Ex Machinis contributors.</p>
         </div>
     </footer>
 </div>

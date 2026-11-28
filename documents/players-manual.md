@@ -398,7 +398,7 @@ Lua is case-sensitive (`Moon` is not `moon`) and doesn't care about line breaks 
 
 `launched` usually loops for ever (`while true do ... end`). When it returns, the drone says it has finished, and does nothing more.
 
-The Miner starter ([`examples/starters/miner.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/starters/miner.lua)) is written the same way, only longer: settings first, then the functions, then `launched`. Its settings are the numbers to change first:
+The Miner starter ([`examples/starters/miner.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/starters/miner.lua)) is written the same way, only longer: settings first, then the functions, then `launched`. Its settings are the numbers to change first:
 
 ```lua
 -- Settings: change these to make it your own. It matures as it is; start
@@ -1906,7 +1906,7 @@ Each is found on only a few of those bodies at a time (its homes), and it's rich
 
 The exchanges don't sell Metals (A3), the minerals that refine to them, or the goods up to systems made with them, but they buy them all (Metals (A3) at about 80 a unit, Mars paying more). So a drone that hauls them back near Earth has a market, and a maker that needs them buys them from the drones that do. `best_sites(kunspar)` finds this season's homes, nearest first.
 
-**The hauler** ([`examples/companies/hauler.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/hauler.lua), Mining Kit) picks this season's best kunspar site within reach (`best_sites`), fills its tank for the whole voyage (nobody sells fuel out there), mines and refines until it holds 25 more Metals (A3), and sells them wherever the House's bids for them pay most after the trip, at any exchange (`house_demand`).
+**The hauler** ([`examples/companies/hauler.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/companies/hauler.lua), Mining Kit) picks this season's best kunspar site within reach (`best_sites`), fills its tank for the whole voyage (nobody sells fuel out there), mines and refines until it holds 25 more Metals (A3), and sells them wherever the House's bids for them pay most after the trip, at any exchange (`house_demand`).
 
 Nobody sells fuel out there, so a voyage starts with a full tank. The hauler works out what a whole voyage burns, two trips and every mining and refining run, before it sets out:
 
@@ -1975,7 +1975,7 @@ function strip()
 end
 ```
 
-**The salvager** ([`examples/companies/salvager.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/salvager.lua), Factory Kit, matured companies only) buys a Salvager (A1) from another drone or builds one (a Welder, then the Salvager), salvages the wreck in the best condition wherever it is (`wrecks()`, `salvage`), sells the modules and Scrap (A1) at an exchange, keeping its own tools, and moves on to the place with the most wrecks among the exchanges and mining sites the game lists (`house_supply`, `best_sites`, `wrecks_at`).
+**The salvager** ([`examples/companies/salvager.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/companies/salvager.lua), Factory Kit, matured companies only) buys a Salvager (A1) from another drone or builds one (a Welder, then the Salvager), salvages the wreck in the best condition wherever it is (`wrecks()`, `salvage`), sells the modules and Scrap (A1) at an exchange, keeping its own tools, and moves on to the place with the most wrecks among the exchanges and mining sites the game lists (`house_supply`, `best_sites`, `wrecks_at`).
 
 It picks the freshest wreck with something left, since salvage gets a share equal to the wreck's condition:
 
@@ -2129,7 +2129,7 @@ _In this chapter:_ why copies that all do the same thing fail together, and how 
 
 A copy runs its parent's script, with its parent's saved globals (see [Launching new spacecraft](#launching-new-spacecraft)). So, left alone, every copy makes the same choices at the same moment: one price slump, and the whole fleet waits, or sells cheap, together. A copy can tell who it is, though: `me()` is its own drone ID, and `lineage()` gives its parent and its generation. A number worked out from them is the same every time that copy restarts, and different for every copy.
 
-**Copies that vary** ([`examples/companies/varied.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/varied.lua), Mining Kit) a miner whose three tuning numbers (`tune`: the bid it sells at, the load it hauls, when it refuels) live in one table. Each drone broadcasts its numbers and what it earns once a game day; each copy starts from the best earner's numbers and nudges each one a step or two, by its `lineage()` and drone ID, so no two copies fail at the same moment.
+**Copies that vary** ([`examples/companies/varied.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/companies/varied.lua), Mining Kit) a miner whose three tuning numbers (`tune`: the bid it sells at, the load it hauls, when it refuels) live in one table. Each drone broadcasts its numbers and what it earns once a game day; each copy starts from the best earner's numbers and nudges each one a step or two, by its `lineage()` and drone ID, so no two copies fail at the same moment.
 
 Its nudge depends only on who the drone is:
 
@@ -2417,7 +2417,7 @@ A public company has no Close button: only its own locked code can close it, so 
 
 **A company that stops selling is wound up.** A matured company whose drones sell nothing for 60 game days ends: its credits are shared out to its shareholders by the shares each holds (the bank's part goes back to the bank), a sale to the bank still waiting to be paid is paid at no more than that, and its drones leave the game with what they hold. After 30 game days without a sale its page, the stock exchange and your strip say how many game days are left; one sale starts the count again. This frees credits locked in a company whose code has stopped working, and clears its idle drones away.
 
-**A sell-out routine** ([`examples/companies/exit.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/exit.lua), Mining Kit) once matured, it watches for failure (credits falling 10 game days in a row, nothing sold for 20, or no fuel and no cash), then sells everything aboard, repays its loans (`repay`), withdraws its requests (`cancel_request`), cancels its contracts (`cancel_contract`) and calls `close_company()`, going back to repaying while that returns -24.
+**A sell-out routine** ([`examples/companies/exit.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/companies/exit.lua), Mining Kit) once matured, it watches for failure (credits falling 10 game days in a row, nothing sold for 20, or no fuel and no cash), then sells everything aboard, repays its loans (`repay`), withdraws its requests (`cancel_request`), cancels its contracts (`cancel_contract`) and calls `close_company()`, going back to repaying while that returns -24.
 
 Its exit pays or withdraws everything the company owes before it closes, since `close_company()` is refused (-24) while a loan or contract is open:
 
@@ -2547,7 +2547,7 @@ end
 
 **Before you lend, read its page.** A company's page has a **Loans** section: its open requests, and each loan with its lender, amount, rate, what is owed, the due date and whether it is repaid or defaulted. A loan backed by the company's founder or one of its 5 biggest shareholders is marked **insider**. Read its code too: when does it ask, and does it set credits aside to repay?
 
-**A borrower** ([`examples/companies/borrower.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/companies/borrower.lua), Mining Kit) a public company that asks for a loan (`request_loan`) only to fund a copy, and only when a copy would earn it back with interest within the term (from `earnings_per_day`); it asks a little dearer when nobody backs it for 3 game days (`cancel_request`, then ask again), and repays early (`repay`) once it can spare the credits. A company that isn't public gets -23 and grows from its own credits.
+**A borrower** ([`examples/companies/borrower.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/companies/borrower.lua), Mining Kit) a public company that asks for a loan (`request_loan`) only to fund a copy, and only when a copy would earn it back with interest within the term (from `earnings_per_day`); it asks a little dearer when nobody backs it for 3 game days (`cancel_request`, then ask again), and repays early (`repay`) once it can spare the credits. A company that isn't public gets -23 and grows from its own credits.
 
 It borrows only when a copy would earn the loan back, with interest, within the term:
 
@@ -2667,7 +2667,7 @@ function trade(market)
 end
 ```
 
-**The lender** ([`examples/traders/lender.lua`](https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/lender.lua)) backs loan requests (`loan_requests()`, `back_loan`) whose rate comes to at least 20% a game year, from healthy companies that have paid dividends over 30 game days and never defaulted on you, lending at most a fifth of your spare credits to any one company and keeping 2,000 back. It logs each loan it backs and each default it sees. It needs at least `market.lend_min_credits` (5,000) credits to back new loans.
+**The lender** ([`examples/traders/lender.lua`](https://github.com/Ludocia/ExMachinis/blob/main/examples/traders/lender.lua)) backs loan requests (`loan_requests()`, `back_loan`) whose rate comes to at least 20% a game year, from healthy companies that have paid dividends over 30 game days and never defaulted on you, lending at most a fifth of your spare credits to any one company and keeping 2,000 back. It logs each loan it backs and each default it sees. It needs at least `market.lend_min_credits` (5,000) credits to back new loans.
 
 It lends only to a company that is healthy and pays its shareholders:
 

@@ -147,8 +147,8 @@
                     account (<code>trade(market)</code>) and can <code>buy</code>, <code>sell</code>, post pegged orders, <code>cancel</code>,
                     and buy from or sell to the bank, under the same rules as you, at most 20 actions a run. What it keeps in
                     <code>memory</code> is there next run. Its orders show on the book as <i>(script)</i>. Start from
-                    <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/payback.lua">the payback trader</a>
-                    (buy when dividends pay a share back soon enough, sell when a company is about to end: made for classes) or <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/examples/traders/value.lua">the
+                    <a href="https://github.com/Ludocia/ExMachinis/blob/main/examples/traders/payback.lua">the payback trader</a>
+                    (buy when dividends pay a share back soon enough, sell when a company is about to end: made for classes) or <a href="https://github.com/Ludocia/ExMachinis/blob/main/examples/traders/value.lua">the
                     value trader</a>, watch it on the <a href="{{ url('market/trade') }}">Trading desk</a>, and see the <a href="{{ url('manual') }}#trading-script">manual</a>.</p>
                 <form method="POST" action="{{ url('account/trade-script') }}">
                     {{ csrf_field() }}
@@ -245,7 +245,7 @@
             </form>
 
             <h3 class="h5 mt-4">The API</h3>
-            <p>Programs act for your account through the <a href="https://github.com/Darwin-River/Ex-Machinis/blob/main/documents/api.md">API</a> with a token, sent
+            <p>Programs act for your account through the <a href="https://github.com/Ludocia/ExMachinis/blob/main/documents/api.md">API</a> with a token, sent
                 as <code>Authorization: Bearer</code> and the token. A new token replaces the old one.</p>
             @if($token = session('token'))
                 <div class="alert alert-info" style="white-space: normal">Your new token (copy it now: it won't be shown

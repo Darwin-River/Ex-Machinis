@@ -23,5 +23,5 @@ Copy everything below the line into the "Supporter update" issue and replace eac
 
 Costs ${costs}, support ${support}: {covered, thank you / {n}% covered}.
 
-Thank you for keeping Ex Machinis free for everyone who wants to learn to code. Ideas and bug reports are welcome on GitHub: https://github.com/Darwin-River/Ex-Machinis/issues
+Thank you for keeping Ex Machinis free for everyone who wants to learn to code. Ideas and bug reports are welcome on GitHub: https://github.com/Ludocia/ExMachinis/issues
 ~~~~

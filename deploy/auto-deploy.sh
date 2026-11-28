@@ -67,6 +67,18 @@ if [ "$use" -ge "${DEPLOY_CLEAN_DISK_PERCENT:-85}" ]; then
 fi
 [ "$use" -lt "${DEPLOY_MAX_DISK_PERCENT:-90}" ] || die "the disk is ${use}% full: free space before deploying (documents/hosting.md, \"If the disk fills up\"). The game's history prunes itself to forge.history_budget_percent; check that the scheduler's keeper is running"
 
+# The repository moved from Darwin-River/Ex-Machinis to Ludocia/ExMachinis
+# (#1082). GitHub redirects the old address only until someone reuses it, so
+# a checkout cloned from there is moved to the new one
+REPO_URL="https://github.com/Ludocia/ExMachinis.git"
+origin_url="$(git remote get-url origin)"
+case "$origin_url" in
+    *[Dd]arwin-[Rr]iver/[Ee]x-[Mm]achinis*)
+        say "origin was $origin_url: moving it to $REPO_URL"
+        git remote set-url origin "$REPO_URL"
+        ;;
+esac
+
 git fetch --quiet origin main
 old="$(git rev-parse HEAD)"
 new="$(git rev-parse origin/main)"

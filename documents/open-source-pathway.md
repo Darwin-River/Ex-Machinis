@@ -1,6 +1,6 @@
 # Open-source pathway
 
-How Ex Machinis became an MIT-licensed project that can be handed to new maintainers (#523). It lives at [`Darwin-River/Ex-Machinis`](https://github.com/Darwin-River/Ex-Machinis); Darwin River is now a shared GitHub organization rather than a company. The [sustainability playbook](sustainability-playbook.md) covers money, promotion and the day-to-day hand-over; this page covers the code and its home.
+How Ex Machinis became an MIT-licensed project that can be handed to new maintainers (#523). It lives at [`Ludocia/ExMachinis`](https://github.com/Ludocia/ExMachinis); Darwin River is now a shared GitHub organization rather than a company. The [sustainability playbook](sustainability-playbook.md) covers money, promotion and the day-to-day hand-over; this page covers the code and its home.
 
 ## Where things stand
 
